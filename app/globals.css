@@ -83,11 +83,11 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  --background: oklch(0.065 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: oklch(0.145 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.145 0 0);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.87 0.00 0);
   --primary-foreground: oklch(0.205 0 0);
@@ -126,4 +126,99 @@
   html {
     @apply font-sans;
   }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-1 {
+  animation: fade-in-up 0.5s ease-out both;
+}
+.stagger-2 {
+  animation: fade-in-up 0.5s ease-out 0.1s both;
+}
+.stagger-3 {
+  animation: fade-in-up 0.5s ease-out 0.2s both;
+}
+
+/* Terminal: Marquee */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Terminal: Signal Glow Pulse */
+@keyframes signal-glow {
+  0%, 100% {
+    box-shadow: inset 0 0 0 1px transparent, 0 0 0 0 transparent;
+    background-color: transparent;
+  }
+  50% {
+    box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.3), 0 0 20px rgba(34, 197, 94, 0.1);
+    background-color: rgba(34, 197, 94, 0.04);
+  }
+}
+
+.animate-signal-glow {
+  animation: signal-glow 2s ease-in-out 3;
+}
+
+/* Terminal: Panel Entry Stagger */
+@keyframes panel-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.terminal-panel-1 { animation: panel-fade-in 0.4s ease-out 0.05s both; }
+.terminal-panel-2 { animation: panel-fade-in 0.4s ease-out 0.12s both; }
+.terminal-panel-3 { animation: panel-fade-in 0.4s ease-out 0.19s both; }
+
+/* Terminal: Custom Scrollbar */
+.terminal-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.terminal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal-scroll::-webkit-scrollbar-thumb {
+  background-color: rgb(63 63 70);
+  border-radius: 2px;
+}
+
+.terminal-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(82 82 91);
+}
+
+/* Terminal: Boot screen glow */
+@keyframes terminal-boot {
+  0% { opacity: 0; filter: blur(8px); }
+  100% { opacity: 1; filter: blur(0); }
+}
+
+.animate-terminal-boot {
+  animation: terminal-boot 0.6s ease-out both;
 }
