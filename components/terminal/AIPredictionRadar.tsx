@@ -1,31 +1,55 @@
 'use client';
 
-import { MOCK_TERMINAL_DATA, SIGNAL_CONFIG } from '@/lib/constants';
-import type { StockPrediction } from '@/types/dashboard';
+import { useRouter } from 'next/navigation';
+import { ChevronRight } from 'lucide-react';
+import { SIGNAL_CONFIG } from '@/lib/constants';
+import { formatReturn, formatSentiment, formatDivergence } from '@/lib/api';
+import type { RadarStock } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 
-function ConfidenceBar({ value }: { value: number }) {
-  const color =
-    value >= 75 ? 'bg-green-500' : value >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+const DIVERGENCE_MAX = 0.5;
+
+interface AIPredictionRadarProps {
+  stocks: RadarStock[];
+  isLoading: boolean;
+  error: string | null;
+}
+
+function DivergenceGauge({ value }: { value: number }) {
+  const clamped = Math.max(-DIVERGENCE_MAX, Math.min(DIVERGENCE_MAX, value));
+  const pct = (Math.abs(clamped) / DIVERGENCE_MAX) * 50;
+  const isPositive = value >= 0;
 
   return (
     <div className="flex items-center gap-2">
-      <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${color}`}
-          style={{ width: `${value}%` }}
-        />
+      <div className="relative w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-zinc-600/50" />
+        {isPositive ? (
+          <div
+            className="absolute top-0 bottom-0 left-1/2 rounded-r-full bg-green-500"
+            style={{ width: `${pct}%` }}
+          />
+        ) : (
+          <div
+            className="absolute top-0 bottom-0 right-1/2 rounded-l-full bg-red-500"
+            style={{ width: `${pct}%` }}
+          />
+        )}
       </div>
-      <span className="font-mono text-[10px] text-zinc-400 w-10 text-right tabular-nums">
-        {value.toFixed(1)}%
+      <span
+        className={cn(
+          'font-mono text-[10px] tabular-nums w-14 text-right',
+          isPositive ? 'text-green-500' : 'text-red-500',
+        )}
+      >
+        {formatDivergence(value)}
       </span>
     </div>
   );
 }
 
-function SignalBadge({ signal }: { signal: StockPrediction['signal'] }) {
+function SignalBadge({ signal }: { signal: RadarStock['signal'] }) {
   const config = SIGNAL_CONFIG[signal];
-
   return (
     <span
       className={cn(
@@ -39,15 +63,21 @@ function SignalBadge({ signal }: { signal: StockPrediction['signal'] }) {
   );
 }
 
-function PredictionRow({ stock }: { stock: StockPrediction }) {
-  const isPositive = stock.dailyChange >= 0;
-  const isDivPositive = stock.divergenceScore >= 0;
+function PredictionRow({
+  stock,
+  onClick,
+}: {
+  stock: RadarStock;
+  onClick: () => void;
+}) {
+  const sentimentPositive = stock.sentiment >= 0;
 
   return (
     <tr
+      onClick={onClick}
       className={cn(
-        'hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50 cursor-default',
-        stock.isNew && stock.signal === 'BUY' && 'animate-signal-glow',
+        'group hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50 cursor-pointer',
+        stock.isTopPick && 'animate-signal-glow',
       )}
     >
       <td className="py-2.5 px-3">
@@ -58,61 +88,106 @@ function PredictionRow({ stock }: { stock: StockPrediction }) {
             </span>
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-semibold text-zinc-100">{stock.ticker}</div>
-            <div className="text-[10px] text-zinc-500 truncate">{stock.name}</div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-zinc-100">
+                {stock.ticker}
+              </span>
+              {stock.isTopPick && (
+                <span className="text-[8px] px-1 py-px rounded bg-yellow-500/15 text-yellow-500 font-bold">
+                  TOP
+                </span>
+              )}
+            </div>
+            <div className="text-[10px] text-zinc-500 truncate">
+              {stock.name}
+            </div>
           </div>
         </div>
-      </td>
-
-      <td className="py-2.5 px-3 text-right">
-        <div className="font-mono text-xs font-medium text-zinc-100 tabular-nums">
-          {'$'}{stock.price.toLocaleString()}
-        </div>
-        <div
-          className={`font-mono text-[10px] tabular-nums ${
-            isPositive ? 'text-green-500' : 'text-red-500'
-          }`}
-        >
-          {isPositive ? '+' : ''}
-          {stock.dailyChange.toFixed(2)}%
-        </div>
-      </td>
-
-      <td className="py-2.5 px-3 text-center">
-        <SignalBadge signal={stock.signal} />
       </td>
 
       <td className="py-2.5 px-3 text-right">
         <span
           className={cn(
             'font-mono text-xs font-medium tabular-nums',
-            isDivPositive ? 'text-green-500' : 'text-red-500',
+            stock.priceReturn >= 0 ? 'text-green-500' : 'text-red-500',
           )}
         >
-          {isDivPositive ? '+' : ''}
-          {stock.divergenceScore.toFixed(1)}%
+          {formatReturn(stock.priceReturn)}
         </span>
       </td>
 
-      <td className="py-2.5 px-3 text-right">
-        <span className="font-mono text-xs text-zinc-300 tabular-nums">
-          {stock.sentimentScore}
-        </span>
+      <td className="py-2.5 px-3 text-center">
+        <SignalBadge signal={stock.signal} />
       </td>
 
       <td className="py-2.5 px-3">
-        <ConfidenceBar value={stock.confidence} />
+        <DivergenceGauge value={stock.divergence} />
+      </td>
+
+      <td className="py-2.5 px-3 text-right">
+        <span
+          className={cn(
+            'font-mono text-xs tabular-nums',
+            sentimentPositive ? 'text-green-400' : 'text-red-400',
+          )}
+        >
+          {formatSentiment(stock.sentiment)}
+        </span>
+      </td>
+
+      <td className="py-2.5 pr-3 w-8">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+          <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+        </div>
       </td>
     </tr>
   );
 }
 
-export default function AIPredictionRadar() {
-  const { predictions } = MOCK_TERMINAL_DATA;
+function TableSkeleton() {
+  return (
+    <div className="flex-1 p-2">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 px-3 py-3 border-b border-zinc-800/30"
+        >
+          <div className="w-7 h-7 rounded bg-zinc-800 animate-pulse" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 w-16 bg-zinc-800 rounded animate-pulse" />
+            <div className="h-2 w-28 bg-zinc-800/50 rounded animate-pulse" />
+          </div>
+          <div className="h-4 w-12 bg-zinc-800 rounded animate-pulse" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  const buyCount = predictions.filter((p) => p.signal === 'BUY').length;
-  const sellCount = predictions.filter((p) => p.signal === 'SELL').length;
-  const holdCount = predictions.filter((p) => p.signal === 'HOLD').length;
+function ErrorState({ message }: { message: string }) {
+  return (
+    <div className="flex-1 flex items-center justify-center p-8">
+      <div className="text-center">
+        <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-3">
+          <span className="text-red-500 text-lg">!</span>
+        </div>
+        <p className="text-xs text-red-400 mb-1">연결 실패</p>
+        <p className="text-[10px] text-zinc-500 max-w-[200px]">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+export default function AIPredictionRadar({
+  stocks,
+  isLoading,
+  error,
+}: AIPredictionRadarProps) {
+  const router = useRouter();
+
+  const buyCount = stocks.filter((s) => s.signal === 'BUY').length;
+  const sellCount = stocks.filter((s) => s.signal === 'SELL').length;
+  const holdCount = stocks.filter((s) => s.signal === 'HOLD').length;
 
   return (
     <div className="h-full flex flex-col bg-zinc-900">
@@ -126,50 +201,66 @@ export default function AIPredictionRadar() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
             </span>
-            <span className="text-[10px] text-green-500 font-medium">LIVE</span>
+            <span className="text-[10px] text-green-500 font-medium">
+              LIVE
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-[10px] font-mono">
-          <span className="text-green-500">{buyCount} BUY</span>
-          <span className="text-yellow-500">{holdCount} HOLD</span>
-          <span className="text-red-500">{sellCount} SELL</span>
-          <span className="text-zinc-600 ml-1">
-            {predictions.length} monitored
-          </span>
-        </div>
+        {stocks.length > 0 && (
+          <div className="flex items-center gap-3 text-[10px] font-mono">
+            <span className="text-green-500">{buyCount} BUY</span>
+            <span className="text-yellow-500">{holdCount} HOLD</span>
+            <span className="text-red-500">{sellCount} SELL</span>
+            <span className="text-zinc-600 ml-1">
+              {stocks.length} monitored
+            </span>
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto terminal-scroll">
-        <table className="w-full">
-          <thead className="sticky top-0 bg-zinc-900 z-10">
-            <tr className="border-b border-zinc-800">
-              <th className="py-2 px-3 text-left text-[9px] font-medium text-zinc-600 uppercase tracking-wider w-[180px]">
-                Ticker
-              </th>
-              <th className="py-2 px-3 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
-                Price
-              </th>
-              <th className="py-2 px-3 text-center text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
-                AI Signal
-              </th>
-              <th className="py-2 px-3 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
-                Divergence
-              </th>
-              <th className="py-2 px-3 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
-                Sentiment
-              </th>
-              <th className="py-2 px-3 text-left text-[9px] font-medium text-zinc-600 uppercase tracking-wider w-[140px]">
-                Confidence
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {predictions.map((stock) => (
-              <PredictionRow key={stock.ticker} stock={stock} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {isLoading ? (
+        <TableSkeleton />
+      ) : error ? (
+        <ErrorState message={error} />
+      ) : (
+        <div className="relative flex-1 overflow-y-auto terminal-scroll">
+          <div className="absolute top-0 left-0 right-0 h-px z-20 overflow-hidden pointer-events-none">
+            <div className="animate-live-sweep absolute h-full w-[40%] bg-gradient-to-r from-transparent via-green-500/80 to-transparent" />
+          </div>
+
+          <table className="w-full">
+            <thead className="sticky top-0 bg-zinc-900 z-10">
+              <tr className="border-b border-zinc-800">
+                <th className="py-2 px-3 text-left text-[9px] font-medium text-zinc-600 uppercase tracking-wider w-[160px]">
+                  Ticker
+                </th>
+                <th className="py-2 px-3 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                  5D Return
+                </th>
+                <th className="py-2 px-3 text-center text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                  AI Signal
+                </th>
+                <th className="py-2 px-3 text-left text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                  Divergence
+                </th>
+                <th className="py-2 px-3 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                  Sentiment
+                </th>
+                <th className="w-8" />
+              </tr>
+            </thead>
+            <tbody>
+              {stocks.map((stock) => (
+                <PredictionRow
+                  key={stock.ticker}
+                  stock={stock}
+                  onClick={() => router.push(`/stock/${stock.ticker}`)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

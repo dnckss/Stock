@@ -4,6 +4,8 @@ import type {
   DashboardData,
   TimeSeriesPoint,
   TerminalData,
+  StockPrediction,
+  StockDetailData,
 } from '@/types/dashboard';
 
 export const SIGNAL_CONFIG: Record<SignalType, SignalConfig> = {
@@ -465,3 +467,186 @@ export const MOCK_TERMINAL_DATA: TerminalData = {
     },
   ],
 };
+
+function tickerHash(ticker: string): number {
+  let hash = 0;
+  for (let i = 0; i < ticker.length; i++) {
+    hash = ((hash << 5) - hash) + ticker.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function generateDetailSeries(signal: SignalType, seed: number): TimeSeriesPoint[] {
+  const data: TimeSeriesPoint[] = [];
+  const n = seed % 10;
+
+  for (let i = 0; i < 30; i++) {
+    const t = i / 29;
+    const date = new Date(2025, 0, 6 + i);
+    let price: number;
+    let sentiment: number;
+
+    if (signal === 'BUY') {
+      price = 62 - t * 24 + Math.sin(i * 0.8 + n) * 2.5 + Math.cos(i * 1.3) * 1.5;
+      const sTrend = t < 0.35 ? 58 - (t / 0.35) * 16 : 42 + ((t - 0.35) / 0.65) * 32;
+      sentiment = sTrend + Math.sin(i * 0.6 + 1) * 2 + Math.cos(i * 1.1 + 2) * 1.2;
+    } else if (signal === 'SELL') {
+      price = 38 + t * 24 + Math.sin(i * 0.7 + n) * 2.5 + Math.cos(i * 1.2) * 1.5;
+      const sTrend = t < 0.35 ? 42 + (t / 0.35) * 16 : 58 - ((t - 0.35) / 0.65) * 32;
+      sentiment = sTrend + Math.sin(i * 0.5 + 1) * 2 + Math.cos(i * 1.0 + 2) * 1.2;
+    } else {
+      price = 50 + Math.sin(i * 0.5 + n) * 5 + Math.cos(i * 0.3) * 3;
+      sentiment = 50 + Math.sin(i * 0.7 + n * 0.7) * 4 + Math.cos(i * 0.5) * 2;
+    }
+
+    data.push({
+      date: `${date.getMonth() + 1}/${date.getDate()}`,
+      price: Math.round(price * 10) / 10,
+      sentiment: Math.round(sentiment * 10) / 10,
+    });
+  }
+
+  return data;
+}
+
+const STOCK_REPORTS: Record<string, string> = {
+  NVDA: REPORT_MARKDOWN,
+  TSLA: `## 핵심 요약
+
+현재 **TSLA(테슬라)**는 최근 30일간 주가 상승세를 보이고 있으나, AI 기반 뉴스 감성 분석 지수는 **-12.4%p**의 부정적 괴리를 나타내고 있습니다. 주가가 펀더멘탈 대비 과열되었으며, **단기 조정 가능성이 높다**고 판단합니다.
+
+## 시장 가격 분석
+
+TSLA는 자율주행 FSD 기대감에 힘입어 최근 2주간 약 **15%** 상승하였으나, 밸류에이션 부담이 심화되고 있습니다.
+
+- RSI(14): **72.8** — 과매수 구간 진입
+- Forward P/E: **68.4x** — 섹터 평균(24.2x) 대비 현저히 높음
+- 공매도 비율 증가세 지속
+
+## 뉴스 감성 분석
+
+최근 7일간 뉴스 감성이 급격히 악화되고 있습니다. 부정적 뉴스 비율이 **58%**로 전주 대비 **+22%p** 상승하였습니다.
+
+- EU 자율주행 규제 강화 법안 통과
+- 중국 시장 점유율 BYD에 역전당한 것으로 확인
+- 사이버트럭 리콜 이슈 지속
+
+## 결론
+
+기술적 과매수 상태와 감성 지표의 하락 추세를 고려할 때, 현 가격 수준에서의 **신규 매수는 권장하지 않으며**, 기존 보유자의 경우 **일부 익절 전략**을 권장합니다. 손절 기준은 현재가 대비 **+5%** 상승 시 설정합니다.`,
+
+  AMD: `## 핵심 요약
+
+현재 **AMD**는 AI 반도체 경쟁 심화 우려로 주가가 조정을 받았으나, MI400 신제품 기대감과 데이터센터 수주 확대로 뉴스 감성은 **+12.4%p** 괴리를 보이며 **저평가 구간**에 진입한 것으로 판단됩니다.
+
+## 시장 가격 분석
+
+AMD는 NVIDIA 대비 상대적 밸류에이션 매력이 부각되는 구간입니다.
+
+- Forward P/E: **32.1x** — NVDA(42.3x) 대비 할인
+- 데이터센터 GPU 시장 점유율 확대 추세
+- MI300X 수요 예상 상회
+
+## 뉴스 감성 분석
+
+MI400 AI 가속기 벤치마크 유출 소식과 함께 기관 매수 리포트가 급증하고 있습니다.
+
+- Morgan Stanley 목표가 상향 ($200 → $220)
+- 클라우드 업체들의 AMD GPU 채택 비율 증가
+- AI PC 시장 진출 가속화
+
+## 결론
+
+NVIDIA 대비 밸류에이션 갭 축소와 신제품 기대감을 고려하여 **분할 매수**를 권장합니다. 목표 수익률 **+8~12%**, 손절 기준 **-4%**로 설정합니다.`,
+};
+
+function generateGenericReport(p: StockPrediction): string {
+  const divStr = `${p.divergenceScore >= 0 ? '+' : ''}${p.divergenceScore.toFixed(1)}`;
+  const chgStr = `${p.dailyChange >= 0 ? '+' : ''}${p.dailyChange.toFixed(2)}`;
+
+  if (p.signal === 'BUY') {
+    return `## 핵심 요약
+
+현재 **${p.ticker}(${p.name})**는 최근 가격 조정에도 불구하고, AI 감성 분석 지수가 **${divStr}%p**의 긍정적 괴리를 보이고 있습니다. 현재 가격이 펀더멘탈 대비 **저평가** 구간에 진입한 것으로 판단됩니다.
+
+## 괴리율 해석
+
+뉴스 감성 점수(**${p.sentimentScore}**/100)가 주가 방향성 대비 강한 괴리를 나타내고 있습니다. AI 모델 신뢰도 **${p.confidence.toFixed(1)}%** 기준, 유사 패턴의 과거 평균 반등률은 **+6.8%**입니다.
+
+- 일일 변동: ${chgStr}%
+- 괴리율: ${divStr}%p
+- AI 확신도: ${p.confidence.toFixed(1)}%
+
+## 결론
+
+AI 분석 모델은 현 시점에서의 **단계적 분할 매수 전략**을 권장합니다. 감성 지표의 선행적 상승 흐름이 주가에 반영될 시점이 임박한 것으로 보입니다.`;
+  }
+
+  if (p.signal === 'SELL') {
+    return `## 핵심 요약
+
+현재 **${p.ticker}(${p.name})**는 주가 상승세에도 불구하고, AI 감성 분석 지수가 **${divStr}%p**의 부정적 괴리를 보이고 있습니다. 시장 가격이 펀더멘탈 대비 **고평가** 상태인 것으로 판단됩니다.
+
+## 괴리율 해석
+
+뉴스 감성 점수(**${p.sentimentScore}**/100)가 주가 방향성과 반대 흐름을 나타내고 있습니다. 부정적 뉴스의 증가세가 아직 주가에 반영되지 않은 상태입니다.
+
+- 일일 변동: ${chgStr}%
+- 괴리율: ${divStr}%p
+- AI 확신도: ${p.confidence.toFixed(1)}%
+
+## 결론
+
+기술적 과열 신호와 감성 지표의 하락 추세를 고려할 때, **신규 매수를 지양**하고 기존 보유자는 **일부 포지션 축소**를 권장합니다.`;
+  }
+
+  return `## 핵심 요약
+
+현재 **${p.ticker}(${p.name})**의 주가와 뉴스 감성 사이 괴리율은 **${divStr}%p**로 유의미한 시그널 수준에 미달합니다. AI 모델은 **관망** 포지션을 권장합니다.
+
+## 괴리율 해석
+
+현재 감성 점수(**${p.sentimentScore}**/100)와 주가 방향이 큰 차이를 보이지 않아, 명확한 매수/매도 시그널이 감지되지 않았습니다.
+
+- 일일 변동: ${chgStr}%
+- 괴리율: ${divStr}%p
+- AI 확신도: ${p.confidence.toFixed(1)}%
+
+## 결론
+
+추가적인 시장 모멘텀 확인이 필요합니다. 괴리율이 **±10%p** 이상으로 확대될 때까지 **관망**하며, 포지션 진입 시점을 주시하는 것을 권장합니다.`;
+}
+
+export function getStockDetail(ticker: string): StockDetailData | null {
+  const prediction = MOCK_TERMINAL_DATA.predictions.find(
+    (p) => p.ticker === ticker.toUpperCase(),
+  );
+  if (!prediction) return null;
+
+  const timeSeries = generateDetailSeries(prediction.signal, tickerHash(ticker));
+  const reportMarkdown = STOCK_REPORTS[prediction.ticker] ?? generateGenericReport(prediction);
+  const relatedNews = MOCK_TERMINAL_DATA.newsFeed
+    .filter((n) => n.relatedTicker === prediction.ticker)
+    .map((n) => ({
+      headline: n.headline,
+      source: n.source,
+      url: '#',
+      timestamp: n.timestamp,
+      sentiment: n.sentiment,
+    }));
+
+  return {
+    ticker: prediction.ticker,
+    name: prediction.name,
+    price: prediction.price,
+    dailyChange: prediction.dailyChange,
+    signal: prediction.signal,
+    confidence: prediction.confidence,
+    divergenceScore: prediction.divergenceScore,
+    sentimentScore: prediction.sentimentScore,
+    timeSeries,
+    reportMarkdown,
+    relatedNews,
+  };
+}

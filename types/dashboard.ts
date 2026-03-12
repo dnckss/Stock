@@ -82,3 +82,116 @@ export interface TerminalData {
   predictions: StockPrediction[];
   newsFeed: NewsSentimentItem[];
 }
+
+export interface RelatedNewsItem {
+  headline: string;
+  source: string;
+  url: string;
+  timestamp: string;
+  sentiment: SentimentType;
+}
+
+export interface StockDetailData {
+  ticker: string;
+  name: string;
+  price: number;
+  dailyChange: number;
+  signal: SignalType;
+  confidence: number;
+  divergenceScore: number;
+  sentimentScore: number;
+  timeSeries: TimeSeriesPoint[];
+  reportMarkdown: string;
+  relatedNews: RelatedNewsItem[];
+}
+
+// ── API Response Types (match backend exactly) ──
+
+export interface ApiStockItem {
+  ticker: string;
+  return: number;
+  sentiment: number;
+  divergence: number;
+  signal: SignalType;
+}
+
+export interface ApiLatestResponse {
+  top_picks: ApiStockItem[];
+  radar: ApiStockItem[];
+  macro?: ApiMacroData;
+  updated_at: string | null;
+}
+
+export interface ApiHistoryItem {
+  price_return: number;
+  sentiment: number;
+  divergence: number;
+  signal: SignalType;
+  created_at: string;
+}
+
+export interface ApiReportRecord {
+  id: number;
+  ticker: string;
+  price_return: number;
+  sentiment: number;
+  divergence: number;
+  signal: SignalType;
+  report: string;
+  created_at: string;
+}
+
+export interface ApiStockDetailResponse {
+  ticker: string;
+  latest_report: ApiReportRecord | null;
+  history: ApiHistoryItem[];
+}
+
+export interface ApiReportGenerateResponse {
+  ticker: string;
+  report: string;
+  cached: boolean;
+}
+
+// ── UI Display Types (transformed from API) ──
+
+export interface RadarStock {
+  ticker: string;
+  name: string;
+  priceReturn: number;
+  sentiment: number;
+  divergence: number;
+  signal: SignalType;
+  isTopPick: boolean;
+}
+
+export interface ChartDataPoint {
+  date: string;
+  priceReturn: number;
+  sentiment: number;
+}
+
+// ── API Macro Types ──
+
+export interface ApiMacroItem {
+  name: string;
+  value: number;
+  change: number;
+  pct: number;
+}
+
+export interface ApiMacroData {
+  marquee: ApiMacroItem[];
+  sidebar: ApiMacroItem[];
+  /** 3대지수 (S&P 500, NASDAQ, Dow 등) — 있으면 사이드바 상단에 표시 */
+  indices?: ApiMacroItem[];
+}
+
+export interface MacroDisplayData {
+  marquee: MarketTickerItem[];
+  fearGreed: FearGreedData | null;
+  /** 3대지수 */
+  indices: MacroIndicator[];
+  /** 기타 매크로 지표 */
+  indicators: MacroIndicator[];
+}

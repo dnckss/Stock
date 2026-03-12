@@ -222,3 +222,21 @@
 .animate-terminal-boot {
   animation: terminal-boot 0.6s ease-out both;
 }
+
+/* Live data sweep line */
+@keyframes live-sweep {
+  0% { transform: translateX(-100%); opacity: 0; }
+  5% { opacity: 0.9; }
+  35% { opacity: 0.9; }
+  40% { transform: translateX(350%); opacity: 0; }
+  100% { transform: translateX(350%); opacity: 0; }
+}
+
+.animate-live-sweep {
+  animation: live-sweep 6s ease-in-out infinite;
+}
+
+/* Detail page stagger */
+.stagger-4 {
+  animation: fade-in-up 0.5s ease-out 0.3s both;
+}

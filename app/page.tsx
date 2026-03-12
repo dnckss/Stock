@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useMarketData } from '@/hooks/useMarketData';
+import { formatTimestamp } from '@/lib/api';
 import GlobalMarketTicker from '@/components/terminal/GlobalMarketTicker';
 import MacroIndicators from '@/components/terminal/MacroIndicators';
 import AIPredictionRadar from '@/components/terminal/AIPredictionRadar';
 import LiveSentimentFeed from '@/components/terminal/LiveSentimentFeed';
+import type { MarketTickerItem, MacroIndicator } from '@/types/dashboard';
 
 function useCurrentTime() {
   const [time, setTime] = useState('');
@@ -47,20 +50,45 @@ function TerminalBoot() {
 }
 
 export default function TerminalPage() {
-  const [isReady, setIsReady] = useState(false);
+  const [isBooted, setIsBooted] = useState(false);
   const currentTime = useCurrentTime();
+  const { stocks, macro, updatedAt, isLoading, error, wsConnected } =
+    useMarketData();
+
+  const toTickerItems = (items: MacroIndicator[] | null | undefined) => {
+    if (!items) return [];
+    return items.map(
+      (m): MarketTickerItem => ({
+        symbol: m.label,
+        name: m.label,
+        price: m.value,
+        change: m.change,
+        changePercent: m.change,
+      }),
+    );
+  };
+
+  const headerTickerItems: MarketTickerItem[] = macro
+    ? [
+        ...(macro.marquee ?? []),
+        ...toTickerItems(macro.indices),
+        ...toTickerItems(macro.indicators),
+      ]
+    : [];
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsReady(true), 800);
+    const timer = setTimeout(() => setIsBooted(true), 800);
     return () => clearTimeout(timer);
   }, []);
 
-  if (!isReady) return <TerminalBoot />;
+  if (!isBooted) return <TerminalBoot />;
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
-      {/* Section 1: Global Market Ticker */}
-      <GlobalMarketTicker />
+      <GlobalMarketTicker
+        items={headerTickerItems}
+        isLoading={isLoading}
+      />
 
       {/* Terminal Header Bar */}
       <div className="flex items-center justify-between px-4 py-1.5 bg-zinc-900/50 border-b border-zinc-800 shrink-0">
@@ -75,13 +103,26 @@ export default function TerminalPage() {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
-            </span>
-            <span className="text-[10px] text-green-500 font-mono font-medium">
-              CONNECTED
-            </span>
+            {wsConnected ? (
+              <>
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+                </span>
+                <span className="text-[10px] text-green-500 font-mono font-medium">
+                  CONNECTED
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-yellow-500" />
+                </span>
+                <span className="text-[10px] text-yellow-500 font-mono font-medium">
+                  RECONNECTING
+                </span>
+              </>
+            )}
           </div>
           <span className="text-zinc-700">|</span>
           <div className="flex items-center gap-1.5">
@@ -96,10 +137,19 @@ export default function TerminalPage() {
       {/* Main 3-Column Layout */}
       <div className="flex-1 flex overflow-hidden min-h-0">
         <div className="w-[280px] shrink-0 terminal-panel-1">
-          <MacroIndicators />
+          <MacroIndicators
+            indices={macro?.indices ?? null}
+            indicators={macro?.indicators ?? null}
+            fearGreed={macro?.fearGreed ?? null}
+            isLoading={isLoading}
+          />
         </div>
         <div className="flex-1 min-w-0 terminal-panel-2">
-          <AIPredictionRadar />
+          <AIPredictionRadar
+            stocks={stocks}
+            isLoading={isLoading}
+            error={error}
+          />
         </div>
         <div className="w-[320px] shrink-0 terminal-panel-3">
           <LiveSentimentFeed />
@@ -111,13 +161,19 @@ export default function TerminalPage() {
         <div className="flex items-center gap-3 text-[9px] font-mono">
           <span className="text-zinc-600">AI MODEL v3.7.2</span>
           <span className="text-zinc-800">|</span>
-          <span className="text-zinc-600">LATENCY: 12ms</span>
+          {wsConnected ? (
+            <span className="text-green-600">● WS CONNECTED</span>
+          ) : (
+            <span className="text-yellow-600">○ RECONNECTING</span>
+          )}
           <span className="text-zinc-800">|</span>
-          <span className="text-zinc-600">FEED: REAL-TIME</span>
+          <span className="text-zinc-600">
+            {updatedAt
+              ? `UPDATED: ${formatTimestamp(updatedAt)}`
+              : 'AWAITING DATA...'}
+          </span>
         </div>
         <div className="flex items-center gap-3 text-[9px] font-mono">
-          <span className="text-green-600">● MARKET OPEN</span>
-          <span className="text-zinc-800">|</span>
           <span className="text-zinc-500">© 2025 QuantAI Terminal</span>
         </div>
       </div>
