@@ -1,21 +1,34 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
+import { ExternalLink } from 'lucide-react';
 import { NEWS_SENTIMENT_SCORE_THRESHOLD } from '@/lib/constants';
-import type { NewsFeedItem } from '@/types/dashboard';
+import type { NewsFeedItem, SentimentLabel } from '@/types/dashboard';
+import { cn } from '@/lib/utils';
 
-function scoreStyle(score: number): { dot: string; text: string; showPlus: boolean } {
-  if (score >= NEWS_SENTIMENT_SCORE_THRESHOLD) {
-    return { dot: 'bg-green-500', text: 'text-green-500', showPlus: true };
-  }
-  if (score <= -NEWS_SENTIMENT_SCORE_THRESHOLD) {
-    return { dot: 'bg-red-500', text: 'text-red-500', showPlus: false };
-  }
-  return { dot: 'bg-yellow-500', text: 'text-yellow-500', showPlus: true };
-}
+const LABEL_STYLE: Record<SentimentLabel, { dot: string; text: string; badge: string; label: string }> = {
+  positive: {
+    dot: 'bg-green-500',
+    text: 'text-green-500',
+    badge: 'bg-green-500/10 text-green-400 ring-green-500/20',
+    label: '호재',
+  },
+  negative: {
+    dot: 'bg-red-500',
+    text: 'text-red-500',
+    badge: 'bg-red-500/10 text-red-400 ring-red-500/20',
+    label: '악재',
+  },
+  neutral: {
+    dot: 'bg-yellow-500',
+    text: 'text-yellow-500',
+    badge: 'bg-yellow-500/10 text-yellow-400 ring-yellow-500/20',
+    label: '중립',
+  },
+};
 
 function toRelativeTime(input: number): string {
-  const ts = input > 1_000_000_000_000 ? input : input * 1000; // ms vs sec
+  const ts = input > 1_000_000_000_000 ? input : input * 1000;
   const diffMs = Date.now() - ts;
   if (!Number.isFinite(diffMs)) return '';
   if (diffMs < 60_000) return '방금 전';
@@ -27,51 +40,108 @@ function toRelativeTime(input: number): string {
   return `${days}일 전`;
 }
 
+function hasValidUrl(url: string | undefined | null): url is string {
+  return typeof url === 'string' && url.length > 0;
+}
+
 function NewsItem({ item }: { item: NewsFeedItem }) {
-  const style = scoreStyle(item.score);
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 8 }}
-      transition={{ duration: 0.22, ease: 'easeOut' }}
-      className="px-3 py-2.5 hover:bg-zinc-800/30 transition-colors border-b border-zinc-800/50 cursor-default"
-    >
-      <div className="flex items-start gap-2.5">
-        <div
-          className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${style.dot}`}
-        />
-        <div className="flex-1 min-w-0">
-          <p className="text-[11px] text-zinc-200 leading-relaxed line-clamp-2">
+  const style = LABEL_STYLE[item.sentimentLabel] ?? LABEL_STYLE.neutral;
+  const linkable = hasValidUrl(item.url);
+  const scorePositive = item.score >= 0;
+
+  const content = (
+    <div className="flex items-start gap-2.5">
+      <div className={cn('mt-1.5 w-2 h-2 rounded-full shrink-0', style.dot)} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start gap-1.5">
+          <p className="text-[11px] text-zinc-200 leading-relaxed line-clamp-2 flex-1">
             {item.title}
           </p>
-          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-            <span className="text-[9px] text-zinc-500 font-medium">
-              {item.publisher}
-            </span>
-            <span className="text-zinc-700 text-[9px]">·</span>
-            <span className="text-[9px] text-zinc-600">
-              {toRelativeTime(item.timestamp)}
-            </span>
-            {item.ticker && (
-              <>
-                <span className="text-zinc-700 text-[9px]">·</span>
-                <span className="text-[9px] font-mono font-semibold text-zinc-400">
-                  {'$'}{item.ticker}
-                </span>
-              </>
+          {linkable && (
+            <ExternalLink className="w-3 h-3 text-zinc-600 shrink-0 mt-0.5 opacity-0 group-hover/news:opacity-100 transition-opacity" />
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+          <span className="text-[9px] text-zinc-500 font-medium">
+            {item.publisher}
+          </span>
+          <span className="text-zinc-700 text-[9px]">·</span>
+          <span className="text-[9px] text-zinc-600">
+            {toRelativeTime(item.timestamp)}
+          </span>
+
+          {item.ticker && (
+            <>
+              <span className="text-zinc-700 text-[9px]">·</span>
+              <span className="text-[9px] font-mono font-semibold text-zinc-400">
+                ${item.ticker}
+              </span>
+            </>
+          )}
+
+          <span className="text-zinc-700 text-[9px]">·</span>
+          <span
+            className={cn(
+              'inline-flex items-center gap-0.5 text-[8px] font-medium px-1 py-px rounded ring-1',
+              style.badge,
             )}
-            <span className="text-zinc-700 text-[9px]">·</span>
-            <span
-              className={`text-[9px] font-mono font-medium ${style.text}`}
-            >
-              {style.showPlus ? '+' : ''}
-              {item.score.toFixed(2)}
-            </span>
-          </div>
+          >
+            {style.label}
+          </span>
+
+          <span
+            className={cn(
+              'text-[9px] font-mono font-medium',
+              style.text,
+            )}
+          >
+            {scorePositive ? '+' : ''}
+            {item.score.toFixed(2)}
+          </span>
+
+          {item.confidence > 0 && (
+            <>
+              <span className="text-zinc-700 text-[9px]">·</span>
+              <span className="text-[9px] font-mono text-zinc-600">
+                {(item.confidence * 100).toFixed(0)}%
+              </span>
+            </>
+          )}
         </div>
       </div>
+    </div>
+  );
+
+  const motionProps = {
+    layout: true as const,
+    initial: { opacity: 0, y: -8 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: 8 },
+    transition: { duration: 0.22, ease: 'easeOut' as const },
+  };
+
+  if (linkable) {
+    return (
+      <motion.a
+        {...motionProps}
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`기사 보기: ${item.title}`}
+        className="group/news block px-3 py-2.5 hover:bg-zinc-800/40 transition-colors border-b border-zinc-800/50 cursor-pointer"
+      >
+        {content}
+      </motion.a>
+    );
+  }
+
+  return (
+    <motion.div
+      {...motionProps}
+      className="group/news px-3 py-2.5 border-b border-zinc-800/50 cursor-default"
+    >
+      {content}
     </motion.div>
   );
 }
@@ -85,10 +155,7 @@ function FeedSkeleton() {
   return (
     <div className="flex-1 overflow-y-auto terminal-scroll">
       {Array.from({ length: 10 }).map((_, i) => (
-        <div
-          key={i}
-          className="px-3 py-2.5 border-b border-zinc-800/50"
-        >
+        <div key={i} className="px-3 py-2.5 border-b border-zinc-800/50">
           <div className="flex items-start gap-2.5">
             <div className="mt-1.5 w-2 h-2 rounded-full bg-zinc-800 animate-pulse" />
             <div className="flex-1 min-w-0">
@@ -103,9 +170,9 @@ function FeedSkeleton() {
 }
 
 export default function LiveSentimentFeed({ items, isLoading }: LiveSentimentFeedProps) {
-  const strongPos = items.filter((n) => n.score >= NEWS_SENTIMENT_SCORE_THRESHOLD).length;
-  const strongNeg = items.filter((n) => n.score <= -NEWS_SENTIMENT_SCORE_THRESHOLD).length;
-  const neutralish = items.length - strongPos - strongNeg;
+  const posCount = items.filter((n) => n.sentimentLabel === 'positive').length;
+  const negCount = items.filter((n) => n.sentimentLabel === 'negative').length;
+  const neutralCount = items.length - posCount - negCount;
 
   return (
     <div className="h-full flex flex-col bg-zinc-900 border-l border-zinc-800">
@@ -138,15 +205,15 @@ export default function LiveSentimentFeed({ items, isLoading }: LiveSentimentFee
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            <span className="text-[9px] text-zinc-500 font-mono">{strongPos}</span>
+            <span className="text-[9px] text-zinc-500 font-mono">{posCount}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-            <span className="text-[9px] text-zinc-500 font-mono">{strongNeg}</span>
+            <span className="text-[9px] text-zinc-500 font-mono">{negCount}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-            <span className="text-[9px] text-zinc-500 font-mono">{neutralish}</span>
+            <span className="text-[9px] text-zinc-500 font-mono">{neutralCount}</span>
           </div>
         </div>
         <span className="text-[9px] text-zinc-600 font-mono">

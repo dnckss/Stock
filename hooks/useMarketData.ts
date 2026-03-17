@@ -35,6 +35,9 @@ export function useMarketData(): MarketDataState {
       publisher: n.publisher,
       ticker: n.ticker,
       score: n.score,
+      sentimentLabel: n.sentiment_label ?? 'neutral',
+      confidence: n.confidence ?? 0,
+      url: n.url ?? '',
       timestamp: n.timestamp,
     }));
   }, []);

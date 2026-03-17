@@ -203,12 +203,17 @@ export interface MacroDisplayData {
 
 // ── API News Feed Types (WebSocket) ──
 
+export type SentimentLabel = 'positive' | 'negative' | 'neutral';
+
 export interface ApiNewsFeedItem {
   title: string;
   publisher: string;
   ticker: string;
   score: number;
-  /** Unix timestamp (seconds or milliseconds) */
+  sentiment_label: SentimentLabel;
+  confidence: number;
+  url: string;
+  /** Unix timestamp (seconds) */
   timestamp: number;
 }
 
@@ -218,5 +223,8 @@ export interface NewsFeedItem {
   publisher: string;
   ticker: string;
   score: number;
+  sentimentLabel: SentimentLabel;
+  confidence: number;
+  url: string;
   timestamp: number;
 }
