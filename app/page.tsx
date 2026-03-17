@@ -52,7 +52,7 @@ function TerminalBoot() {
 export default function TerminalPage() {
   const [isBooted, setIsBooted] = useState(false);
   const currentTime = useCurrentTime();
-  const { stocks, macro, updatedAt, isLoading, error, wsConnected } =
+  const { stocks, macro, newsFeed, updatedAt, isLoading, error, wsConnected } =
     useMarketData();
 
   const toTickerItems = (items: MacroIndicator[] | null | undefined) => {
@@ -152,7 +152,7 @@ export default function TerminalPage() {
           />
         </div>
         <div className="w-[320px] shrink-0 terminal-panel-3">
-          <LiveSentimentFeed />
+          <LiveSentimentFeed items={newsFeed} isLoading={isLoading} />
         </div>
       </div>
 

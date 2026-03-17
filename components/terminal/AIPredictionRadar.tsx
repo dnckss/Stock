@@ -1,9 +1,16 @@
 'use client';
 
+import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
-import { SIGNAL_CONFIG } from '@/lib/constants';
-import { formatReturn, formatSentiment, formatDivergence } from '@/lib/api';
+import { SIGNAL_CONFIG, RADAR_TABS, type RadarSortKey } from '@/lib/constants';
+import {
+  formatReturn,
+  formatSentiment,
+  formatDivergence,
+  formatPrice,
+  formatVolume,
+} from '@/lib/api';
 import type { RadarStock } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +20,40 @@ interface AIPredictionRadarProps {
   stocks: RadarStock[];
   isLoading: boolean;
   error: string | null;
+}
+
+function sortAndFilter(
+  stocks: RadarStock[],
+  key: RadarSortKey,
+): RadarStock[] {
+  const list = [...stocks];
+
+  switch (key) {
+    case 'volatility':
+      return list.sort(
+        (a, b) => Math.abs(b.priceReturn) - Math.abs(a.priceReturn),
+      );
+    case 'gainers':
+      return list.sort((a, b) => b.priceReturn - a.priceReturn);
+    case 'losers':
+      return list.sort((a, b) => a.priceReturn - b.priceReturn);
+    case 'volume':
+      return list.sort((a, b) => b.volume - a.volume);
+    case 'divergence':
+      return list.sort(
+        (a, b) => Math.abs(b.divergence) - Math.abs(a.divergence),
+      );
+    case 'buy':
+      return list
+        .filter((s) => s.signal === 'BUY')
+        .sort((a, b) => Math.abs(b.divergence) - Math.abs(a.divergence));
+    case 'sell':
+      return list
+        .filter((s) => s.signal === 'SELL')
+        .sort((a, b) => Math.abs(b.divergence) - Math.abs(a.divergence));
+    default:
+      return list;
+  }
 }
 
 function DivergenceGauge({ value }: { value: number }) {
@@ -105,7 +146,13 @@ function PredictionRow({
         </div>
       </td>
 
-      <td className="py-2.5 px-3 text-right">
+      <td className="py-2.5 px-2 text-right">
+        <span className="font-mono text-[11px] text-zinc-300 tabular-nums">
+          ${formatPrice(stock.price)}
+        </span>
+      </td>
+
+      <td className="py-2.5 px-2 text-right">
         <span
           className={cn(
             'font-mono text-xs font-medium tabular-nums',
@@ -116,15 +163,21 @@ function PredictionRow({
         </span>
       </td>
 
-      <td className="py-2.5 px-3 text-center">
+      <td className="py-2.5 px-2 text-right">
+        <span className="font-mono text-[10px] text-zinc-400 tabular-nums">
+          {formatVolume(stock.volume)}
+        </span>
+      </td>
+
+      <td className="py-2.5 px-2 text-center">
         <SignalBadge signal={stock.signal} />
       </td>
 
-      <td className="py-2.5 px-3">
+      <td className="py-2.5 px-2">
         <DivergenceGauge value={stock.divergence} />
       </td>
 
-      <td className="py-2.5 px-3 text-right">
+      <td className="py-2.5 px-2 text-right">
         <span
           className={cn(
             'font-mono text-xs tabular-nums',
@@ -178,20 +231,45 @@ function ErrorState({ message }: { message: string }) {
   );
 }
 
+function EmptyState({ label }: { label: string }) {
+  return (
+    <div className="flex-1 flex items-center justify-center p-8">
+      <div className="text-center">
+        <p className="text-[11px] text-zinc-500">
+          &apos;{label}&apos; 조건에 해당하는 종목이 없습니다
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function AIPredictionRadar({
   stocks,
   isLoading,
   error,
 }: AIPredictionRadarProps) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<RadarSortKey>('divergence');
+
+  const sorted = useMemo(
+    () => sortAndFilter(stocks, activeTab),
+    [stocks, activeTab],
+  );
+
+  const handleTabChange = useCallback((key: RadarSortKey) => {
+    setActiveTab(key);
+  }, []);
 
   const buyCount = stocks.filter((s) => s.signal === 'BUY').length;
   const sellCount = stocks.filter((s) => s.signal === 'SELL').length;
   const holdCount = stocks.filter((s) => s.signal === 'HOLD').length;
 
+  const activeTabConfig = RADAR_TABS.find((t) => t.key === activeTab);
+
   return (
     <div className="h-full flex flex-col bg-zinc-900">
-      <div className="px-4 py-2 border-b border-zinc-800 flex items-center justify-between">
+      {/* Header */}
+      <div className="px-4 py-2 border-b border-zinc-800 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <h2 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
             AI Prediction Radar
@@ -212,16 +290,41 @@ export default function AIPredictionRadar({
             <span className="text-yellow-500">{holdCount} HOLD</span>
             <span className="text-red-500">{sellCount} SELL</span>
             <span className="text-zinc-600 ml-1">
-              {stocks.length} monitored
+              {sorted.length}/{stocks.length}
             </span>
           </div>
         )}
       </div>
 
+      {/* Sort/Filter Tabs */}
+      <div className="px-3 py-1.5 border-b border-zinc-800/60 flex items-center gap-1 overflow-x-auto shrink-0 scrollbar-none">
+        {RADAR_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => handleTabChange(tab.key)}
+            className={cn(
+              'px-2.5 py-1 rounded text-[10px] font-medium whitespace-nowrap transition-all duration-150',
+              activeTab === tab.key
+                ? tab.key === 'buy'
+                  ? 'bg-green-500/15 text-green-400 ring-1 ring-green-500/30'
+                  : tab.key === 'sell'
+                    ? 'bg-red-500/15 text-red-400 ring-1 ring-red-500/30'
+                    : 'bg-zinc-700/50 text-zinc-200 ring-1 ring-zinc-600/50'
+                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50',
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
       {isLoading ? (
         <TableSkeleton />
       ) : error ? (
         <ErrorState message={error} />
+      ) : sorted.length === 0 ? (
+        <EmptyState label={activeTabConfig?.label ?? activeTab} />
       ) : (
         <div className="relative flex-1 overflow-y-auto terminal-scroll">
           <div className="absolute top-0 left-0 right-0 h-px z-20 overflow-hidden pointer-events-none">
@@ -231,26 +334,32 @@ export default function AIPredictionRadar({
           <table className="w-full">
             <thead className="sticky top-0 bg-zinc-900 z-10">
               <tr className="border-b border-zinc-800">
-                <th className="py-2 px-3 text-left text-[9px] font-medium text-zinc-600 uppercase tracking-wider w-[160px]">
+                <th className="py-2 px-3 text-left text-[9px] font-medium text-zinc-600 uppercase tracking-wider w-[150px]">
                   Ticker
                 </th>
-                <th className="py-2 px-3 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                <th className="py-2 px-2 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                  Price
+                </th>
+                <th className="py-2 px-2 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
                   5D Return
                 </th>
-                <th className="py-2 px-3 text-center text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
-                  AI Signal
+                <th className="py-2 px-2 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                  Vol
                 </th>
-                <th className="py-2 px-3 text-left text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                <th className="py-2 px-2 text-center text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                  Signal
+                </th>
+                <th className="py-2 px-2 text-left text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
                   Divergence
                 </th>
-                <th className="py-2 px-3 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
-                  Sentiment
+                <th className="py-2 px-2 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                  Sent.
                 </th>
                 <th className="w-8" />
               </tr>
             </thead>
             <tbody>
-              {stocks.map((stock) => (
+              {sorted.map((stock) => (
                 <PredictionRow
                   key={stock.ticker}
                   stock={stock}

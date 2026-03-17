@@ -96,12 +96,29 @@ export function apiStockToRadar(
   return {
     ticker: item.ticker,
     name: getTickerName(item.ticker),
+    price: item.price ?? 0,
+    volume: item.volume ?? 0,
     priceReturn: item['return'],
     sentiment: item.sentiment,
     divergence: item.divergence,
     signal: item.signal as SignalType,
     isTopPick,
   };
+}
+
+export function formatPrice(value: number): string {
+  if (value === 0) return '—';
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function formatVolume(value: number): string {
+  if (value === 0) return '—';
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
+  return value.toLocaleString('en-US');
 }
 
 export function deriveConfidence(divergence: number): number {

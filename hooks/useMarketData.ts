@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchLatest, apiStockToRadar, apiMacroToDisplay, WS_URL } from '@/lib/api';
-import type { RadarStock, ApiStockItem, ApiMacroData, MacroDisplayData } from '@/types/dashboard';
+import type { RadarStock, ApiStockItem, ApiMacroData, MacroDisplayData, ApiNewsFeedItem, NewsFeedItem } from '@/types/dashboard';
 
 const WS_RECONNECT_DELAY = 3000;
+const MAX_NEWS_ITEMS = 30;
 
 export interface MarketDataState {
   stocks: RadarStock[];
   macro: MacroDisplayData | null;
+  newsFeed: NewsFeedItem[];
   updatedAt: string | null;
   isLoading: boolean;
   error: string | null;
@@ -18,11 +20,24 @@ export interface MarketDataState {
 export function useMarketData(): MarketDataState {
   const [stocks, setStocks] = useState<RadarStock[]>([]);
   const [macro, setMacro] = useState<MacroDisplayData | null>(null);
+  const [newsFeed, setNewsFeed] = useState<NewsFeedItem[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
   const mountedRef = useRef(true);
+
+  const normalizeNews = useCallback((items: ApiNewsFeedItem[] | undefined): NewsFeedItem[] => {
+    if (!items || !Array.isArray(items)) return [];
+    return items.map((n) => ({
+      id: `${n.ticker}-${n.timestamp}-${n.title}`.toLowerCase(),
+      title: n.title,
+      publisher: n.publisher,
+      ticker: n.ticker,
+      score: n.score,
+      timestamp: n.timestamp,
+    }));
+  }, []);
 
   const handleUpdate = useCallback(
     (
@@ -30,6 +45,7 @@ export function useMarketData(): MarketDataState {
       radar: ApiStockItem[],
       timestamp: string | null,
       macroPayload?: ApiMacroData,
+      newsFeedPayload?: ApiNewsFeedItem[],
     ) => {
       const merged = [
         ...topPicks.map((s) => apiStockToRadar(s, true)),
@@ -43,8 +59,22 @@ export function useMarketData(): MarketDataState {
         const next = apiMacroToDisplay(macroPayload);
         if (next !== null) setMacro(next);
       }
+
+      if (newsFeedPayload) {
+        const normalized = normalizeNews(newsFeedPayload);
+        setNewsFeed((prev) => {
+          const seen = new Set<string>();
+          const mergedNews = [...normalized, ...prev].filter((x) => {
+            if (seen.has(x.id)) return false;
+            seen.add(x.id);
+            return true;
+          });
+          mergedNews.sort((a, b) => b.timestamp - a.timestamp);
+          return mergedNews.slice(0, MAX_NEWS_ITEMS);
+        });
+      }
     },
-    [],
+    [normalizeNews],
   );
 
   useEffect(() => {
@@ -53,7 +83,13 @@ export function useMarketData(): MarketDataState {
     fetchLatest()
       .then((data) => {
         if (!cancelled) {
-          handleUpdate(data.top_picks, data.radar, data.updated_at, data.macro);
+          handleUpdate(
+            data.top_picks,
+            data.radar,
+            data.updated_at,
+            data.macro,
+            data.news_feed,
+          );
         }
       })
       .catch((err: unknown) => {
@@ -98,7 +134,13 @@ export function useMarketData(): MarketDataState {
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === 'MARKET_UPDATE') {
-            handleUpdate(msg.top_picks, msg.radar, msg.updated_at, msg.macro);
+            handleUpdate(
+              msg.top_picks,
+              msg.radar,
+              msg.updated_at,
+              msg.macro,
+              msg.news_feed,
+            );
             setIsLoading(false);
           }
         } catch {
@@ -126,5 +168,5 @@ export function useMarketData(): MarketDataState {
     };
   }, [handleUpdate]);
 
-  return { stocks, macro, updatedAt, isLoading, error, wsConnected };
+  return { stocks, macro, newsFeed, updatedAt, isLoading, error, wsConnected };
 }

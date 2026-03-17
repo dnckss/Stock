@@ -110,6 +110,8 @@ export interface StockDetailData {
 export interface ApiStockItem {
   ticker: string;
   return: number;
+  price?: number;
+  volume?: number;
   sentiment: number;
   divergence: number;
   signal: SignalType;
@@ -119,6 +121,7 @@ export interface ApiLatestResponse {
   top_picks: ApiStockItem[];
   radar: ApiStockItem[];
   macro?: ApiMacroData;
+  news_feed?: ApiNewsFeedItem[];
   updated_at: string | null;
 }
 
@@ -158,6 +161,8 @@ export interface ApiReportGenerateResponse {
 export interface RadarStock {
   ticker: string;
   name: string;
+  price: number;
+  volume: number;
   priceReturn: number;
   sentiment: number;
   divergence: number;
@@ -194,4 +199,24 @@ export interface MacroDisplayData {
   indices: MacroIndicator[];
   /** 기타 매크로 지표 */
   indicators: MacroIndicator[];
+}
+
+// ── API News Feed Types (WebSocket) ──
+
+export interface ApiNewsFeedItem {
+  title: string;
+  publisher: string;
+  ticker: string;
+  score: number;
+  /** Unix timestamp (seconds or milliseconds) */
+  timestamp: number;
+}
+
+export interface NewsFeedItem {
+  id: string;
+  title: string;
+  publisher: string;
+  ticker: string;
+  score: number;
+  timestamp: number;
 }

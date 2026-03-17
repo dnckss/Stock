@@ -29,6 +29,33 @@ export const SIGNAL_CONFIG: Record<SignalType, SignalConfig> = {
   },
 };
 
+export const NEWS_SENTIMENT_SCORE_THRESHOLD = 0.3;
+
+export type RadarSortKey =
+  | 'volatility'
+  | 'gainers'
+  | 'losers'
+  | 'volume'
+  | 'divergence'
+  | 'buy'
+  | 'sell';
+
+export interface RadarTab {
+  key: RadarSortKey;
+  label: string;
+  shortLabel: string;
+}
+
+export const RADAR_TABS: RadarTab[] = [
+  { key: 'divergence', label: 'AI 괴리율', shortLabel: '괴리율' },
+  { key: 'buy', label: 'AI BUY', shortLabel: 'BUY' },
+  { key: 'sell', label: 'AI SELL', shortLabel: 'SELL' },
+  { key: 'volatility', label: '변동 상위', shortLabel: '변동' },
+  { key: 'gainers', label: '상승 상위', shortLabel: '상승' },
+  { key: 'losers', label: '하락 상위', shortLabel: '하락' },
+  { key: 'volume', label: '거래량', shortLabel: '거래량' },
+];
+
 function generateTimeSeries(): TimeSeriesPoint[] {
   const data: TimeSeriesPoint[] = [];
 
