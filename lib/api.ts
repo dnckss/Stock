@@ -10,6 +10,7 @@ import type {
   RadarStock,
   ChartDataPoint,
   MacroDisplayData,
+  ApiStrategyResponse,
 } from '@/types/dashboard';
 
 export const API_BASE =
@@ -265,6 +266,14 @@ export async function requestReport(
   }
   if (!res.ok) {
     throw new ApiError(res.status, '리포트를 생성할 수 없습니다');
+  }
+  return res.json();
+}
+
+export async function fetchStrategy(): Promise<ApiStrategyResponse> {
+  const res = await fetch(`${API_BASE}/api/strategy`);
+  if (!res.ok) {
+    throw new ApiError(res.status, '전략 데이터를 불러올 수 없습니다');
   }
   return res.json();
 }

@@ -228,3 +228,48 @@ export interface NewsFeedItem {
   url: string;
   timestamp: number;
 }
+
+// ── Strategy (AI Strategy Room) ──
+export interface ApiStrategySectorItem {
+  /** 섹터명 (백엔드 필드명은 name/sector 중 하나일 수 있음) */
+  name?: string;
+  sector?: string;
+  /** 평균 괴리율 (백엔드 필드명은 divergence/avg_divergence 중 하나일 수 있음) */
+  divergence?: number;
+  avg_divergence?: number;
+}
+
+export interface ApiStrategyPick {
+  ticker?: string;
+  rationale?: string;
+}
+
+export interface ApiStrategyResponse {
+  market_summary: string;
+  sector_data: ApiStrategySectorItem[];
+  top_sector: {
+    name: string;
+    reason: string;
+  };
+  top_picks: ApiStrategyPick[];
+}
+
+export interface StrategySectorItem {
+  sector: string;
+  divergence: number;
+}
+
+export interface StrategyTopPick {
+  ticker: string;
+  rationale: string;
+}
+
+export interface StrategyData {
+  marketSummary: string;
+  sectors: StrategySectorItem[];
+  topSector: {
+    name: string;
+    reason: string;
+  };
+  topPicks: StrategyTopPick[];
+}
