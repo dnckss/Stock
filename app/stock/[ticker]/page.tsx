@@ -7,6 +7,7 @@ import { useStockDetail } from '@/hooks/useStockDetail';
 import StockHero from '@/components/detail/StockHero';
 import DivergenceChart from '@/components/detail/DivergenceChart';
 import AIReport from '@/components/detail/AIReport';
+import RelatedNews from '@/components/detail/RelatedNews';
 
 function PageSkeleton() {
   return (
@@ -102,6 +103,9 @@ export default function StockDetailPage() {
             error={reportError}
             onRetry={retryReport}
           />
+        </div>
+        <div className="stagger-4">
+          <RelatedNews items={detail.relatedNews} ticker={detail.ticker} />
         </div>
       </main>
 

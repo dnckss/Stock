@@ -1,4 +1,5 @@
 import { Newspaper } from 'lucide-react';
+import Link from 'next/link';
 import type { RelatedNewsItem, SentimentType } from '@/types/dashboard';
 
 interface RelatedNewsProps {
@@ -9,7 +10,7 @@ interface RelatedNewsProps {
 const SENTIMENT_COLORS: Record<SentimentType, string> = {
   positive: 'bg-green-500',
   negative: 'bg-red-500',
-  neutral: 'bg-yellow-500',
+  neutral: 'bg-zinc-500',
 };
 
 const SENTIMENT_LABELS: Record<SentimentType, string> = {
@@ -24,11 +25,21 @@ export default function RelatedNews({ items, ticker }: RelatedNewsProps) {
       <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
         <div className="flex items-center gap-3 text-zinc-500">
           <Newspaper className="w-5 h-5" />
-          <span className="text-sm">{ticker} 관련 뉴스가 없습니다.</span>
+          <span className="text-sm">관련 뉴스가 없습니다.</span>
         </div>
       </section>
     );
   }
+
+  const buildNewsDetailHref = (item: RelatedNewsItem) => {
+    const params = new URLSearchParams();
+    params.set('url', item.url);
+    params.set('title', item.headline);
+    params.set('publisher', item.source);
+    params.set('timestamp', item.timestamp);
+    params.set('ticker', ticker);
+    return `/news?${params.toString()}`;
+  };
 
   return (
     <section className="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-6">
@@ -40,7 +51,7 @@ export default function RelatedNews({ items, ticker }: RelatedNewsProps) {
         </div>
         <div>
           <h2 className="text-lg font-bold text-zinc-100">
-            AI 판별 근거 뉴스
+            Related News
           </h2>
           <p className="text-xs text-zinc-500">
             {ticker} · {items.length}건의 관련 뉴스 분석
@@ -50,9 +61,9 @@ export default function RelatedNews({ items, ticker }: RelatedNewsProps) {
 
       <div className="space-y-3">
         {items.map((item, i) => (
-          <a
+          <Link
             key={i}
-            href={item.url}
+            href={buildNewsDetailHref(item)}
             className="group flex items-start gap-3 rounded-lg border border-zinc-800/50 bg-zinc-800/20 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-800/40"
           >
             <div
@@ -75,14 +86,14 @@ export default function RelatedNews({ items, ticker }: RelatedNewsProps) {
                       ? 'text-green-500'
                       : item.sentiment === 'negative'
                         ? 'text-red-500'
-                        : 'text-yellow-500'
+                        : 'text-zinc-400'
                   }`}
                 >
                   {SENTIMENT_LABELS[item.sentiment]}
                 </span>
               </div>
             </div>
-          </a>
+          </Link>
         ))}
       </div>
     </section>

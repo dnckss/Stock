@@ -33,9 +33,11 @@ export default function StockHero({ data }: StockHeroProps) {
             </div>
             <div>
               <h1 className="text-xl font-bold text-zinc-100">
-                {data.ticker}
+                {data.name === data.ticker
+                  ? data.ticker
+                  : `${data.name} (${data.ticker})`}
               </h1>
-              <p className="text-sm text-zinc-500">{data.name}</p>
+              <p className="text-sm text-zinc-500">종목 코드: {data.ticker}</p>
             </div>
           </div>
 

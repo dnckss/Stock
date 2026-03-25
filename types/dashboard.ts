@@ -146,8 +146,32 @@ export interface ApiReportRecord {
 
 export interface ApiStockDetailResponse {
   ticker: string;
+  company_name?: string | null;
   latest_report: ApiReportRecord | null;
   history: ApiHistoryItem[];
+  stock_news: ApiStockNewsItem[];
+}
+
+export interface ApiStockNewsItem {
+  title: string;
+  publisher: string;
+  timestamp: number;
+  ticker: string;
+  url: string;
+  score: number;
+  sentiment_label: SentimentLabel;
+  confidence: number;
+}
+
+export interface ApiNewsDetailResponse {
+  url_hash: string;
+  url: string;
+  title: string | null;
+  publisher: string | null;
+  ticker: string | null;
+  timestamp: string | null;
+  article_text: string;
+  fetched_at: string;
 }
 
 export interface ApiReportGenerateResponse {

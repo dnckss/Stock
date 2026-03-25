@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   fetchStockDetail,
   requestReport,
-  getTickerName,
   apiHistoryToChart,
   deriveConfidence,
+  apiStockNewsToRelatedNews,
 } from '@/lib/api';
-import type { SignalType, ChartDataPoint } from '@/types/dashboard';
+import type { SignalType, ChartDataPoint, RelatedNewsItem } from '@/types/dashboard';
 
 export interface StockDetailState {
   ticker: string;
@@ -19,6 +19,7 @@ export interface StockDetailState {
   divergence: number;
   confidence: number;
   history: ChartDataPoint[];
+  relatedNews: RelatedNewsItem[];
 }
 
 export interface UseStockDetailReturn {
@@ -63,7 +64,7 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     setReport(null);
     setReportError(null);
 
-    fetchStockDetail(ticker)
+    fetchStockDetail(ticker, 10)
       .then((data) => {
         if (cancelled) return;
 
@@ -75,13 +76,17 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
 
         setDetail({
           ticker: data.ticker,
-          name: getTickerName(data.ticker),
+          name:
+            typeof data.company_name === 'string' && data.company_name.trim()
+              ? data.company_name.trim()
+              : data.ticker,
           signal,
           priceReturn,
           sentiment,
           divergence,
           confidence: deriveConfidence(divergence),
           history: apiHistoryToChart(data.history),
+          relatedNews: apiStockNewsToRelatedNews(data.stock_news),
         });
 
         if (data.latest_report) {

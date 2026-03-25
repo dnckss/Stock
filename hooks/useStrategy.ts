@@ -23,10 +23,10 @@ function parseSectorItem(raw: ApiStrategyResponse['sector_data'][number]): Strat
   const divergence =
     toFiniteNumber(raw?.divergence) ??
     toFiniteNumber(raw?.avg_divergence) ??
-    toFiniteNumber((raw as any)?.avgDivergence) ??
-    toFiniteNumber((raw as any)?.divergenceRate) ??
-    toFiniteNumber((raw as any)?.divergence_pct) ??
-    toFiniteNumber((raw as any)?.divergencePct);
+    toFiniteNumber((raw as unknown as { avgDivergence?: unknown })?.avgDivergence) ??
+    toFiniteNumber((raw as unknown as { divergenceRate?: unknown })?.divergenceRate) ??
+    toFiniteNumber((raw as unknown as { divergence_pct?: unknown })?.divergence_pct) ??
+    toFiniteNumber((raw as unknown as { divergencePct?: unknown })?.divergencePct);
 
   if (!sector || divergence === null) return null;
   return { sector, divergence };
@@ -35,14 +35,14 @@ function parseSectorItem(raw: ApiStrategyResponse['sector_data'][number]): Strat
 function parseTopPick(raw: ApiStrategyResponse['top_picks'][number]): StrategyTopPick | null {
   const ticker = String(
     raw?.ticker ??
-      (raw as any)?.symbol ??
-      (raw as any)?.ticker_symbol ??
+      (raw as unknown as { symbol?: unknown })?.symbol ??
+      (raw as unknown as { ticker_symbol?: unknown })?.ticker_symbol ??
       '',
   ).trim();
   const rationale = String(
     raw?.rationale ??
-      (raw as any)?.reason ??
-      (raw as any)?.explanation ??
+      (raw as unknown as { reason?: unknown })?.reason ??
+      (raw as unknown as { explanation?: unknown })?.explanation ??
       '',
   ).trim();
   if (!ticker || !rationale) return null;

@@ -11,6 +11,9 @@ import type {
   ChartDataPoint,
   MacroDisplayData,
   ApiStrategyResponse,
+  ApiStockNewsItem,
+  ApiNewsDetailResponse,
+  RelatedNewsItem,
 } from '@/types/dashboard';
 
 export const API_BASE =
@@ -235,17 +238,73 @@ export async function fetchLatest(): Promise<ApiLatestResponse> {
 
 export async function fetchStockDetail(
   ticker: string,
+  newsLimit = 10,
 ): Promise<ApiStockDetailResponse> {
+  const safeNewsLimit = Number.isFinite(newsLimit)
+    ? Math.max(1, Math.min(30, Math.trunc(newsLimit)))
+    : 10;
+
   const res = await fetch(
-    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}`,
+    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}?news_limit=${safeNewsLimit}`,
   );
   if (res.status === 404) {
-    throw new ApiError(404, '아직 분석되지 않은 종목입니다');
+    try {
+      const body = (await res.json()) as { detail?: string };
+      throw new ApiError(404, body.detail ?? `${ticker.toUpperCase()} 데이터 없음`);
+    } catch {
+      throw new ApiError(404, `${ticker.toUpperCase()} 데이터 없음`);
+    }
   }
   if (!res.ok) {
     throw new ApiError(res.status, '종목 데이터를 불러올 수 없습니다');
   }
   return res.json();
+}
+
+export async function fetchNewsDetail(url: string): Promise<ApiNewsDetailResponse> {
+  const safeUrl = typeof url === 'string' ? url.trim() : '';
+  if (!safeUrl) {
+    throw new ApiError(400, 'url 파라미터가 필요합니다');
+  }
+
+  const res = await fetch(
+    `${API_BASE}/api/news?url=${encodeURIComponent(safeUrl)}`,
+  );
+
+  if (res.status === 400) {
+    try {
+      const body = (await res.json()) as { detail?: string };
+      throw new ApiError(400, body.detail ?? 'url 파라미터가 필요합니다');
+    } catch {
+      throw new ApiError(400, 'url 파라미터가 필요합니다');
+    }
+  }
+
+  if (!res.ok) {
+    throw new ApiError(res.status, '뉴스 본문을 불러올 수 없습니다');
+  }
+
+  return res.json();
+}
+
+export function apiStockNewsToRelatedNews(
+  items: ApiStockNewsItem[] | null | undefined,
+): RelatedNewsItem[] {
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item) => ({
+    headline: item.title,
+    source: item.publisher,
+    url: item.url,
+    timestamp: new Date(item.timestamp * 1000).toLocaleString('ko-KR', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }),
+    sentiment: item.sentiment_label,
+  }));
 }
 
 export async function requestReport(

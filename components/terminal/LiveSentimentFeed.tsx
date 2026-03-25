@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
-import { NEWS_SENTIMENT_SCORE_THRESHOLD } from '@/lib/constants';
+import { useRouter } from 'next/navigation';
 import type { NewsFeedItem, SentimentLabel } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 
@@ -44,7 +44,32 @@ function hasValidUrl(url: string | undefined | null): url is string {
   return typeof url === 'string' && url.length > 0;
 }
 
+function formatNewsTimestamp(input: number): string {
+  const tsMs = input > 1_000_000_000_000 ? input : input * 1000;
+  const d = new Date(tsMs);
+  if (Number.isNaN(d.getTime())) return '';
+
+  return d.toLocaleString('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+function buildNewsDetailHref(item: NewsFeedItem): string {
+  const params = new URLSearchParams();
+  if (item.url) params.set('url', item.url);
+  if (item.title) params.set('title', item.title);
+  if (item.publisher) params.set('publisher', item.publisher);
+  if (item.timestamp) params.set('timestamp', formatNewsTimestamp(item.timestamp));
+  if (item.ticker) params.set('ticker', item.ticker);
+  return `/news?${params.toString()}`;
+}
+
 function NewsItem({ item }: { item: NewsFeedItem }) {
+  const router = useRouter();
   const style = LABEL_STYLE[item.sentimentLabel] ?? LABEL_STYLE.neutral;
   const linkable = hasValidUrl(item.url);
   const scorePositive = item.score >= 0;
@@ -122,17 +147,24 @@ function NewsItem({ item }: { item: NewsFeedItem }) {
   };
 
   if (linkable) {
+    const href = buildNewsDetailHref(item);
     return (
-      <motion.a
+      <motion.div
         {...motionProps}
-        href={item.url}
-        target="_blank"
-        rel="noopener noreferrer"
+        role="button"
+        tabIndex={0}
         aria-label={`기사 보기: ${item.title}`}
+        onClick={() => router.push(href)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            router.push(href);
+          }
+        }}
         className="group/news block px-3 py-2.5 hover:bg-zinc-800/40 transition-colors border-b border-zinc-800/50 cursor-pointer"
       >
         {content}
-      </motion.a>
+      </motion.div>
     );
   }
 
