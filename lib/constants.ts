@@ -31,6 +31,11 @@ export const SIGNAL_CONFIG: Record<SignalType, SignalConfig> = {
 
 export const NEWS_SENTIMENT_SCORE_THRESHOLD = 0.3;
 
+// ── Stock news polling ──
+export const STOCK_NEWS_DEFAULT_LIMIT = 10;
+export const STOCK_NEWS_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2분
+export const STOCK_NEWS_FORCE_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10분
+
 export type RadarSortKey =
   | 'volatility'
   | 'gainers'

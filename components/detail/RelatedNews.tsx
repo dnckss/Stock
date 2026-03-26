@@ -5,6 +5,9 @@ import type { RelatedNewsItem, SentimentType } from '@/types/dashboard';
 interface RelatedNewsProps {
   items: RelatedNewsItem[];
   ticker: string;
+  onRefreshLatest?: () => void;
+  isRefreshing?: boolean;
+  lastRefreshForced?: boolean;
 }
 
 const SENTIMENT_COLORS: Record<SentimentType, string> = {
@@ -19,7 +22,13 @@ const SENTIMENT_LABELS: Record<SentimentType, string> = {
   neutral: '중립',
 };
 
-export default function RelatedNews({ items, ticker }: RelatedNewsProps) {
+export default function RelatedNews({
+  items,
+  ticker,
+  onRefreshLatest,
+  isRefreshing = false,
+  lastRefreshForced = false,
+}: RelatedNewsProps) {
   if (items.length === 0) {
     return (
       <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
@@ -45,18 +54,36 @@ export default function RelatedNews({ items, ticker }: RelatedNewsProps) {
     <section className="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 p-6">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-700/60 to-transparent" />
 
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-blue-500/20 bg-blue-500/10">
-          <Newspaper className="h-5 w-5 text-blue-400" />
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-blue-500/20 bg-blue-500/10">
+            <Newspaper className="h-5 w-5 text-blue-400" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-bold text-zinc-100">Related News</h2>
+              {lastRefreshForced ? (
+                <span className="rounded-md border border-zinc-700/70 bg-zinc-950/40 px-2 py-0.5 text-[10px] font-mono text-zinc-400">
+                  refresh=1
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-zinc-500">
+              {ticker} · {items.length}건의 관련 뉴스 분석
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-zinc-100">
-            Related News
-          </h2>
-          <p className="text-xs text-zinc-500">
-            {ticker} · {items.length}건의 관련 뉴스 분석
-          </p>
-        </div>
+
+        {onRefreshLatest ? (
+          <button
+            type="button"
+            onClick={onRefreshLatest}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-2 text-[11px] font-mono text-zinc-200 transition-colors hover:bg-zinc-800/30 disabled:pointer-events-none disabled:opacity-50"
+          >
+            최신 뉴스 새로고침
+          </button>
+        ) : null}
       </div>
 
       <div className="space-y-3">

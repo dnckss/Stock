@@ -160,7 +160,10 @@ export default function TerminalPage() {
           />
         </div>
         <div className="w-[320px] shrink-0 terminal-panel-3">
-          <LiveSentimentFeed items={newsFeed} isLoading={isLoading} />
+          <LiveSentimentFeed
+            items={newsFeed}
+            isLoading={isLoading}
+          />
         </div>
       </div>
 

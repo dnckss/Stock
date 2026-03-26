@@ -238,14 +238,29 @@ export async function fetchLatest(): Promise<ApiLatestResponse> {
 
 export async function fetchStockDetail(
   ticker: string,
-  newsLimit = 10,
+  newsLimitOrOptions: number | { newsLimit?: number; newsRefresh?: 0 | 1 } = 10,
 ): Promise<ApiStockDetailResponse> {
+  const newsLimit =
+    typeof newsLimitOrOptions === 'number'
+      ? newsLimitOrOptions
+      : (newsLimitOrOptions?.newsLimit ?? 10);
+  const newsRefresh =
+    typeof newsLimitOrOptions === 'object' && newsLimitOrOptions
+      ? (newsLimitOrOptions.newsRefresh ?? 0)
+      : 0;
+
   const safeNewsLimit = Number.isFinite(newsLimit)
     ? Math.max(1, Math.min(30, Math.trunc(newsLimit)))
     : 10;
+  const safeNewsRefresh: 0 | 1 = newsRefresh === 1 ? 1 : 0;
+
+  const qs = new URLSearchParams({
+    news_limit: String(safeNewsLimit),
+    news_refresh: String(safeNewsRefresh),
+  });
 
   const res = await fetch(
-    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}?news_limit=${safeNewsLimit}`,
+    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}?${qs.toString()}`,
   );
   if (res.status === 404) {
     try {
@@ -261,15 +276,32 @@ export async function fetchStockDetail(
   return res.json();
 }
 
-export async function fetchNewsDetail(url: string): Promise<ApiNewsDetailResponse> {
+export interface FetchNewsDetailOptions {
+  /** 1이면 본문 재크롤링 후 DB 갱신 */
+  refresh?: boolean;
+  /** 1이면 한국어 요약/영향 분석(캐시 없을 때만 서버에서 생성) */
+  analyze?: boolean;
+}
+
+export async function fetchNewsDetail(
+  url: string,
+  options?: FetchNewsDetailOptions,
+): Promise<ApiNewsDetailResponse> {
   const safeUrl = typeof url === 'string' ? url.trim() : '';
   if (!safeUrl) {
     throw new ApiError(400, 'url 파라미터가 필요합니다');
   }
 
-  const res = await fetch(
-    `${API_BASE}/api/news?url=${encodeURIComponent(safeUrl)}`,
-  );
+  const refresh = options?.refresh === true ? '1' : '0';
+  const analyze = options?.analyze === false ? '0' : '1';
+
+  const qs = new URLSearchParams({
+    url: safeUrl,
+    refresh,
+    analyze,
+  });
+
+  const res = await fetch(`${API_BASE}/api/news?${qs.toString()}`);
 
   if (res.status === 400) {
     try {

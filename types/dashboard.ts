@@ -150,6 +150,10 @@ export interface ApiStockDetailResponse {
   latest_report: ApiReportRecord | null;
   history: ApiHistoryItem[];
   stock_news: ApiStockNewsItem[];
+  stock_news_meta?: {
+    /** 이번 응답이 refresh 강제였는지 여부 */
+    refresh: boolean;
+  };
 }
 
 export interface ApiStockNewsItem {
@@ -163,6 +167,21 @@ export interface ApiStockNewsItem {
   confidence: number;
 }
 
+/** GET /api/news 응답의 뉴스 분석(한국어 요약·영향) */
+export interface ApiNewsAnalysisImpact {
+  sectors: string[];
+  themes: string[];
+  direction: 'positive' | 'negative' | 'mixed' | 'unclear' | string;
+  confidence: number;
+  reason_ko: string;
+}
+
+export interface ApiNewsAnalysis {
+  ko_summary: string;
+  impact: ApiNewsAnalysisImpact;
+  tickers_mentioned: string[];
+}
+
 export interface ApiNewsDetailResponse {
   url_hash: string;
   url: string;
@@ -170,7 +189,28 @@ export interface ApiNewsDetailResponse {
   publisher: string | null;
   ticker: string | null;
   timestamp: string | null;
-  article_text: string;
+  /** 본문 (마크다운) */
+  article_markdown?: string;
+  /** 레거시: 본문 (평문) */
+  article_text?: string;
+  /** 추출 상태 (빈 본문 분기용) */
+  extraction_status?: 'ok' | 'empty' | 'blocked' | 'timeout' | 'paywall' | 'error' | string;
+  /** 원문에서 추출된 미디어 목록 (프론트는 이 배열만 렌더) */
+  media?: Array<{
+    type: 'image' | 'video' | 'embed' | 'link' | string;
+    url: string;
+    caption?: string | null;
+    thumbnail_url?: string | null;
+    provider?: string | null;
+    start_time?: number | null;
+  }>;
+  /** 도메인 allowlist: article(원문), media(이미지 등) */
+  domains?: {
+    article?: string;
+    media?: string[];
+  };
+  /** 뉴스 분석(없으면 null — 생성 중이거나 스킵/실패) */
+  analysis?: ApiNewsAnalysis | null;
   fetched_at: string;
 }
 

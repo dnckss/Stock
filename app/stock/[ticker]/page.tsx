@@ -27,9 +27,12 @@ export default function StockDetailPage() {
     report,
     isLoading,
     reportLoading,
+    newsRefreshing,
+    lastNewsRefreshForced,
     error,
     reportError,
     retryReport,
+    refreshLatestNews,
   } = useStockDetail(ticker);
 
   if (isLoading) return <PageSkeleton />;
@@ -105,7 +108,13 @@ export default function StockDetailPage() {
           />
         </div>
         <div className="stagger-4">
-          <RelatedNews items={detail.relatedNews} ticker={detail.ticker} />
+          <RelatedNews
+            items={detail.relatedNews}
+            ticker={detail.ticker}
+            onRefreshLatest={refreshLatestNews}
+            isRefreshing={newsRefreshing}
+            lastRefreshForced={lastNewsRefreshForced}
+          />
         </div>
       </main>
 

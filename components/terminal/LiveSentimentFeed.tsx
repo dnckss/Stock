@@ -201,7 +201,10 @@ function FeedSkeleton() {
   );
 }
 
-export default function LiveSentimentFeed({ items, isLoading }: LiveSentimentFeedProps) {
+export default function LiveSentimentFeed({
+  items,
+  isLoading,
+}: LiveSentimentFeedProps) {
   const posCount = items.filter((n) => n.sentimentLabel === 'positive').length;
   const negCount = items.filter((n) => n.sentimentLabel === 'negative').length;
   const neutralCount = items.length - posCount - negCount;
