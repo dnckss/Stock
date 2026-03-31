@@ -20,25 +20,41 @@ function ErrorState({
     <main className="mx-auto max-w-7xl px-4 py-14">
       <div className="flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-            <span className="text-red-500 text-xl font-bold">!</span>
+          <div className="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
+            <span className="text-red-400 text-sm font-mono font-bold">ERR</span>
           </div>
-          <p className="text-sm text-red-400 mb-3">전략 데이터를 불러오지 못했습니다</p>
-          <p className="text-[10px] text-zinc-500 max-w-[420px] mx-auto">
+          <p className="text-xs text-red-400 font-mono mb-2">STRATEGY_LOAD_FAILED</p>
+          <p className="text-[10px] text-zinc-500 max-w-[420px] mx-auto mb-4">
             {message}
           </p>
           <button
             type="button"
             onClick={onRetry}
-            className="mt-6 inline-flex items-center gap-2 text-xs text-zinc-400 hover:text-zinc-200 transition-colors border border-zinc-700 rounded-lg px-3 py-1.5 hover:border-zinc-600"
+            className="inline-flex items-center gap-2 text-[10px] font-mono text-zinc-400 hover:text-zinc-200 transition-colors border border-zinc-700 rounded px-3 py-1.5 hover:border-zinc-600"
           >
             <RefreshCw className="w-3 h-3" />
-            다시 시도
+            RETRY
           </button>
         </div>
       </div>
     </main>
   );
+}
+
+function formatGeneratedAt(iso: string | null): string {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return iso;
+  }
 }
 
 export default function StrategyPage() {
@@ -47,24 +63,37 @@ export default function StrategyPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Navigation Bar */}
-      <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="font-mono text-[10px] uppercase tracking-widest">
-              Back to Terminal
-            </span>
-          </Link>
+      <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-[#0a0a0a]/95 backdrop-blur-sm">
+        <div className="max-w-[1400px] mx-auto px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="font-mono text-[10px] uppercase tracking-widest">
+                Terminal
+              </span>
+            </Link>
+            <span className="text-zinc-800">|</span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold text-zinc-100 tracking-wider">
+                QUANT<span className="text-green-500">AI</span>
+              </span>
+              <span className="text-[10px] text-zinc-600 font-mono">
+                STRATEGY
+              </span>
+            </div>
+          </div>
           <div className="flex items-center gap-3">
-            <span className="font-mono text-sm font-bold text-zinc-100 tracking-wider">
-              QUANT<span className="text-green-500">AI</span>
-            </span>
-            <span className="text-zinc-700">|</span>
-            <span className="text-[10px] text-zinc-500 font-mono">
-              AI Strategy Room
+            {data?.generatedAt && (
+              <span className="text-[9px] font-mono text-zinc-600">
+                GENERATED {formatGeneratedAt(data.generatedAt)}
+              </span>
+            )}
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
             </span>
           </div>
         </div>
@@ -75,59 +104,52 @@ export default function StrategyPage() {
       ) : error ? (
         <ErrorState message={error} onRetry={retry} />
       ) : data ? (
-        <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
-          {/* Top Section: Market Summary */}
-          <section className="rounded-2xl border border-zinc-800/50 bg-zinc-900/60 backdrop-blur-xl p-6 relative overflow-hidden">
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-700/60 to-transparent" />
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center">
-                  <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-                </div>
-                <div>
-                  <h1 className="text-sm font-bold text-zinc-100 tracking-wider font-mono">
-                    AI Market Strategist Briefing
-                  </h1>
-                  <p className="text-xs text-zinc-500 mt-1">
-                    시장 요약: AI 모델이 포착한 핵심 맥락
-                  </p>
-                </div>
-              </div>
+        <main className="max-w-[1400px] mx-auto px-4 py-4 space-y-3">
+          {/* Row 1: Market Briefing */}
+          <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+            <div className="px-4 py-2 bg-zinc-800/40 border-b border-zinc-800 flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+              <h1 className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest">
+                AI Market Briefing
+              </h1>
             </div>
-
-            <blockquote className="rounded-xl border border-zinc-800/50 bg-zinc-950/30 p-5 relative overflow-hidden">
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-emerald-400/45 to-red-400/25" />
-              <p className="text-sm text-zinc-200 leading-relaxed whitespace-pre-line">
+            <div className="p-4">
+              <p className="text-[13px] text-zinc-200 leading-relaxed whitespace-pre-line">
                 {data.marketSummary}
               </p>
-              <div className="pointer-events-none absolute -top-20 left-0 right-0 h-16 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse opacity-40" />
-            </blockquote>
+            </div>
           </section>
 
-          {/* News Themes */}
-          <StrategyNewsThemes themes={data.newsThemes} />
+          {/* Row 2: News Themes + Risk/Econ side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+            <div className="lg:col-span-3">
+              <StrategyNewsThemes themes={data.newsThemes} />
+            </div>
+            <div className="lg:col-span-2">
+              <StrategyRiskEvents
+                econImpact={data.econImpact}
+                riskEvents={data.riskEvents}
+              />
+            </div>
+          </div>
 
-          {/* Middle Section: Sector Heatmap / Chart */}
+          {/* Row 3: Sector Heatmap */}
           <StrategySectorHeatmap data={data} />
 
-          {/* Risk Events & Econ Impact */}
-          <StrategyRiskEvents
-            econImpact={data.econImpact}
-            riskEvents={data.riskEvents}
+          {/* Row 4: AI Top Picks - full width, prominent */}
+          <StrategyTopPicks
+            picks={data.topPicks}
+            newsThemes={data.newsThemes}
           />
-
-          {/* Bottom Section: AI's Top Picks */}
-          <StrategyTopPicks picks={data.topPicks} />
         </main>
       ) : null}
 
-      <footer className="border-t border-zinc-800 mt-10">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between text-[9px] font-mono text-zinc-600">
-          <span>AI MODEL v3.7.2</span>
-          <span>© 2025 QuantAI Terminal</span>
+      <footer className="border-t border-zinc-800 mt-6">
+        <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between text-[9px] font-mono text-zinc-700">
+          <span>AI MODEL v3.7.2 | STRATEGY ENGINE</span>
+          <span>&copy; 2025 QuantAI Terminal</span>
         </div>
       </footer>
     </div>
   );
 }
-
