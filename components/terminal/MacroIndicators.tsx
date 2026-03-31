@@ -1,7 +1,15 @@
 'use client';
 
+import { useState, useRef, useCallback, useEffect } from 'react';
+import Link from 'next/link';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
-import type { MacroIndicator, FearGreedData } from '@/types/dashboard';
+import { ECON_CALENDAR_SIDEBAR_PAGE_SIZE } from '@/lib/constants';
+import type {
+  MacroIndicator,
+  FearGreedData,
+  EconomicCalendarItem,
+  ApiEconomicCalendarError,
+} from '@/types/dashboard';
 
 interface MacroIndicatorsProps {
   /** 3대지수 (백엔드 macro.indices) */
@@ -10,6 +18,9 @@ interface MacroIndicatorsProps {
   indicators: MacroIndicator[] | null;
   fearGreed: FearGreedData | null;
   isLoading: boolean;
+  economicCalendar: EconomicCalendarItem[];
+  economicError: ApiEconomicCalendarError | null;
+  isEconomicLoading: boolean;
 }
 
 const FEAR_GREED_THRESHOLDS: { min: number; label: string; color: string }[] = [
@@ -173,11 +184,126 @@ function IndicatorSkeleton() {
   );
 }
 
+function importanceBadgeClass(importance: 0 | 1 | 2 | 3): string {
+  if (importance === 3) return 'text-red-400 border-red-500/40 bg-red-500/10';
+  if (importance === 2) return 'text-yellow-400 border-yellow-500/40 bg-yellow-500/10';
+  return 'text-zinc-300 border-zinc-600/40 bg-zinc-700/20';
+}
+
+function importanceLabel(importance: 0 | 1 | 2 | 3): 'High' | 'Medium' | 'Low' {
+  if (importance === 3) return 'High';
+  if (importance === 2) return 'Medium';
+  return 'Low';
+}
+
+function EconomicCalendarSection({
+  items,
+  error,
+  isLoading,
+}: {
+  items: EconomicCalendarItem[];
+  error: ApiEconomicCalendarError | null;
+  isLoading: boolean;
+}) {
+  const [visibleCount, setVisibleCount] = useState(ECON_CALENDAR_SIDEBAR_PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // items가 바뀌면(새 데이터 fetch 시) 페이지 초기화
+  useEffect(() => {
+    setVisibleCount(ECON_CALENDAR_SIDEBAR_PAGE_SIZE);
+  }, [items]);
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((prev) =>
+      Math.min(prev + ECON_CALENDAR_SIDEBAR_PAGE_SIZE, items.length),
+    );
+  }, [items.length]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: '100px' },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
+
+  const visibleItems = items.slice(0, visibleCount);
+  const hasMore = visibleCount < items.length;
+
+  return (
+    <div className="border-t border-zinc-800">
+      <div className="px-3 py-2 bg-zinc-800/30 flex items-center justify-between gap-2">
+        <h3 className="text-[9px] font-semibold text-zinc-400 uppercase tracking-widest">
+          경제 일정
+        </h3>
+        <Link
+          href="/economic-calendar"
+          className="text-[9px] font-mono px-2 py-1 rounded border border-zinc-700 text-zinc-300 hover:bg-zinc-700/60 transition-colors"
+        >
+          자세히 보기
+        </Link>
+      </div>
+
+      {isLoading ? (
+        <div className="px-3 py-3 space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-8 bg-zinc-800/50 rounded animate-pulse" />
+          ))}
+        </div>
+      ) : items.length === 0 && error ? (
+        <div className="px-3 py-4 text-[10px] text-zinc-500">
+          데이터 수집 지연
+        </div>
+      ) : items.length === 0 ? (
+        <div className="px-3 py-4 text-[10px] text-zinc-500">
+          표시할 일정 없음
+        </div>
+      ) : (
+        <div className="divide-y divide-zinc-800/40">
+          {visibleItems.map((item) => (
+            <div key={item.id} className="px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="font-mono text-[10px] text-zinc-400 tabular-nums">
+                  {item.timeLabel || '시간미정'} · {item.countryCode || '--'}
+                </div>
+                <span
+                  className={`text-[9px] px-1.5 py-0.5 rounded border ${importanceBadgeClass(item.importance)}`}
+                >
+                  {importanceLabel(item.importance)}
+                </span>
+              </div>
+              <div className="text-[11px] text-zinc-100 leading-snug line-clamp-2">
+                {item.event}
+              </div>
+              <div className="mt-1 font-mono text-[9px] text-zinc-500">
+                A {item.actual ?? '-'} / F {item.forecast ?? '-'} / P {item.previous ?? '-'}
+              </div>
+            </div>
+          ))}
+          {hasMore && <div ref={sentinelRef} className="h-1" />}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MacroIndicators({
   indices,
   indicators,
   fearGreed,
   isLoading,
+  economicCalendar,
+  economicError,
+  isEconomicLoading,
 }: MacroIndicatorsProps) {
   const hasIndices = indices && indices.length > 0;
   const hasIndicators = indicators && indicators.length > 0;
@@ -224,6 +350,11 @@ export default function MacroIndicators({
           {hasIndicators && (
             <MacroBlock title="기타 지표" items={indicators} />
           )}
+          <EconomicCalendarSection
+            items={economicCalendar}
+            error={economicError}
+            isLoading={isEconomicLoading}
+          />
         </div>
       )}
     </div>

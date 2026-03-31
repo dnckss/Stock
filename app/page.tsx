@@ -53,8 +53,18 @@ function TerminalBoot() {
 export default function TerminalPage() {
   const [isBooted, setIsBooted] = useState(false);
   const currentTime = useCurrentTime();
-  const { stocks, macro, newsFeed, updatedAt, isLoading, error, wsConnected } =
-    useMarketData();
+  const {
+    stocks,
+    macro,
+    newsFeed,
+    economicCalendar,
+    economicCalendarMeta,
+    isEconomicLoading,
+    updatedAt,
+    isLoading,
+    error,
+    wsConnected,
+  } = useMarketData();
 
   const toTickerItems = (items: MacroIndicator[] | null | undefined) => {
     if (!items) return [];
@@ -150,6 +160,9 @@ export default function TerminalPage() {
             indicators={macro?.indicators ?? null}
             fearGreed={macro?.fearGreed ?? null}
             isLoading={isLoading}
+            economicCalendar={economicCalendar}
+            economicError={economicCalendarMeta.error}
+            isEconomicLoading={isEconomicLoading}
           />
         </div>
         <div className="flex-1 min-w-0 terminal-panel-2">

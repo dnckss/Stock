@@ -14,7 +14,10 @@ import type {
   ApiStockNewsItem,
   ApiNewsDetailResponse,
   RelatedNewsItem,
+  ApiEconomicCalendarResponse,
+  EconomicCalendarItem,
 } from '@/types/dashboard';
+import { ECON_CALENDAR_DEFAULT_LIMIT } from '@/lib/constants';
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -365,6 +368,65 @@ export async function fetchStrategy(): Promise<ApiStrategyResponse> {
   const res = await fetch(`${API_BASE}/api/strategy`);
   if (!res.ok) {
     throw new ApiError(res.status, '전략 데이터를 불러올 수 없습니다');
+  }
+  return res.json();
+}
+
+function toImportance(value: unknown): 0 | 1 | 2 | 3 {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  if (n >= 3) return 3;
+  if (n >= 2) return 2;
+  if (n >= 1) return 1;
+  return 0;
+}
+
+export function apiEconomicCalendarToDisplay(
+  payload: ApiEconomicCalendarResponse | null | undefined,
+): EconomicCalendarItem[] {
+  if (!payload || !Array.isArray(payload.items)) return [];
+
+  return payload.items.map((item, index) => {
+    const eventId = item.event_id ? String(item.event_id) : null;
+    const dateLabel = String(item.date_label ?? '').trim();
+    const timeLabel = String(item.time_label ?? '').trim();
+    const countryCode = String(item.country_code ?? '').trim().toUpperCase();
+    const event = String(item.event ?? '').trim();
+    const currency = String(item.currency ?? '').trim().toUpperCase();
+    const id = eventId || `${dateLabel}-${timeLabel}-${countryCode}-${event}-${index}`;
+
+    return {
+      id,
+      dateLabel,
+      timeLabel,
+      countryCode,
+      countryName: item.country_name ? String(item.country_name) : null,
+      currency,
+      importance: toImportance(item.importance),
+      event,
+      actual: item.actual ?? null,
+      forecast: item.forecast ?? null,
+      previous: item.previous ?? null,
+    };
+  });
+}
+
+export async function fetchEconomicCalendar(options?: {
+  refresh?: 0 | 1;
+  limit?: number;
+}): Promise<ApiEconomicCalendarResponse> {
+  const refresh = options?.refresh === 1 ? 1 : 0;
+  const limit = Number.isFinite(options?.limit)
+    ? Math.max(1, Math.trunc(options?.limit as number))
+    : ECON_CALENDAR_DEFAULT_LIMIT;
+  const qs = new URLSearchParams({
+    refresh: String(refresh),
+    limit: String(limit),
+  });
+
+  const res = await fetch(`${API_BASE}/api/economic-calendar?${qs.toString()}`);
+  if (!res.ok) {
+    throw new ApiError(res.status, '경제 일정을 불러올 수 없습니다');
   }
   return res.json();
 }

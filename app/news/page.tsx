@@ -34,16 +34,6 @@ export default async function NewsDetailPage({
   let mediaDomains: string[] = [];
   let initialAnalysis: ApiNewsAnalysis | null = null;
 
-  const buildNewsQueryHref = (opts: { refresh: boolean }) => {
-    const p = new URLSearchParams();
-    if (url) p.set('url', url);
-    if (titleFromList) p.set('title', titleFromList);
-    if (publisherFromList) p.set('publisher', publisherFromList);
-    if (timestampFromList) p.set('timestamp', timestampFromList);
-    if (opts.refresh) p.set('refresh', '1');
-    return `/news?${p.toString()}`;
-  };
-
   if (!url) {
     error = 'url 파라미터가 필요합니다';
   } else {
@@ -93,13 +83,11 @@ export default async function NewsDetailPage({
   const publisher = apiPublisher || publisherFromList;
   const timestamp = apiTimestamp || timestampFromList;
   const backHref = '/';
-  const refreshHref = url ? buildNewsQueryHref({ refresh: true }) : '/news';
 
   return (
     <NewsDetailView
       key={`${url}|${fetchedAt}`}
       backHref={backHref}
-      refreshHref={refreshHref}
       url={url}
       title={title}
       publisher={publisher}

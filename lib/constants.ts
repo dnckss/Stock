@@ -35,6 +35,12 @@ export const NEWS_SENTIMENT_SCORE_THRESHOLD = 0.3;
 export const STOCK_NEWS_DEFAULT_LIMIT = 10;
 export const STOCK_NEWS_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2분
 export const STOCK_NEWS_FORCE_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10분
+export const ECON_CALENDAR_DEFAULT_LIMIT = 50;
+export const ECON_CALENDAR_SIDEBAR_PAGE_SIZE = 10;
+export const ECON_CALENDAR_DETAIL_LIMIT = 200;
+export const ECON_CALENDAR_DEFAULT_SOURCE = 'forex_factory';
+export const ECON_CALENDAR_AUTO_REFRESH_MIN_MS = 5 * 60 * 1000; // 5분
+export const ECON_CALENDAR_AUTO_REFRESH_MAX_MS = 10 * 60 * 1000; // 10분
 
 export type RadarSortKey =
   | 'volatility'

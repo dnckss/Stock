@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
-import { ArrowLeft, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
@@ -54,8 +54,6 @@ const DIRECTION_STYLE: Record<string, string> = {
 
 export interface NewsDetailViewProps {
   backHref: string;
-  /** 본문·분석 강제 재생성 시 `refresh=1` 포함 링크 */
-  refreshHref: string;
   url: string;
   title: string;
   publisher: string;
@@ -79,7 +77,6 @@ export interface NewsDetailViewProps {
 
 export default function NewsDetailView({
   backHref,
-  refreshHref,
   url,
   title,
   publisher,
@@ -162,18 +159,6 @@ export default function NewsDetailView({
             </span>
           </Link>
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href={refreshHref}
-              aria-disabled={!url}
-              className={`inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-mono transition-colors ${
-                url
-                  ? 'text-zinc-200 hover:bg-zinc-800'
-                  : 'pointer-events-none text-zinc-600 opacity-50'
-              }`}
-            >
-              <RefreshCw className="w-4 h-4" />
-              본문·요약 새로고침
-            </Link>
             <button
               type="button"
               onClick={() => openInNewTab(url)}
@@ -411,8 +396,7 @@ export default function NewsDetailView({
                   </div>
                 ) : pollExhausted && extractionOk && !isBodyEmpty ? (
                   <p className="mt-3 text-sm text-zinc-500">
-                    요약을 불러오지 못했습니다. 상단의「본문·요약 새로고침」을 시도하거나
-                    원문을 확인해 주세요.
+                    요약을 불러오지 못했습니다. 원문을 확인해 주세요.
                   </p>
                 ) : extractionStatus && extractionStatus !== 'ok' ? (
                   <p className="mt-3 text-sm text-zinc-500">

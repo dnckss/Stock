@@ -121,6 +121,7 @@ export interface ApiLatestResponse {
   top_picks: ApiStockItem[];
   radar: ApiStockItem[];
   macro?: ApiMacroData;
+  economic_calendar?: ApiEconomicCalendarResponse;
   news_feed?: ApiNewsFeedItem[];
   updated_at: string | null;
 }
@@ -291,6 +292,50 @@ export interface NewsFeedItem {
   confidence: number;
   url: string;
   timestamp: number;
+}
+
+// ── API Economic Calendar Types ──
+export interface ApiEconomicCalendarItem {
+  event_id?: string | null;
+  date_label: string;
+  time_label: string;
+  country_code: string;
+  country_name?: string | null;
+  currency: string;
+  importance: number;
+  event: string;
+  actual?: string | null;
+  forecast?: string | null;
+  previous?: string | null;
+}
+
+export interface ApiEconomicCalendarError {
+  code: string;
+  message: string;
+  status?: number;
+}
+
+export interface ApiEconomicCalendarResponse {
+  source: 'forex_factory' | string;
+  items: ApiEconomicCalendarItem[];
+  fetched_at: string;
+  cache_hit: boolean;
+  cache_ttl_sec: number;
+  error: ApiEconomicCalendarError | null;
+}
+
+export interface EconomicCalendarItem {
+  id: string;
+  dateLabel: string;
+  timeLabel: string;
+  countryCode: string;
+  countryName: string | null;
+  currency: string;
+  importance: 0 | 1 | 2 | 3;
+  event: string;
+  actual: string | null;
+  forecast: string | null;
+  previous: string | null;
 }
 
 // ── Strategy (AI Strategy Room) ──
