@@ -10,6 +10,12 @@ import type {
   StrategyData,
   StrategySectorItem,
   StrategyTopPick,
+  StrategyNewsTheme,
+  StrategyRiskEvent,
+  StrategyDirection,
+  StrategyConfidence,
+  ThemeSentiment,
+  RiskLevel,
 } from '@/types/dashboard';
 
 function toFiniteNumber(value: unknown): number | null {
@@ -32,6 +38,39 @@ function parseSectorItem(raw: ApiStrategyResponse['sector_data'][number]): Strat
   return { sector, divergence };
 }
 
+const VALID_DIRECTIONS = new Set<StrategyDirection>(['BUY', 'SELL', 'HOLD']);
+const VALID_CONFIDENCES = new Set<StrategyConfidence>(['high', 'medium', 'low']);
+const VALID_SENTIMENTS = new Set<ThemeSentiment>(['positive', 'negative', 'neutral']);
+const VALID_RISK_LEVELS = new Set<RiskLevel>(['high', 'medium', 'low']);
+
+function toDirection(value: unknown): StrategyDirection {
+  const s = String(value ?? '').trim().toUpperCase();
+  return VALID_DIRECTIONS.has(s as StrategyDirection)
+    ? (s as StrategyDirection)
+    : 'HOLD';
+}
+
+function toConfidence(value: unknown): StrategyConfidence {
+  const s = String(value ?? '').trim().toLowerCase();
+  return VALID_CONFIDENCES.has(s as StrategyConfidence)
+    ? (s as StrategyConfidence)
+    : 'medium';
+}
+
+function toSentiment(value: unknown): ThemeSentiment {
+  const s = String(value ?? '').trim().toLowerCase();
+  return VALID_SENTIMENTS.has(s as ThemeSentiment)
+    ? (s as ThemeSentiment)
+    : 'neutral';
+}
+
+function toRiskLevel(value: unknown): RiskLevel {
+  const s = String(value ?? '').trim().toLowerCase();
+  return VALID_RISK_LEVELS.has(s as RiskLevel)
+    ? (s as RiskLevel)
+    : 'medium';
+}
+
 function parseTopPick(raw: ApiStrategyResponse['top_picks'][number]): StrategyTopPick | null {
   const ticker = String(
     raw?.ticker ??
@@ -46,7 +85,42 @@ function parseTopPick(raw: ApiStrategyResponse['top_picks'][number]): StrategyTo
       '',
   ).trim();
   if (!ticker || !rationale) return null;
-  return { ticker, rationale };
+  return {
+    ticker,
+    direction: toDirection(raw?.direction),
+    confidence: toConfidence(raw?.confidence),
+    rationale,
+  };
+}
+
+function parseNewsTheme(raw: unknown): StrategyNewsTheme | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const theme = String(r.theme ?? '').trim();
+  const detail = String(r.detail ?? '').trim();
+  if (!theme) return null;
+  const tickers = Array.isArray(r.tickers)
+    ? r.tickers.map((t) => String(t).trim().toUpperCase()).filter(Boolean)
+    : [];
+  return {
+    theme,
+    tickers,
+    sentiment: toSentiment(r.sentiment),
+    detail,
+  };
+}
+
+function parseRiskEvent(raw: unknown): StrategyRiskEvent | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const event = String(r.event ?? '').trim();
+  if (!event) return null;
+  return {
+    event,
+    date: String(r.date ?? '').trim(),
+    riskLevel: toRiskLevel(r.risk_level),
+    detail: String(r.detail ?? '').trim(),
+  };
 }
 
 function parseStrategyResponse(raw: unknown): StrategyData | null {
@@ -79,11 +153,33 @@ function parseStrategyResponse(raw: unknown): StrategyData | null {
     .slice(0, STRATEGY_TOP_PICKS_COUNT);
   if (topPicks.length === 0) return null;
 
+  const newsThemes = (Array.isArray(response?.news_themes) ? response.news_themes : [])
+    .map(parseNewsTheme)
+    .filter((x): x is StrategyNewsTheme => x !== null);
+
+  const econImpact =
+    typeof response?.econ_impact === 'string' && response.econ_impact.trim()
+      ? response.econ_impact.trim()
+      : null;
+
+  const riskEvents = (Array.isArray(response?.risk_events) ? response.risk_events : [])
+    .map(parseRiskEvent)
+    .filter((x): x is StrategyRiskEvent => x !== null);
+
+  const generatedAt =
+    typeof response?.generated_at === 'string' && response.generated_at.trim()
+      ? response.generated_at.trim()
+      : null;
+
   return {
     marketSummary,
     sectors,
     topSector: { name: topSectorName, reason: topSectorReason },
     topPicks,
+    newsThemes,
+    econImpact,
+    riskEvents,
+    generatedAt,
   };
 }
 

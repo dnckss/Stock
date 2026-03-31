@@ -25,6 +25,30 @@ export default function StrategySkeleton() {
         </blockquote>
       </section>
 
+      {/* News Themes */}
+      <section className="rounded-2xl border border-zinc-800/50 bg-zinc-900/60 backdrop-blur-xl p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-9 w-9 rounded-xl bg-zinc-800/70 animate-pulse" />
+          <div className="space-y-2">
+            <div className="h-4 w-[140px] bg-zinc-800 animate-pulse rounded-md" />
+            <div className="h-3 w-[180px] bg-zinc-800/70 animate-pulse rounded-md" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-zinc-800/50 bg-zinc-950/20 p-4 space-y-2">
+              <div className="h-4 w-[70%] bg-zinc-800 animate-pulse rounded-md" />
+              <div className="flex gap-1.5">
+                <div className="h-5 w-12 bg-zinc-800/60 animate-pulse rounded" />
+                <div className="h-5 w-12 bg-zinc-800/60 animate-pulse rounded" />
+              </div>
+              <div className="h-3.5 w-[90%] bg-zinc-800/50 animate-pulse rounded-md" />
+              <div className="h-3.5 w-[75%] bg-zinc-800/40 animate-pulse rounded-md" />
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Middle: Chart + Top Sector */}
       <section className="rounded-2xl border border-zinc-800/50 bg-zinc-900/60 backdrop-blur-xl p-6">
         <div className="flex flex-col lg:flex-row gap-4">
@@ -59,6 +83,39 @@ export default function StrategySkeleton() {
               <div className="h-4 w-[70%] bg-zinc-800/40 animate-pulse rounded-md" />
             </div>
           </aside>
+        </div>
+      </section>
+
+      {/* Risk Events & Econ Impact */}
+      <section className="rounded-2xl border border-zinc-800/50 bg-zinc-900/60 backdrop-blur-xl p-6">
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1 rounded-xl border border-zinc-800/50 bg-zinc-950/20 p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-zinc-800/70 animate-pulse" />
+              <div className="space-y-1.5">
+                <div className="h-4 w-[120px] bg-zinc-800 animate-pulse rounded-md" />
+                <div className="h-3 w-[160px] bg-zinc-800/70 animate-pulse rounded-md" />
+              </div>
+            </div>
+            <div className="h-4 w-[95%] bg-zinc-800/60 animate-pulse rounded-md" />
+            <div className="h-4 w-[88%] bg-zinc-800/50 animate-pulse rounded-md" />
+            <div className="h-4 w-[72%] bg-zinc-800/40 animate-pulse rounded-md" />
+          </div>
+          <div className="w-full lg:w-[400px] rounded-xl border border-zinc-800/50 bg-zinc-950/20 p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-zinc-800/70 animate-pulse" />
+              <div className="space-y-1.5">
+                <div className="h-4 w-[100px] bg-zinc-800 animate-pulse rounded-md" />
+                <div className="h-3 w-[140px] bg-zinc-800/70 animate-pulse rounded-md" />
+              </div>
+            </div>
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="rounded-lg border border-zinc-800/40 bg-zinc-900/40 px-3 py-2.5 space-y-1.5">
+                <div className="h-3.5 w-[60%] bg-zinc-800/60 animate-pulse rounded-md" />
+                <div className="h-3 w-[40%] bg-zinc-800/50 animate-pulse rounded-md" />
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

@@ -350,7 +350,23 @@ export interface ApiStrategySectorItem {
 
 export interface ApiStrategyPick {
   ticker?: string;
+  direction?: string;
+  confidence?: string;
   rationale?: string;
+}
+
+export interface ApiNewsTheme {
+  theme?: string;
+  tickers?: string[];
+  sentiment?: string;
+  detail?: string;
+}
+
+export interface ApiRiskEvent {
+  event?: string;
+  date?: string;
+  risk_level?: string;
+  detail?: string;
 }
 
 export interface ApiStrategyResponse {
@@ -361,6 +377,10 @@ export interface ApiStrategyResponse {
     reason: string;
   };
   top_picks: ApiStrategyPick[];
+  news_themes?: ApiNewsTheme[];
+  econ_impact?: string | null;
+  risk_events?: ApiRiskEvent[];
+  generated_at?: string;
 }
 
 export interface StrategySectorItem {
@@ -368,9 +388,30 @@ export interface StrategySectorItem {
   divergence: number;
 }
 
+export type StrategyDirection = 'BUY' | 'SELL' | 'HOLD';
+export type StrategyConfidence = 'high' | 'medium' | 'low';
+export type ThemeSentiment = 'positive' | 'negative' | 'neutral';
+export type RiskLevel = 'high' | 'medium' | 'low';
+
 export interface StrategyTopPick {
   ticker: string;
+  direction: StrategyDirection;
+  confidence: StrategyConfidence;
   rationale: string;
+}
+
+export interface StrategyNewsTheme {
+  theme: string;
+  tickers: string[];
+  sentiment: ThemeSentiment;
+  detail: string;
+}
+
+export interface StrategyRiskEvent {
+  event: string;
+  date: string;
+  riskLevel: RiskLevel;
+  detail: string;
 }
 
 export interface StrategyData {
@@ -381,4 +422,8 @@ export interface StrategyData {
     reason: string;
   };
   topPicks: StrategyTopPick[];
+  newsThemes: StrategyNewsTheme[];
+  econImpact: string | null;
+  riskEvents: StrategyRiskEvent[];
+  generatedAt: string | null;
 }

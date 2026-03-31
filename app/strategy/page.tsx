@@ -6,6 +6,8 @@ import { useStrategyData } from '@/hooks/useStrategy';
 import StrategySkeleton from '@/components/strategy/StrategySkeleton';
 import StrategySectorHeatmap from '@/components/strategy/StrategySectorHeatmap';
 import StrategyTopPicks from '@/components/strategy/StrategyTopPicks';
+import StrategyNewsThemes from '@/components/strategy/StrategyNewsThemes';
+import StrategyRiskEvents from '@/components/strategy/StrategyRiskEvents';
 
 function ErrorState({
   message,
@@ -102,8 +104,17 @@ export default function StrategyPage() {
             </blockquote>
           </section>
 
+          {/* News Themes */}
+          <StrategyNewsThemes themes={data.newsThemes} />
+
           {/* Middle Section: Sector Heatmap / Chart */}
           <StrategySectorHeatmap data={data} />
+
+          {/* Risk Events & Econ Impact */}
+          <StrategyRiskEvents
+            econImpact={data.econImpact}
+            riskEvents={data.riskEvents}
+          />
 
           {/* Bottom Section: AI's Top Picks */}
           <StrategyTopPicks picks={data.topPicks} />
