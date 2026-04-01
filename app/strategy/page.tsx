@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useStrategyData } from '@/hooks/useStrategy';
 import StrategySkeleton from '@/components/strategy/StrategySkeleton';
 import StrategyRiskWarnings from '@/components/strategy/StrategyRiskWarnings';
@@ -9,37 +11,29 @@ import StrategyMarketSituation from '@/components/strategy/StrategyMarketSituati
 import StrategyNewsThemes from '@/components/strategy/StrategyNewsThemes';
 import StrategyEconPanel from '@/components/strategy/StrategyEconPanel';
 import StrategySectorHeatmap from '@/components/strategy/StrategySectorHeatmap';
-import StrategyRecommendations from '@/components/strategy/StrategyRecommendations';
+import StrategyRecommendationCard from '@/components/strategy/StrategyRecommendationCard';
+import {
+  STRATEGY_DIRECTION_CONFIG,
+  STRATEGY_CONFIDENCE_CONFIG,
+} from '@/lib/strategyConstants';
+import type { StrategyRecommendation, StrategyNewsTheme } from '@/types/dashboard';
 
-function ErrorState({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) {
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <main className="mx-auto max-w-7xl px-4 py-14">
-      <div className="flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
-            <span className="text-red-400 text-sm font-mono font-bold">ERR</span>
-          </div>
-          <p className="text-xs text-red-400 font-mono mb-2">STRATEGY_LOAD_FAILED</p>
-          <p className="text-[10px] text-zinc-500 max-w-[420px] mx-auto mb-4">
-            {message}
-          </p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="inline-flex items-center gap-2 text-[10px] font-mono text-zinc-400 hover:text-zinc-200 transition-colors border border-zinc-700 rounded px-3 py-1.5 hover:border-zinc-600"
-          >
-            <RefreshCw className="w-3 h-3" />
-            RETRY
-          </button>
-        </div>
+    <div className="flex-1 flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-xs text-red-400 font-mono mb-2">STRATEGY_LOAD_FAILED</p>
+        <p className="text-[10px] text-zinc-500 max-w-[400px] mx-auto mb-4">{message}</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex items-center gap-1.5 text-[10px] font-mono text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded px-3 py-1.5 hover:border-zinc-600 transition-colors"
+        >
+          <RefreshCw className="w-3 h-3" />
+          RETRY
+        </button>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -47,50 +41,125 @@ function formatGeneratedAt(iso: string | null): string {
   if (!iso) return '';
   try {
     return new Date(iso).toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
     });
-  } catch {
-    return iso;
-  }
+  } catch { return iso; }
+}
+
+/* ── Recommendation table row ── */
+function RecommendationRow({
+  rec,
+  isOpen,
+  onToggle,
+  newsThemes,
+}: {
+  rec: StrategyRecommendation;
+  isOpen: boolean;
+  onToggle: () => void;
+  newsThemes: StrategyNewsTheme[];
+}) {
+  const dir = STRATEGY_DIRECTION_CONFIG[rec.direction];
+  const conf = STRATEGY_CONFIDENCE_CONFIG[rec.confidence];
+
+  return (
+    <div className="border-b border-zinc-800/50 last:border-b-0">
+      {/* Collapsed row */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full text-left px-3 py-2 flex items-center gap-3 hover:bg-zinc-800/30 transition-colors group"
+      >
+        {/* Direction badge */}
+        <span className={`shrink-0 w-[52px] text-center text-[10px] font-mono font-black py-0.5 rounded ${dir.bg} ${dir.text} border ${dir.border}`}>
+          {dir.label}
+        </span>
+
+        {/* Ticker */}
+        <span className="shrink-0 w-[60px] font-mono text-xs font-bold text-zinc-100 tracking-wider">
+          {rec.ticker}
+        </span>
+
+        {/* Name */}
+        <span className="hidden md:block shrink-0 w-[120px] text-[10px] text-zinc-500 truncate">
+          {rec.name || '-'}
+        </span>
+
+        {/* Rationale preview */}
+        <span className="flex-1 min-w-0 text-[10px] text-zinc-400 truncate">
+          {rec.rationale}
+        </span>
+
+        {/* Price levels */}
+        <span className="hidden lg:flex items-center gap-2 shrink-0 text-[9px] font-mono">
+          {rec.entryPrice !== null && <span className="text-blue-400">E {rec.entryPrice.toFixed(1)}</span>}
+          {rec.targetPrice !== null && <span className="text-green-400">T {rec.targetPrice.toFixed(1)}</span>}
+          {rec.stopLoss !== null && <span className="text-red-400">SL {rec.stopLoss.toFixed(1)}</span>}
+        </span>
+
+        {/* Confidence mini-bar */}
+        <div className="shrink-0 w-[50px] hidden sm:block">
+          <div className="h-1 rounded-full bg-zinc-800 overflow-hidden">
+            <div className={`h-full rounded-full ${conf.color} ${conf.width}`} />
+          </div>
+        </div>
+
+        {/* R:R */}
+        {rec.riskRewardRatio !== null && (
+          <span className="shrink-0 w-[40px] text-[9px] font-mono text-zinc-500 text-right tabular-nums">
+            1:{rec.riskRewardRatio.toFixed(1)}
+          </span>
+        )}
+
+        {/* Expand icon */}
+        <ChevronDown
+          className={`shrink-0 w-3.5 h-3.5 text-zinc-600 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {/* Expanded detail */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-zinc-800/30 bg-zinc-900/60">
+              <StrategyRecommendationCard rec={rec} newsThemes={newsThemes} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 export default function StrategyPage() {
   const { data, isLoading, error, retry } = useStrategyData();
+  const [openTicker, setOpenTicker] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
-      {/* Navigation Bar */}
-      <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-[#0a0a0a]/95 backdrop-blur-sm">
-        <div className="max-w-[1400px] mx-auto px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="font-mono text-[10px] uppercase tracking-widest">
-                Terminal
-              </span>
+    <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
+      {/* Nav */}
+      <nav className="shrink-0 border-b border-zinc-800 bg-[#0a0a0a]">
+        <div className="px-3 py-1.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors">
+              <ArrowLeft className="w-3 h-3" />
+              <span className="font-mono text-[9px] uppercase tracking-widest">Terminal</span>
             </Link>
             <span className="text-zinc-800">|</span>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-zinc-100 tracking-wider">
-                Quant<span className="text-green-500">ix</span>
-              </span>
-              <span className="text-[10px] text-zinc-600 font-mono">
-                STRATEGY
-              </span>
-            </div>
+            <span className="font-mono text-[11px] font-bold text-zinc-100 tracking-wider">
+              Quant<span className="text-green-500">ix</span>
+            </span>
+            <span className="text-[9px] text-zinc-600 font-mono">STRATEGY</span>
           </div>
           <div className="flex items-center gap-3">
             {data?.generatedAt && (
               <span className="text-[9px] font-mono text-zinc-600">
-                GENERATED {formatGeneratedAt(data.generatedAt)}
+                {formatGeneratedAt(data.generatedAt)}
               </span>
             )}
             <span className="relative flex h-1.5 w-1.5">
@@ -106,44 +175,93 @@ export default function StrategyPage() {
       ) : error ? (
         <ErrorState message={error} onRetry={retry} />
       ) : data ? (
-        <main className="max-w-[1400px] mx-auto px-4 py-4 space-y-3">
-          {/* Risk Warnings */}
-          <StrategyRiskWarnings warnings={data.riskWarnings} />
-
-          {/* Market Situation */}
-          <StrategyMarketSituation
-            summary={data.marketSummary}
-            regime={data.marketRegime}
-            fearGreed={data.fearGreed}
-          />
-
-          {/* News Themes + Econ Panel */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-            <div className="lg:col-span-3">
-              <StrategyNewsThemes themes={data.newsThemes} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Risk banner */}
+          {data.riskWarnings.length > 0 && (
+            <div className="shrink-0 px-3 py-1">
+              <StrategyRiskWarnings warnings={data.riskWarnings} />
             </div>
-            <div className="lg:col-span-2">
+          )}
+
+          {/* Dashboard grid */}
+          <div className="flex-1 flex overflow-hidden min-h-0">
+            {/* Left column: Market + News + Econ */}
+            <div className="w-[340px] shrink-0 border-r border-zinc-800 flex flex-col overflow-y-auto terminal-scroll">
+              <StrategyMarketSituation
+                summary={data.marketSummary}
+                regime={data.marketRegime}
+                fearGreed={data.fearGreed}
+              />
+              <StrategyNewsThemes themes={data.newsThemes} />
               <StrategyEconPanel data={data.econAnalysis} />
+            </div>
+
+            {/* Right column: Sector + Recommendations */}
+            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+              {/* Sector chart - compact */}
+              {data.sectors.length > 0 && (
+                <div className="shrink-0 border-b border-zinc-800">
+                  <StrategySectorHeatmap data={data} />
+                </div>
+              )}
+
+              {/* Recommendations table */}
+              <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+                <div className="shrink-0 px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase tracking-widest">
+                      Recommendations
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-mono text-zinc-600">
+                    {data.recommendations.length} PICKS
+                  </span>
+                </div>
+
+                {/* Table header */}
+                <div className="shrink-0 px-3 py-1 bg-zinc-900/80 border-b border-zinc-800/40 flex items-center gap-3 text-[8px] font-mono text-zinc-600 uppercase tracking-wider">
+                  <span className="w-[52px]">Signal</span>
+                  <span className="w-[60px]">Ticker</span>
+                  <span className="hidden md:block w-[120px]">Name</span>
+                  <span className="flex-1">Rationale</span>
+                  <span className="hidden lg:block w-[180px] text-right">Levels</span>
+                  <span className="hidden sm:block w-[50px]">Conf.</span>
+                  <span className="w-[40px] text-right">R:R</span>
+                  <span className="w-3.5" />
+                </div>
+
+                {/* Scrollable rows */}
+                <div className="flex-1 overflow-y-auto terminal-scroll">
+                  {data.recommendations.length === 0 ? (
+                    <div className="flex items-center justify-center py-8">
+                      <span className="text-[10px] font-mono text-zinc-600">NO RECOMMENDATIONS</span>
+                    </div>
+                  ) : (
+                    data.recommendations.map((rec) => (
+                      <RecommendationRow
+                        key={rec.ticker}
+                        rec={rec}
+                        isOpen={openTicker === rec.ticker}
+                        onToggle={() =>
+                          setOpenTicker((prev) => (prev === rec.ticker ? null : rec.ticker))
+                        }
+                        newsThemes={data.newsThemes}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Sector Heatmap */}
-          {data.sectors.length > 0 && <StrategySectorHeatmap data={data} />}
-
-          {/* Recommendations */}
-          <StrategyRecommendations
-            recommendations={data.recommendations}
-            newsThemes={data.newsThemes}
-          />
-        </main>
-      ) : null}
-
-      <footer className="border-t border-zinc-800 mt-6">
-        <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between text-[9px] font-mono text-zinc-700">
-          <span>QUANTIX v3.7.2 | STRATEGY ENGINE</span>
-          <span>&copy; 2025 Quantix Terminal</span>
+          {/* Status bar */}
+          <div className="shrink-0 px-3 py-1 border-t border-zinc-800 flex items-center justify-between text-[8px] font-mono text-zinc-700">
+            <span>QUANTIX STRATEGY ENGINE</span>
+            <span>&copy; 2025 Quantix</span>
+          </div>
         </div>
-      </footer>
+      ) : null}
     </div>
   );
 }

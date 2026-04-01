@@ -13,54 +13,37 @@ import {
 import { STRATEGY_DIVERGENCE_BAR_ALPHA, STRATEGY_DIVERGENCE_COLOR_GREEN, STRATEGY_DIVERGENCE_COLOR_RED } from '@/lib/strategyConstants';
 import type { StrategyData } from '@/types/dashboard';
 
-type DivergenceTooltipPayload = {
-  value?: number;
-  payload?: StrategyData['sectors'][number];
-};
+type TooltipPayload = { value?: number; payload?: StrategyData['sectors'][number] };
 
-function formatSigned(value: number, digits: number): string {
-  const fixed = value.toFixed(digits);
-  return value >= 0 ? `+${fixed}` : fixed;
+function formatSigned(v: number, d: number): string {
+  const f = v.toFixed(d);
+  return v >= 0 ? `+${f}` : f;
 }
 
-function interpolateColor(
+function interpolate(
   low: { r: number; g: number; b: number },
   high: { r: number; g: number; b: number },
   t: number,
-): { r: number; g: number; b: number } {
-  const clamped = Math.max(0, Math.min(1, t));
+) {
+  const c = Math.max(0, Math.min(1, t));
   return {
-    r: Math.round(low.r + (high.r - low.r) * clamped),
-    g: Math.round(low.g + (high.g - low.g) * clamped),
-    b: Math.round(low.b + (high.b - low.b) * clamped),
+    r: Math.round(low.r + (high.r - low.r) * c),
+    g: Math.round(low.g + (high.g - low.g) * c),
+    b: Math.round(low.b + (high.b - low.b) * c),
   };
 }
 
-function DivergenceTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: DivergenceTooltipPayload[];
-}) {
+function DivTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
   if (!active || !payload?.length) return null;
-  const first = payload[0];
-  const raw = first?.payload;
-  if (!raw) return null;
-
-  const divergence = typeof first?.value === 'number' ? first.value : raw.divergence;
-  const sector = raw.sector;
-  const signClass = divergence >= 0 ? 'text-emerald-400' : 'text-red-400';
-
+  const p = payload[0]?.payload;
+  if (!p) return null;
+  const v = typeof payload[0]?.value === 'number' ? payload[0].value : p.divergence;
   return (
-    <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/95 px-3 py-2 shadow-xl backdrop-blur-xl">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-[11px] font-mono text-zinc-300">{sector}</p>
-        <p className={`text-[11px] font-mono font-bold tabular-nums ${signClass}`}>
-          {formatSigned(divergence, 3)}
-        </p>
-      </div>
-      <div className="mt-1 text-[9px] font-mono text-zinc-600">AVG DIVERGENCE</div>
+    <div className="rounded border border-zinc-700/60 bg-zinc-900/95 px-2 py-1 shadow-lg backdrop-blur text-[10px] font-mono">
+      <span className="text-zinc-300">{p.sector}</span>
+      <span className={`ml-2 tabular-nums ${v >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+        {formatSigned(v, 3)}
+      </span>
     </div>
   );
 }
@@ -70,122 +53,72 @@ export default function StrategySectorHeatmap({
 }: {
   data: Pick<StrategyData, 'sectors' | 'topSector'>;
 }) {
-  const sectorList = data.sectors;
-  if (sectorList.length === 0) return null;
-  const divergences = sectorList.map((s) => s.divergence);
-  const min = Math.min(...divergences);
-  const max = Math.max(...divergences);
+  const list = data.sectors;
+  if (list.length === 0) return null;
+  const divs = list.map((s) => s.divergence);
+  const min = Math.min(...divs);
+  const max = Math.max(...divs);
+
+  const chartHeight = Math.max(120, list.length * 22 + 24);
 
   return (
-    <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 overflow-hidden">
-      <div className="flex flex-col lg:flex-row">
-        {/* Chart area */}
-        <div className="flex-1 border-r border-zinc-800">
-          <div className="px-4 py-2 bg-zinc-800/40 border-b border-zinc-800 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <h2 className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest">
-                Sector Divergence
-              </h2>
-            </div>
-            <div className="flex items-center gap-3 text-[9px] font-mono text-zinc-600">
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-sm bg-emerald-500/60" />
-                HIGH
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-sm bg-red-500/60" />
-                LOW
-              </span>
-            </div>
-          </div>
-
-          <div className="p-4">
-            <div className="h-[320px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={sectorList}
-                  layout="vertical"
-                  margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
-                >
-                  <defs>
-                    <linearGradient id="divergenceGrid" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#22c55e" stopOpacity={0.08} />
-                      <stop offset="100%" stopColor="#ef4444" stopOpacity={0.08} />
-                    </linearGradient>
-                  </defs>
-
-                  <CartesianGrid
-                    strokeDasharray="4 4"
-                    stroke="url(#divergenceGrid)"
-                    horizontal={false}
-                  />
-
-                  <XAxis
-                    type="number"
-                    dataKey="divergence"
-                    tick={{ fill: '#3f3f46', fontSize: 10, fontFamily: 'monospace' }}
-                    tickLine={false}
-                    axisLine={false}
-                    domain={['auto', 'auto']}
-                  />
-                  <YAxis
-                    dataKey="sector"
-                    type="category"
-                    tick={{ fill: '#71717a', fontSize: 11, fontFamily: 'monospace' }}
-                    tickLine={false}
-                    axisLine={false}
-                    width={120}
-                  />
-
-                  <Tooltip content={<DivergenceTooltip />} />
-
-                  <Bar
-                    dataKey="divergence"
-                    radius={[4, 4, 4, 4]}
-                    barSize={12}
-                  >
-                    {sectorList.map((s, idx) => {
-                      const t = max === min ? 0.5 : (s.divergence - min) / (max - min);
-                      const c = interpolateColor(
-                        STRATEGY_DIVERGENCE_COLOR_RED,
-                        STRATEGY_DIVERGENCE_COLOR_GREEN,
-                        t,
-                      );
-                      const fill = `rgba(${c.r}, ${c.g}, ${c.b}, ${STRATEGY_DIVERGENCE_BAR_ALPHA})`;
-                      return <Cell key={`${s.sector}-${idx}`} fill={fill} />;
-                    })}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+    <div>
+      {/* Header with spotlight inline */}
+      <div className="px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+            Sector Divergence
+          </span>
+          <span className="flex items-center gap-1 text-[8px] font-mono text-zinc-600">
+            <span className="h-1.5 w-1.5 rounded-sm bg-emerald-500/60" /> HIGH
+            <span className="h-1.5 w-1.5 rounded-sm bg-red-500/60 ml-1" /> LOW
+          </span>
         </div>
-
-        {/* AI Spotlight sidebar */}
-        <aside className="w-full lg:w-[320px] flex flex-col">
-          <div className="px-4 py-2 bg-zinc-800/40 border-b border-zinc-800 flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <h3 className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest">
-              AI Spotlight
-            </h3>
+        {data.topSector.name && (
+          <div className="flex items-center gap-1.5 text-[9px] font-mono">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="text-zinc-400">Spotlight:</span>
+            <span className="text-emerald-400 font-bold">{data.topSector.name}</span>
           </div>
-          <div className="p-4 flex-1">
-            <div className="mb-3">
-              <span className="text-[9px] font-mono text-zinc-600 uppercase">Top Sector</span>
-              <h3 className="text-lg font-bold text-zinc-100 font-mono mt-0.5">
-                {data.topSector.name}
-              </h3>
-            </div>
-            <div className="rounded-lg border border-zinc-800/50 bg-zinc-950/30 p-3">
-              <span className="text-[9px] font-mono text-zinc-600 uppercase">Reason</span>
-              <p className="text-xs text-zinc-300 leading-relaxed mt-1 whitespace-pre-line">
-                {data.topSector.reason}
-              </p>
-            </div>
-          </div>
-        </aside>
+        )}
       </div>
-    </section>
+
+      <div className="px-2 py-1" style={{ height: chartHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={list} layout="vertical" margin={{ top: 2, right: 8, left: 0, bottom: 2 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#18181b" horizontal={false} />
+            <XAxis
+              type="number"
+              dataKey="divergence"
+              tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }}
+              tickLine={false}
+              axisLine={false}
+              domain={['auto', 'auto']}
+            />
+            <YAxis
+              dataKey="sector"
+              type="category"
+              tick={{ fill: '#52525b', fontSize: 10, fontFamily: 'monospace' }}
+              tickLine={false}
+              axisLine={false}
+              width={100}
+            />
+            <Tooltip content={<DivTooltip />} />
+            <Bar dataKey="divergence" radius={[3, 3, 3, 3]} barSize={10}>
+              {list.map((s, idx) => {
+                const t = max === min ? 0.5 : (s.divergence - min) / (max - min);
+                const c = interpolate(STRATEGY_DIVERGENCE_COLOR_RED, STRATEGY_DIVERGENCE_COLOR_GREEN, t);
+                return (
+                  <Cell
+                    key={`${s.sector}-${idx}`}
+                    fill={`rgba(${c.r}, ${c.g}, ${c.b}, ${STRATEGY_DIVERGENCE_BAR_ALPHA})`}
+                  />
+                );
+              })}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
