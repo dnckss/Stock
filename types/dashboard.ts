@@ -339,20 +339,14 @@ export interface EconomicCalendarItem {
 }
 
 // ── Strategy (AI Strategy Room) ──
+
+// -- API types (snake_case, backend response) --
+
 export interface ApiStrategySectorItem {
-  /** 섹터명 (백엔드 필드명은 name/sector 중 하나일 수 있음) */
   name?: string;
   sector?: string;
-  /** 평균 괴리율 (백엔드 필드명은 divergence/avg_divergence 중 하나일 수 있음) */
   divergence?: number;
   avg_divergence?: number;
-}
-
-export interface ApiStrategyPick {
-  ticker?: string;
-  direction?: string;
-  confidence?: string;
-  rationale?: string;
 }
 
 export interface ApiNewsTheme {
@@ -362,6 +356,76 @@ export interface ApiNewsTheme {
   detail?: string;
 }
 
+export interface ApiStrategyTechnicalIndicators {
+  rsi?: number | null;
+  bollinger_position?: number | null;
+  macd_signal?: string | null;
+  macd_histogram?: number | null;
+}
+
+export interface ApiStrategyPriceLevel {
+  date?: string;
+  close?: number;
+}
+
+export interface ApiStrategyRelatedNews {
+  headline?: string;
+  url?: string;
+  source?: string;
+  sentiment?: string;
+}
+
+export interface ApiStrategyRecommendation {
+  ticker?: string;
+  name?: string;
+  direction?: string;
+  confidence?: string;
+  rationale?: string;
+  entry_price?: number | null;
+  stop_loss?: number | null;
+  target_price?: number | null;
+  risk_reward_ratio?: number | null;
+  technical_indicators?: ApiStrategyTechnicalIndicators | null;
+  price_history?: ApiStrategyPriceLevel[] | null;
+  related_news?: ApiStrategyRelatedNews[] | null;
+}
+
+export interface ApiEconSurprise {
+  event?: string;
+  date?: string;
+  actual?: string | null;
+  forecast?: string | null;
+  impact?: string;
+  detail?: string;
+}
+
+export interface ApiUpcomingRisk {
+  event?: string;
+  date?: string;
+  risk_level?: string;
+  detail?: string;
+}
+
+export interface ApiEconAnalysis {
+  summary?: string | null;
+  recent_surprises?: ApiEconSurprise[] | null;
+  upcoming_risks?: ApiUpcomingRisk[] | null;
+}
+
+export interface ApiRiskWarning {
+  level?: string;
+  message?: string;
+}
+
+/** @deprecated 하위호환용 — recommendations로 대체 */
+export interface ApiStrategyPick {
+  ticker?: string;
+  direction?: string;
+  confidence?: string;
+  rationale?: string;
+}
+
+/** @deprecated 하위호환용 — econ_analysis.upcoming_risks로 대체 */
 export interface ApiRiskEvent {
   event?: string;
   date?: string;
@@ -371,34 +435,38 @@ export interface ApiRiskEvent {
 
 export interface ApiStrategyResponse {
   market_summary: string;
+  market_regime?: string | null;
+  fear_greed?: number | null;
   sector_data: ApiStrategySectorItem[];
-  top_sector: {
-    name: string;
-    reason: string;
-  };
-  top_picks: ApiStrategyPick[];
+  top_sector: { name: string; reason: string };
+  recommendations?: ApiStrategyRecommendation[] | null;
   news_themes?: ApiNewsTheme[];
-  econ_impact?: string | null;
-  risk_events?: ApiRiskEvent[];
+  econ_analysis?: ApiEconAnalysis | null;
+  risk_warnings?: ApiRiskWarning[] | null;
   generated_at?: string;
+  /** @deprecated 하위호환 */
+  top_picks?: ApiStrategyPick[];
+  /** @deprecated 하위호환 */
+  econ_impact?: string | null;
+  /** @deprecated 하위호환 */
+  risk_events?: ApiRiskEvent[];
 }
+
+// -- Display types (camelCase, UI) --
 
 export interface StrategySectorItem {
   sector: string;
   divergence: number;
 }
 
-export type StrategyDirection = 'BUY' | 'SELL' | 'HOLD';
+export type StrategyDirection = 'BUY' | 'SELL' | 'SHORT' | 'HOLD';
 export type StrategyConfidence = 'high' | 'medium' | 'low';
 export type ThemeSentiment = 'positive' | 'negative' | 'neutral';
 export type RiskLevel = 'high' | 'medium' | 'low';
-
-export interface StrategyTopPick {
-  ticker: string;
-  direction: StrategyDirection;
-  confidence: StrategyConfidence;
-  rationale: string;
-}
+export type MarketRegime = 'bull' | 'bear' | 'sideways' | 'volatile';
+export type MacdSignal = 'bullish' | 'bearish' | 'neutral';
+export type EconImpactType = 'positive' | 'negative' | 'neutral';
+export type RiskWarningLevel = 'critical' | 'high' | 'medium';
 
 export interface StrategyNewsTheme {
   theme: string;
@@ -407,23 +475,76 @@ export interface StrategyNewsTheme {
   detail: string;
 }
 
-export interface StrategyRiskEvent {
+export interface StrategyTechnicalIndicators {
+  rsi: number | null;
+  bollingerPosition: number | null;
+  macdSignal: MacdSignal;
+  macdHistogram: number | null;
+}
+
+export interface StrategyPriceLevel {
+  date: string;
+  close: number;
+}
+
+export interface StrategyRelatedNews {
+  headline: string;
+  url: string;
+  source: string;
+  sentiment: ThemeSentiment;
+}
+
+export interface StrategyRecommendation {
+  ticker: string;
+  name: string;
+  direction: StrategyDirection;
+  confidence: StrategyConfidence;
+  rationale: string;
+  entryPrice: number | null;
+  stopLoss: number | null;
+  targetPrice: number | null;
+  riskRewardRatio: number | null;
+  technicalIndicators: StrategyTechnicalIndicators | null;
+  priceHistory: StrategyPriceLevel[];
+  relatedNews: StrategyRelatedNews[];
+}
+
+export interface EconSurprise {
+  event: string;
+  date: string;
+  actual: string | null;
+  forecast: string | null;
+  impact: EconImpactType;
+  detail: string;
+}
+
+export interface UpcomingRisk {
   event: string;
   date: string;
   riskLevel: RiskLevel;
   detail: string;
 }
 
+export interface EconAnalysis {
+  summary: string | null;
+  recentSurprises: EconSurprise[];
+  upcomingRisks: UpcomingRisk[];
+}
+
+export interface RiskWarning {
+  level: RiskWarningLevel;
+  message: string;
+}
+
 export interface StrategyData {
   marketSummary: string;
+  marketRegime: MarketRegime | null;
+  fearGreed: number | null;
   sectors: StrategySectorItem[];
-  topSector: {
-    name: string;
-    reason: string;
-  };
-  topPicks: StrategyTopPick[];
+  topSector: { name: string; reason: string };
+  recommendations: StrategyRecommendation[];
   newsThemes: StrategyNewsTheme[];
-  econImpact: string | null;
-  riskEvents: StrategyRiskEvent[];
+  econAnalysis: EconAnalysis | null;
+  riskWarnings: RiskWarning[];
   generatedAt: string | null;
 }

@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { useStrategyData } from '@/hooks/useStrategy';
 import StrategySkeleton from '@/components/strategy/StrategySkeleton';
-import StrategySectorHeatmap from '@/components/strategy/StrategySectorHeatmap';
-import StrategyTopPicks from '@/components/strategy/StrategyTopPicks';
+import StrategyRiskWarnings from '@/components/strategy/StrategyRiskWarnings';
+import StrategyMarketSituation from '@/components/strategy/StrategyMarketSituation';
 import StrategyNewsThemes from '@/components/strategy/StrategyNewsThemes';
-import StrategyRiskEvents from '@/components/strategy/StrategyRiskEvents';
+import StrategyEconPanel from '@/components/strategy/StrategyEconPanel';
+import StrategySectorHeatmap from '@/components/strategy/StrategySectorHeatmap';
+import StrategyRecommendations from '@/components/strategy/StrategyRecommendations';
 
 function ErrorState({
   message,
@@ -105,40 +107,32 @@ export default function StrategyPage() {
         <ErrorState message={error} onRetry={retry} />
       ) : data ? (
         <main className="max-w-[1400px] mx-auto px-4 py-4 space-y-3">
-          {/* Row 1: Market Briefing */}
-          <section className="rounded-lg border border-zinc-800 bg-zinc-900/40 overflow-hidden">
-            <div className="px-4 py-2 bg-zinc-800/40 border-b border-zinc-800 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              <h1 className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest">
-                AI Market Briefing
-              </h1>
-            </div>
-            <div className="p-4">
-              <p className="text-[13px] text-zinc-200 leading-relaxed whitespace-pre-line">
-                {data.marketSummary}
-              </p>
-            </div>
-          </section>
+          {/* Risk Warnings */}
+          <StrategyRiskWarnings warnings={data.riskWarnings} />
 
-          {/* Row 2: News Themes + Risk/Econ side by side */}
+          {/* Market Situation */}
+          <StrategyMarketSituation
+            summary={data.marketSummary}
+            regime={data.marketRegime}
+            fearGreed={data.fearGreed}
+          />
+
+          {/* News Themes + Econ Panel */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
             <div className="lg:col-span-3">
               <StrategyNewsThemes themes={data.newsThemes} />
             </div>
             <div className="lg:col-span-2">
-              <StrategyRiskEvents
-                econImpact={data.econImpact}
-                riskEvents={data.riskEvents}
-              />
+              <StrategyEconPanel data={data.econAnalysis} />
             </div>
           </div>
 
-          {/* Row 3: Sector Heatmap */}
-          <StrategySectorHeatmap data={data} />
+          {/* Sector Heatmap */}
+          {data.sectors.length > 0 && <StrategySectorHeatmap data={data} />}
 
-          {/* Row 4: AI Top Picks - full width, prominent */}
-          <StrategyTopPicks
-            picks={data.topPicks}
+          {/* Recommendations */}
+          <StrategyRecommendations
+            recommendations={data.recommendations}
             newsThemes={data.newsThemes}
           />
         </main>
