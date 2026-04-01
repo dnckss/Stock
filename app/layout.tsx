@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QuantAI Terminal — Global AI Quant Trading",
+  title: "Quantix Terminal — Global AI Quant Trading",
   description:
     "AI 기반 글로벌 퀀트 트레이딩 터미널 — 실시간 시장 모니터링 및 투자 시그널",
 };

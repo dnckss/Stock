@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Project Overview
-이 프로젝트는 **주식/매크로/뉴스 감성 기반의 “QuantAI Trading Terminal” 프론트엔드(Next.js App Router)** 입니다.
+이 프로젝트는 **주식/매크로/뉴스 감성 기반의 “Quantix Trading Terminal” 프론트엔드(Next.js App Router)** 입니다.
 
 - 목적: **실시간(WS) + 주기적(API) 시장 데이터**, 뉴스 감성, 경제일정, 종목 상세/리포트를 한 화면에서 제공
 - 주요 사용자: **시장/종목 모니터링이 필요한 개인 투자자/트레이더(데스크형 터미널 UI)**

@@ -78,7 +78,7 @@ export default function StrategyPage() {
             <span className="text-zinc-800">|</span>
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs font-bold text-zinc-100 tracking-wider">
-                QUANT<span className="text-green-500">AI</span>
+                Quant<span className="text-green-500">ix</span>
               </span>
               <span className="text-[10px] text-zinc-600 font-mono">
                 STRATEGY
@@ -146,8 +146,8 @@ export default function StrategyPage() {
 
       <footer className="border-t border-zinc-800 mt-6">
         <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between text-[9px] font-mono text-zinc-700">
-          <span>AI MODEL v3.7.2 | STRATEGY ENGINE</span>
-          <span>&copy; 2025 QuantAI Terminal</span>
+          <span>QUANTIX v3.7.2 | STRATEGY ENGINE</span>
+          <span>&copy; 2025 Quantix Terminal</span>
         </div>
       </footer>
     </div>

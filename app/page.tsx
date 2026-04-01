@@ -37,7 +37,7 @@ function TerminalBoot() {
     <div className="h-screen bg-[#0a0a0a] flex items-center justify-center">
       <div className="text-center animate-terminal-boot">
         <div className="text-xl font-mono font-bold text-zinc-100 tracking-widest mb-3">
-          QUANT<span className="text-green-500">AI</span>
+          Quant<span className="text-green-500">ix</span>
         </div>
         <div className="flex items-center gap-2 justify-center">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -105,7 +105,7 @@ export default function TerminalPage() {
       <div className="flex items-center justify-between px-4 py-1.5 bg-zinc-900/50 border-b border-zinc-800 shrink-0">
         <div className="flex items-center gap-3">
           <span className="text-sm font-mono font-bold text-zinc-100 tracking-wider">
-            QUANT<span className="text-green-500">AI</span>
+            Quant<span className="text-green-500">ix</span>
           </span>
           <span className="text-zinc-700">|</span>
           <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-medium">
@@ -183,7 +183,7 @@ export default function TerminalPage() {
       {/* Status Bar */}
       <div className="flex items-center justify-between px-4 py-1 bg-zinc-900/80 border-t border-zinc-800 shrink-0">
         <div className="flex items-center gap-3 text-[9px] font-mono">
-          <span className="text-zinc-600">AI MODEL v3.7.2</span>
+          <span className="text-zinc-600">QUANTIX v3.7.2</span>
           <span className="text-zinc-800">|</span>
           {wsConnected ? (
             <span className="text-green-600">● WS CONNECTED</span>
@@ -198,7 +198,7 @@ export default function TerminalPage() {
           </span>
         </div>
         <div className="flex items-center gap-3 text-[9px] font-mono">
-          <span className="text-zinc-500">© 2025 QuantAI Terminal</span>
+          <span className="text-zinc-500">© 2025 Quantix Terminal</span>
         </div>
       </div>
     </div>

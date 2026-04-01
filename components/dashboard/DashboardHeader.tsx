@@ -9,7 +9,7 @@ export default function DashboardHeader() {
             <Activity className="h-4 w-4 text-emerald-400" />
           </div>
           <span className="text-base font-bold tracking-tight text-zinc-100">
-            Quant<span className="text-emerald-400">AI</span>
+            Quant<span className="text-emerald-400">ix</span>
           </span>
         </div>
 

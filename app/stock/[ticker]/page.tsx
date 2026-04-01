@@ -78,7 +78,7 @@ export default function StockDetailPage() {
           </Link>
           <div className="flex items-center gap-3">
             <span className="font-mono text-sm font-bold text-zinc-100 tracking-wider">
-              QUANT<span className="text-green-500">AI</span>
+              Quant<span className="text-green-500">ix</span>
             </span>
             <span className="text-zinc-700">|</span>
             <span className="text-[10px] text-zinc-500 font-mono">
@@ -120,8 +120,8 @@ export default function StockDetailPage() {
 
       <footer className="border-t border-zinc-800 mt-8">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between text-[9px] font-mono text-zinc-600">
-          <span>AI MODEL v3.7.2</span>
-          <span>© 2025 QuantAI Terminal</span>
+          <span>QUANTIX v3.7.2</span>
+          <span>© 2025 Quantix Terminal</span>
         </div>
       </footer>
     </div>
