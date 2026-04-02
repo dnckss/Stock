@@ -288,12 +288,14 @@ export default function StrategyPage() {
                         AI 포트폴리오 빌더
                       </span>
                     </div>
-                    <div className="p-4">
-                      <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={portfolioLoading} />
+                    <div className="p-4 flex justify-center">
+                      <div className="w-full max-w-[480px]">
+                        <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={portfolioLoading} />
+                      </div>
                     </div>
                     {portfolioError && (
-                      <div className="px-4 pb-3">
-                        <p className="text-[10px] text-red-400">{portfolioError}</p>
+                      <div className="px-4 pb-3 flex justify-center">
+                        <p className="text-[10px] text-red-400 max-w-[480px] w-full">{portfolioError}</p>
                       </div>
                     )}
                     {portfolioResult && (
