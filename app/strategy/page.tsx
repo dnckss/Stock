@@ -300,34 +300,42 @@ export default function StrategyPage() {
                       </div>
                     )}
 
+                    {/* Modal */}
                     {showPortfolioForm && !portfolioResult && (
-                      <>
-                        <div className="px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
-                            <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-                              포트폴리오 빌더
-                            </span>
+                      <div className="fixed inset-0 z-50 flex items-center justify-center">
+                        {/* Backdrop */}
+                        <div
+                          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                          onClick={() => { if (!portfolioLoading) setShowPortfolioForm(false); }}
+                        />
+                        {/* Dialog */}
+                        <div className="relative w-full max-w-[480px] mx-4 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+                          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
+                              <span className="text-[11px] font-mono font-bold text-zinc-300 uppercase tracking-widest">
+                                AI 포트폴리오 빌더
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowPortfolioForm(false)}
+                              disabled={portfolioLoading}
+                              className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 disabled:opacity-50 transition-colors"
+                            >
+                              ✕
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setShowPortfolioForm(false)}
-                            className="text-[9px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
-                          >
-                            닫기
-                          </button>
-                        </div>
-                        <div className="p-4 flex justify-center">
-                          <div className="w-full max-w-[480px]">
+                          <div className="p-5">
                             <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={portfolioLoading} />
                           </div>
+                          {portfolioError && (
+                            <div className="px-5 pb-4">
+                              <p className="text-[10px] text-red-400">{portfolioError}</p>
+                            </div>
+                          )}
                         </div>
-                        {portfolioError && (
-                          <div className="px-4 pb-3 flex justify-center">
-                            <p className="text-[10px] text-red-400 max-w-[480px] w-full">{portfolioError}</p>
-                          </div>
-                        )}
-                      </>
+                      </div>
                     )}
 
                     {portfolioResult && (
