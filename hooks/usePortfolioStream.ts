@@ -182,11 +182,39 @@ export function usePortfolioStream(): UsePortfolioStreamReturn {
       esRef.current = null;
     });
 
+    // 서버가 complete 이벤트로 최종 결과 또는 에러를 보냄
+    es.addEventListener('complete', (e: MessageEvent) => {
+      if (!mountedRef.current) return;
+      try {
+        const data = JSON.parse(e.data);
+        if (data.error) {
+          setError(data.error);
+          setStatus('error');
+        } else if (Array.isArray(data.allocations)) {
+          const parsed = parsePortfolioFullResult(data as ApiPortfolioStreamResult);
+          if (parsed) {
+            setResult(parsed);
+            setStatus('complete');
+          } else {
+            setError('포트폴리오 결과를 파싱할 수 없습니다');
+            setStatus('error');
+          }
+        } else {
+          // allocations도 error도 없는 경우
+          setError('포트폴리오 생성 결과가 비어있습니다');
+          setStatus('error');
+        }
+      } catch {
+        setError('포트폴리오 결과를 처리할 수 없습니다');
+        setStatus('error');
+      }
+      es.close();
+      esRef.current = null;
+    });
+
     // 서버가 pipeline_end를 보내면 스트림 정상 종료
     es.addEventListener('pipeline_end', () => {
       if (!mountedRef.current) return;
-      // result가 이미 설정되지 않은 경우에만 에러 처리
-      // (agent_result에서 allocations 수신 시 이미 complete 처리됨)
       es.close();
       esRef.current = null;
     });
