@@ -16,7 +16,7 @@ const UP_COLOR = '#ef4444';
 const DOWN_COLOR = '#3b82f6';
 
 function isIntraday(period: ChartPeriod): boolean {
-  return period.endsWith('m');
+  return period.endsWith('min');
 }
 
 /**

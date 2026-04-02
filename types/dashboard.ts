@@ -187,7 +187,7 @@ export interface ApiChartResponse {
   count: number;
 }
 
-export type ChartPeriod = '1m' | '5m' | '30m' | '60m' | '1D' | '1W' | '1M' | '1Y';
+export type ChartPeriod = '1min' | '5min' | '30min' | '60min' | 'day' | 'week' | 'month' | 'year';
 
 export interface StockQuote {
   price: number;

@@ -37,15 +37,15 @@ export const STOCK_NEWS_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2분
 export const STOCK_NEWS_FORCE_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10분
 
 // ── Stock detail chart / quote ──
-export const CHART_MINUTE_PERIODS = ['1m', '5m', '30m', '60m'] as const;
-export const CHART_UPPER_PERIODS = ['1D', '1W', '1M', '1Y'] as const;
+export const CHART_MINUTE_PERIODS = ['1min', '5min', '30min', '60min'] as const;
+export const CHART_UPPER_PERIODS = ['day', 'week', 'month', 'year'] as const;
 export const CHART_MINUTE_LABELS: Record<string, string> = {
-  '1m': '1분', '5m': '5분', '30m': '30분', '60m': '60분',
+  '1min': '1분', '5min': '5분', '30min': '30분', '60min': '60분',
 };
 export const CHART_UPPER_LABELS: Record<string, string> = {
-  '1D': '일', '1W': '주', '1M': '월', '1Y': '년',
+  day: '일', week: '주', month: '월', year: '년',
 };
-export const CHART_DEFAULT_PERIOD = '1D';
+export const CHART_DEFAULT_PERIOD = 'day';
 export const QUOTE_POLL_INTERVAL_MS = 8_000; // 8초
 export const ECON_CALENDAR_DEFAULT_LIMIT = 50;
 export const ECON_CALENDAR_SIDEBAR_PAGE_SIZE = 10;
