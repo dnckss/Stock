@@ -10,6 +10,7 @@ import StockQuotePanel from '@/components/detail/StockQuotePanel';
 
 
 import RelatedNews from '@/components/detail/RelatedNews';
+import StockAnalysisPanel from '@/components/detail/StockAnalysis';
 
 function PageSkeleton() {
   return (
@@ -30,10 +31,14 @@ export default function StockDetailPage() {
     chartBars,
     chartPeriod,
     chartLoading,
+    analysis,
+    analysisLoading,
+    analysisError,
     isLoading,
     newsRefreshing,
     lastNewsRefreshForced,
     error,
+    retryAnalysis,
     refreshLatestNews,
     setChartPeriod,
   } = useStockDetail(ticker);
@@ -108,6 +113,12 @@ export default function StockDetailPage() {
             onRefreshLatest={refreshLatestNews}
             isRefreshing={newsRefreshing}
             lastRefreshForced={lastNewsRefreshForced}
+          />
+          <StockAnalysisPanel
+            analysis={analysis}
+            isLoading={analysisLoading}
+            error={analysisError}
+            onRetry={retryAnalysis}
           />
         </div>
       </div>

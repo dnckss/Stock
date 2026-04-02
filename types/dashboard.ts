@@ -223,6 +223,70 @@ export interface ChartBar {
   volume: number;
 }
 
+// ── Stock AI Analysis Types ──
+
+export interface ApiStockAnalysisResponse {
+  ticker: string;
+  analysis: {
+    price_action?: {
+      trend?: string;
+      cause?: string;
+      key_events?: string[];
+    };
+    technical_diagnosis?: {
+      condition?: string;
+      summary?: string;
+      support_test?: string;
+    };
+    rebound_potential?: {
+      rating?: string;
+      reason?: string;
+      catalysts?: string[];
+    };
+    risks?: string[];
+    strategy?: {
+      action?: string;
+      entry_condition?: string;
+      stop_loss_note?: string;
+      summary?: string;
+    };
+    overall_summary?: string;
+    generated_at?: string;
+  };
+}
+
+export type TrendType = 'uptrend' | 'downtrend' | 'sideways';
+export type TechnicalCondition = 'oversold' | 'overbought' | 'neutral';
+export type ReboundRating = 'high' | 'medium' | 'low';
+export type StrategyAction = 'BUY' | 'SELL' | 'WAIT' | 'HOLD';
+
+export interface StockAnalysis {
+  priceAction: {
+    trend: TrendType;
+    cause: string;
+    keyEvents: string[];
+  };
+  technicalDiagnosis: {
+    condition: TechnicalCondition;
+    summary: string;
+    supportTest: string;
+  };
+  reboundPotential: {
+    rating: ReboundRating;
+    reason: string;
+    catalysts: string[];
+  };
+  risks: string[];
+  strategy: {
+    action: StrategyAction;
+    entryCondition: string;
+    stopLossNote: string;
+    summary: string;
+  };
+  overallSummary: string;
+  generatedAt: string | null;
+}
+
 export interface ApiStockDetailResponse {
   ticker: string;
   company_name?: string | null;

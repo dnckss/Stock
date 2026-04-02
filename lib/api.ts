@@ -21,6 +21,12 @@ import type {
   StockQuote,
   ChartBar,
   ChartPeriod,
+  ApiStockAnalysisResponse,
+  StockAnalysis,
+  TrendType,
+  TechnicalCondition,
+  ReboundRating,
+  StrategyAction,
 } from '@/types/dashboard';
 import { ECON_CALENDAR_DEFAULT_LIMIT } from '@/lib/constants';
 
@@ -442,6 +448,62 @@ export function parseChartBars(bars: ApiChartResponse['bars'] | null | undefined
       close: b.close,
       volume: b.volume ?? 0,
     }));
+}
+
+// ── Stock AI Analysis ──
+
+const VALID_TRENDS = new Set<TrendType>(['uptrend', 'downtrend', 'sideways']);
+const VALID_CONDITIONS = new Set<TechnicalCondition>(['oversold', 'overbought', 'neutral']);
+const VALID_REBOUND = new Set<ReboundRating>(['high', 'medium', 'low']);
+const VALID_ACTIONS = new Set<StrategyAction>(['BUY', 'SELL', 'WAIT', 'HOLD']);
+
+export async function fetchStockAnalysis(ticker: string): Promise<ApiStockAnalysisResponse> {
+  const res = await fetch(`${API_BASE}/api/stock/${encodeURIComponent(ticker)}/analysis`);
+  if (!res.ok) {
+    throw new ApiError(res.status, 'AI 분석을 불러올 수 없습니다');
+  }
+  return res.json();
+}
+
+export function parseStockAnalysis(raw: ApiStockAnalysisResponse | null | undefined): StockAnalysis | null {
+  const a = raw?.analysis;
+  if (!a) return null;
+
+  const trendRaw = String(a.price_action?.trend ?? '').toLowerCase();
+  const condRaw = String(a.technical_diagnosis?.condition ?? '').toLowerCase();
+  const ratingRaw = String(a.rebound_potential?.rating ?? '').toLowerCase();
+  const actionRaw = String(a.strategy?.action ?? '').toUpperCase();
+
+  return {
+    priceAction: {
+      trend: VALID_TRENDS.has(trendRaw as TrendType) ? (trendRaw as TrendType) : 'sideways',
+      cause: String(a.price_action?.cause ?? '').trim(),
+      keyEvents: Array.isArray(a.price_action?.key_events)
+        ? a.price_action.key_events.map((e) => String(e).trim()).filter(Boolean)
+        : [],
+    },
+    technicalDiagnosis: {
+      condition: VALID_CONDITIONS.has(condRaw as TechnicalCondition) ? (condRaw as TechnicalCondition) : 'neutral',
+      summary: String(a.technical_diagnosis?.summary ?? '').trim(),
+      supportTest: String(a.technical_diagnosis?.support_test ?? '').trim(),
+    },
+    reboundPotential: {
+      rating: VALID_REBOUND.has(ratingRaw as ReboundRating) ? (ratingRaw as ReboundRating) : 'medium',
+      reason: String(a.rebound_potential?.reason ?? '').trim(),
+      catalysts: Array.isArray(a.rebound_potential?.catalysts)
+        ? a.rebound_potential.catalysts.map((c) => String(c).trim()).filter(Boolean)
+        : [],
+    },
+    risks: Array.isArray(a.risks) ? a.risks.map((r) => String(r).trim()).filter(Boolean) : [],
+    strategy: {
+      action: VALID_ACTIONS.has(actionRaw as StrategyAction) ? (actionRaw as StrategyAction) : 'WAIT',
+      entryCondition: String(a.strategy?.entry_condition ?? '').trim(),
+      stopLossNote: String(a.strategy?.stop_loss_note ?? '').trim(),
+      summary: String(a.strategy?.summary ?? '').trim(),
+    },
+    overallSummary: String(a.overall_summary ?? '').trim(),
+    generatedAt: typeof a.generated_at === 'string' ? a.generated_at.trim() : null,
+  };
 }
 
 export async function fetchStrategy(): Promise<ApiStrategyResponse> {

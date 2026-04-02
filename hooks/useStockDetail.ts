@@ -5,6 +5,8 @@ import {
   fetchStockDetail,
   fetchStockChart,
   fetchStockQuote,
+  fetchStockAnalysis,
+  parseStockAnalysis,
   requestReport,
   apiHistoryToChart,
   deriveConfidence,
@@ -26,6 +28,7 @@ import type {
   StockQuote,
   ChartBar,
   ChartPeriod,
+  StockAnalysis,
 } from '@/types/dashboard';
 
 export interface StockDetailState {
@@ -47,6 +50,9 @@ export interface UseStockDetailReturn {
   chartBars: ChartBar[];
   chartPeriod: ChartPeriod;
   chartLoading: boolean;
+  analysis: StockAnalysis | null;
+  analysisLoading: boolean;
+  analysisError: string | null;
   isLoading: boolean;
   reportLoading: boolean;
   newsRefreshing: boolean;
@@ -54,6 +60,7 @@ export interface UseStockDetailReturn {
   error: string | null;
   reportError: string | null;
   retryReport: () => void;
+  retryAnalysis: () => void;
   refreshLatestNews: () => void;
   setChartPeriod: (period: ChartPeriod) => void;
 }
@@ -65,6 +72,9 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
   const [chartBars, setChartBars] = useState<ChartBar[]>([]);
   const [chartPeriod, setChartPeriodState] = useState<ChartPeriod>(CHART_DEFAULT_PERIOD as ChartPeriod);
   const [chartLoading, setChartLoading] = useState(false);
+  const [analysis, setAnalysis] = useState<StockAnalysis | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reportLoading, setReportLoading] = useState(false);
   const [newsRefreshing, setNewsRefreshing] = useState(false);
@@ -75,6 +85,26 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
   const lastForcedAtRef = useRef(0);
   const pendingForceRef = useRef(false);
   const mountedRef = useRef(true);
+
+  // ── AI Analysis ──
+  const loadAnalysis = useCallback(async (t: string) => {
+    setAnalysisLoading(true);
+    setAnalysisError(null);
+    try {
+      const raw = await fetchStockAnalysis(t);
+      if (mountedRef.current) {
+        const parsed = parseStockAnalysis(raw);
+        setAnalysis(parsed);
+        if (!parsed) setAnalysisError('분석 결과를 파싱할 수 없습니다');
+      }
+    } catch (err: unknown) {
+      if (mountedRef.current) {
+        setAnalysisError(err instanceof Error ? err.message : 'AI 분석을 불러올 수 없습니다');
+      }
+    } finally {
+      if (mountedRef.current) setAnalysisLoading(false);
+    }
+  }, []);
 
   // ── Report ──
   const generateReport = useCallback(async (t: string) => {
@@ -102,6 +132,8 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     setError(null);
     setReport(null);
     setReportError(null);
+    setAnalysis(null);
+    setAnalysisError(null);
     setLastNewsRefreshForced(false);
     setQuote(null);
     setChartBars([]);
@@ -152,6 +184,9 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
         } else {
           generateReport(data.ticker);
         }
+
+        // AI 분석 비동기 로드
+        loadAnalysis(data.ticker);
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -166,7 +201,7 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
       cancelled = true;
       mountedRef.current = false;
     };
-  }, [ticker, generateReport]);
+  }, [ticker, generateReport, loadAnalysis]);
 
   // ── Quote polling (8s) ──
   useEffect(() => {
@@ -265,6 +300,10 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     if (detail) generateReport(detail.ticker);
   }, [detail, generateReport]);
 
+  const retryAnalysis = useCallback(() => {
+    if (detail) loadAnalysis(detail.ticker);
+  }, [detail, loadAnalysis]);
+
   return {
     detail,
     report,
@@ -272,6 +311,9 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     chartBars,
     chartPeriod,
     chartLoading,
+    analysis,
+    analysisLoading,
+    analysisError,
     isLoading,
     reportLoading,
     newsRefreshing,
@@ -279,6 +321,7 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     error,
     reportError,
     retryReport,
+    retryAnalysis,
     refreshLatestNews,
     setChartPeriod,
   };
