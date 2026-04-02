@@ -107,7 +107,7 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     setChartBars([]);
     setChartPeriodState(CHART_DEFAULT_PERIOD as ChartPeriod);
 
-    fetchStockDetail(ticker, { newsLimit: STOCK_NEWS_DEFAULT_LIMIT, newsRefresh: 0 })
+    fetchStockDetail(ticker, { newsLimit: STOCK_NEWS_DEFAULT_LIMIT, newsRefresh: 0, chartPeriod: CHART_DEFAULT_PERIOD })
       .then((data) => {
         if (cancelled) return;
         const history = Array.isArray(data.history)

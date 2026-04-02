@@ -246,7 +246,7 @@ export async function fetchLatest(): Promise<ApiLatestResponse> {
 
 export async function fetchStockDetail(
   ticker: string,
-  newsLimitOrOptions: number | { newsLimit?: number; newsRefresh?: 0 | 1 } = 10,
+  newsLimitOrOptions: number | { newsLimit?: number; newsRefresh?: 0 | 1; chartPeriod?: string } = 10,
 ): Promise<ApiStockDetailResponse> {
   const newsLimit =
     typeof newsLimitOrOptions === 'number'
@@ -256,6 +256,10 @@ export async function fetchStockDetail(
     typeof newsLimitOrOptions === 'object' && newsLimitOrOptions
       ? (newsLimitOrOptions.newsRefresh ?? 0)
       : 0;
+  const chartPeriod =
+    typeof newsLimitOrOptions === 'object' && newsLimitOrOptions
+      ? (newsLimitOrOptions.chartPeriod ?? '1D')
+      : '1D';
 
   const safeNewsLimit = Number.isFinite(newsLimit)
     ? Math.max(1, Math.min(30, Math.trunc(newsLimit)))
@@ -263,6 +267,7 @@ export async function fetchStockDetail(
   const safeNewsRefresh: 0 | 1 = newsRefresh === 1 ? 1 : 0;
 
   const qs = new URLSearchParams({
+    chart_period: chartPeriod,
     news_limit: String(safeNewsLimit),
     news_refresh: String(safeNewsRefresh),
   });
@@ -373,7 +378,7 @@ export async function requestReport(
 
 export async function fetchStockChart(
   ticker: string,
-  period: ChartPeriod = '1M',
+  period: ChartPeriod = '1D',
 ): Promise<ApiChartResponse> {
   const qs = new URLSearchParams({ period });
   const res = await fetch(
