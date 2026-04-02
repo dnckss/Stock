@@ -7,7 +7,7 @@ import { useStockDetail } from '@/hooks/useStockDetail';
 import StockHeader from '@/components/detail/StockHeader';
 import StockPriceChart from '@/components/detail/StockPriceChart';
 import StockQuotePanel from '@/components/detail/StockQuotePanel';
-import DivergenceChart from '@/components/detail/DivergenceChart';
+
 import AIReport from '@/components/detail/AIReport';
 import RelatedNews from '@/components/detail/RelatedNews';
 
@@ -102,11 +102,6 @@ export default function StockDetailPage() {
             onPeriodChange={setChartPeriod}
           />
           <StockQuotePanel quote={quote} />
-          {detail.history.length > 0 && (
-            <div className="border-t border-zinc-800">
-              <DivergenceChart data={detail.history} />
-            </div>
-          )}
         </div>
 
         {/* Right: News + AI Report */}

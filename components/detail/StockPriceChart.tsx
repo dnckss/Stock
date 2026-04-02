@@ -94,17 +94,21 @@ function CandlestickRenderer(props: {
         const color = barColor(bar);
         const bodyW = Math.max(w - 2, 2);
 
+        const up = bar.close >= bar.open;
+
         return (
           <g key={idx}>
+            {/* Wick */}
             <line x1={cx} y1={hY} x2={cx} y2={lY} stroke={color} strokeWidth={1} />
+            {/* Body: 상승=속 빈 테두리, 하락=채워진 */}
             <rect
               x={x + (w - bodyW) / 2}
               y={bodyTop}
               width={bodyW}
               height={bodyH}
-              fill={color}
+              fill={up ? 'transparent' : color}
               stroke={color}
-              strokeWidth={0.5}
+              strokeWidth={up ? 1.5 : 0.5}
             />
           </g>
         );
