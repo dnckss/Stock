@@ -1,149 +1,45 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
-import {
-  ComposedChart,
-  Line,
-  Bar,
-  ErrorBar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  ReferenceLine,
-} from 'recharts';
+import { createChart, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
+import type { IChartApi, ISeriesApi, CandlestickData, HistogramData, Time } from 'lightweight-charts';
 import { CHART_PERIODS } from '@/lib/constants';
 import type { ChartBar, ChartPeriod } from '@/types/dashboard';
 
 const UP_COLOR = '#ef4444';
+const UP_BORDER = '#ef4444';
 const DOWN_COLOR = '#3b82f6';
+const DOWN_BORDER = '#3b82f6';
+const WICK_UP = '#ef4444';
+const WICK_DOWN = '#3b82f6';
 
-function isUp(bar: ChartBar): boolean {
-  return bar.close >= bar.open;
+function toTime(ts: string): Time {
+  const d = new Date(ts);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}` as Time;
 }
 
-function barColor(bar: ChartBar): string {
-  if (bar.close > bar.open) return UP_COLOR;
-  if (bar.close < bar.open) return DOWN_COLOR;
-  return '#52525b';
+function toCandlestick(bars: ChartBar[]): CandlestickData<Time>[] {
+  return bars.map((b) => ({
+    time: toTime(b.timestamp),
+    open: b.open,
+    high: b.high,
+    low: b.low,
+    close: b.close,
+  }));
 }
 
-/* ── Preprocessed bar data for recharts stacking trick ── */
-interface CandleData {
-  timestamp: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  // For candlestick via Bar: base + body height
-  bodyBase: number;
-  bodySize: number;
-  // For ErrorBar: wick distances from body edges
-  wickUp: number;
-  wickDown: number;
-  up: boolean;
-  label: string;
+function toVolume(bars: ChartBar[]): HistogramData<Time>[] {
+  return bars.map((b) => ({
+    time: toTime(b.timestamp),
+    value: b.volume,
+    color: b.close >= b.open ? `${UP_COLOR}88` : `${DOWN_COLOR}88`,
+  }));
 }
 
-function formatTimestamp(ts: string, period: ChartPeriod): string {
-  if (!ts) return '';
-  try {
-    const d = new Date(ts);
-    if (period === '1D' || period === '5D') {
-      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    }
-    if (period === '1Y' || period === '5Y') {
-      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`;
-    }
-    return `${d.getMonth() + 1}/${d.getDate()}`;
-  } catch {
-    return ts.slice(5, 10);
-  }
-}
-
-function formatPrice(v: number): string {
-  if (v >= 1000) return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
-  if (v >= 1) return v.toFixed(2);
-  return v.toFixed(4);
-}
-
-function formatVolume(v: number): string {
-  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`;
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
-  return String(v);
-}
-
-/* ── Tooltip ── */
-function ChartTooltip({
-  active,
-  payload,
-  period,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload?: CandleData }>;
-  period: ChartPeriod;
-}) {
-  if (!active || !payload?.length) return null;
-  const d = payload[0]?.payload;
-  if (!d) return null;
-  const color = d.up ? UP_COLOR : DOWN_COLOR;
-  const changePct = d.open !== 0 ? ((d.close - d.open) / d.open) * 100 : 0;
-
-  return (
-    <div className="rounded-lg border border-zinc-700/60 bg-[#0a0a0a]/95 px-3 py-2 shadow-xl backdrop-blur text-[10px] font-mono">
-      <p className="text-zinc-400 mb-1">{d.label}</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-        <span className="text-zinc-500">시가</span>
-        <span className="text-right text-zinc-300">{formatPrice(d.open)}</span>
-        <span className="text-zinc-500">고가</span>
-        <span className="text-right text-zinc-300">{formatPrice(d.high)}</span>
-        <span className="text-zinc-500">저가</span>
-        <span className="text-right text-zinc-300">{formatPrice(d.low)}</span>
-        <span className="text-zinc-500">종가</span>
-        <span className="text-right font-bold" style={{ color }}>{formatPrice(d.close)}</span>
-      </div>
-      <div className="mt-1 pt-1 border-t border-zinc-800 flex justify-between">
-        <span className="text-zinc-500">등락</span>
-        <span style={{ color }}>{changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>
-      </div>
-      <div className="flex justify-between">
-        <span className="text-zinc-500">거래량</span>
-        <span className="text-zinc-400">{formatVolume(d.volume)}</span>
-      </div>
-    </div>
-  );
-}
-
-/* ── Current price label ── */
-function PriceLabel({
-  viewBox,
-  price,
-  up,
-}: {
-  viewBox?: { x?: number; y?: number; width?: number };
-  price: number;
-  up: boolean;
-}) {
-  const vy = viewBox?.y ?? 0;
-  const vw = viewBox?.width ?? 0;
-  const vx = viewBox?.x ?? 0;
-  const color = up ? UP_COLOR : DOWN_COLOR;
-  return (
-    <g>
-      <rect x={vx + vw - 58} y={vy - 9} width={58} height={18} rx={3} fill={color} />
-      <text x={vx + vw - 29} y={vy + 4} textAnchor="middle" fill="#fff" fontSize={10} fontFamily="monospace" fontWeight="bold">
-        {formatPrice(price)}
-      </text>
-    </g>
-  );
-}
-
-/* ── Main ── */
 export default function StockPriceChart({
   bars,
   period,
@@ -155,36 +51,98 @@ export default function StockPriceChart({
   isLoading: boolean;
   onPeriodChange: (p: ChartPeriod) => void;
 }) {
-  const candleData: CandleData[] = useMemo(
-    () =>
-      bars.map((b) => {
-        const up = b.close >= b.open;
-        const bodyTop = Math.max(b.open, b.close);
-        const bodyBot = Math.min(b.open, b.close);
-        return {
-          ...b,
-          label: formatTimestamp(b.timestamp, period),
-          up,
-          bodyBase: bodyBot,
-          bodySize: Math.max(bodyTop - bodyBot, (b.high - b.low) * 0.01),
-          wickUp: b.high - bodyTop,
-          wickDown: bodyBot - b.low,
-        };
-      }),
-    [bars, period],
-  );
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
 
-  const lastBar = candleData.length > 0 ? candleData[candleData.length - 1] : null;
-  const firstBar = candleData.length > 0 ? candleData[0] : null;
-  const currentPrice = lastBar?.close ?? 0;
-  const priceIsUp = lastBar ? lastBar.close >= (firstBar?.open ?? lastBar.open) : true;
+  // Create chart once
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
 
-  const prices = bars.flatMap((b) => [b.high, b.low]);
-  const pMin = prices.length > 0 ? Math.min(...prices) : 0;
-  const pMax = prices.length > 0 ? Math.max(...prices) : 100;
-  const pPad = (pMax - pMin) * 0.06 || 1;
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { color: '#0a0a0a' },
+        textColor: '#52525b',
+        fontFamily: 'monospace',
+        fontSize: 10,
+      },
+      grid: {
+        vertLines: { color: '#18181b' },
+        horzLines: { color: '#18181b' },
+      },
+      crosshair: {
+        vertLine: { color: '#3f3f46', width: 1, style: 2, labelBackgroundColor: '#27272a' },
+        horzLine: { color: '#3f3f46', width: 1, style: 2, labelBackgroundColor: '#27272a' },
+      },
+      rightPriceScale: {
+        borderColor: '#27272a',
+        scaleMargins: { top: 0.05, bottom: 0.25 },
+      },
+      timeScale: {
+        borderColor: '#27272a',
+        timeVisible: false,
+        secondsVisible: false,
+      },
+      handleScroll: true,
+      handleScale: true,
+    });
 
-  const barWidth = bars.length > 120 ? 2 : bars.length > 60 ? 4 : bars.length > 30 ? 6 : 8;
+    const candleSeries = chart.addSeries(CandlestickSeries, {
+      upColor: UP_COLOR,
+      downColor: DOWN_COLOR,
+      borderUpColor: UP_BORDER,
+      borderDownColor: DOWN_BORDER,
+      wickUpColor: WICK_UP,
+      wickDownColor: WICK_DOWN,
+    });
+
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'volume',
+    });
+
+    chart.priceScale('volume').applyOptions({
+      scaleMargins: { top: 0.8, bottom: 0 },
+    });
+
+    chartRef.current = chart;
+    candleSeriesRef.current = candleSeries;
+    volumeSeriesRef.current = volumeSeries;
+
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        });
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(chartContainerRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.remove();
+      chartRef.current = null;
+      candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
+    };
+  }, []);
+
+  // Update data when bars change
+  useEffect(() => {
+    if (!candleSeriesRef.current || !volumeSeriesRef.current || bars.length === 0) return;
+
+    const candleData = toCandlestick(bars);
+    const volumeData = toVolume(bars);
+
+    candleSeriesRef.current.setData(candleData);
+    volumeSeriesRef.current.setData(volumeData);
+
+    chartRef.current?.timeScale().fitContent();
+  }, [bars]);
 
   return (
     <div className="border-b border-zinc-800">
@@ -206,103 +164,13 @@ export default function StockPriceChart({
         {isLoading && <Loader2 className="w-3 h-3 text-zinc-600 animate-spin ml-2" />}
       </div>
 
+      {/* Chart container */}
       {bars.length === 0 && !isLoading ? (
-        <div className="h-[380px] flex items-center justify-center">
+        <div className="h-[420px] flex items-center justify-center bg-[#0a0a0a]">
           <span className="text-[10px] font-mono text-zinc-600">NO CHART DATA</span>
         </div>
       ) : (
-        <div>
-          {/* Candlestick + Line */}
-          <div className="h-[320px] px-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={candleData} margin={{ top: 8, right: 60, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#18181b" horizontal vertical={false} />
-                <XAxis dataKey="label" hide />
-                <YAxis
-                  yAxisId="price"
-                  orientation="right"
-                  tick={{ fill: '#52525b', fontSize: 9, fontFamily: 'monospace' }}
-                  tickLine={false}
-                  axisLine={false}
-                  domain={[pMin - pPad, pMax + pPad]}
-                  tickFormatter={(v: number) => formatPrice(v)}
-                  width={58}
-                />
-                <Tooltip content={<ChartTooltip period={period} />} />
-
-                {/* Current price line */}
-                {lastBar && (
-                  <ReferenceLine
-                    yAxisId="price"
-                    y={currentPrice}
-                    stroke={priceIsUp ? UP_COLOR : DOWN_COLOR}
-                    strokeDasharray="4 2"
-                    strokeOpacity={0.4}
-                    label={<PriceLabel price={currentPrice} up={priceIsUp} />}
-                  />
-                )}
-
-                {/* Close price line (trend) */}
-                <Line
-                  yAxisId="price"
-                  type="monotone"
-                  dataKey="close"
-                  stroke="#22c55e"
-                  strokeWidth={1}
-                  dot={false}
-                  activeDot={false}
-                  isAnimationActive={false}
-                />
-
-                {/* Candlestick body as stacked bar: invisible base + visible body */}
-                <Bar yAxisId="price" dataKey="bodyBase" stackId="candle" fill="transparent" barSize={barWidth} isAnimationActive={false} />
-                <Bar yAxisId="price" dataKey="bodySize" stackId="candle" barSize={barWidth} isAnimationActive={false}>
-                  {candleData.map((d, idx) => {
-                    const color = d.up ? UP_COLOR : DOWN_COLOR;
-                    return (
-                      <Cell
-                        key={idx}
-                        fill={d.up ? 'transparent' : color}
-                        stroke={color}
-                        strokeWidth={d.up ? 1.5 : 0}
-                      />
-                    );
-                  })}
-                  {/* Wicks via ErrorBar */}
-                  <ErrorBar dataKey="wickUp" direction="y" stroke="#52525b" strokeWidth={0.8} width={0} />
-                </Bar>
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Volume */}
-          <div className="h-[70px] px-1 border-t border-zinc-800/30">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={candleData} margin={{ top: 4, right: 60, left: 0, bottom: 0 }}>
-                <XAxis
-                  dataKey="label"
-                  tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }}
-                  tickLine={false}
-                  axisLine={false}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  orientation="right"
-                  tick={{ fill: '#3f3f46', fontSize: 8, fontFamily: 'monospace' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v: number) => formatVolume(v)}
-                  width={58}
-                />
-                <Bar dataKey="volume" barSize={barWidth} isAnimationActive={false}>
-                  {candleData.map((d, idx) => (
-                    <Cell key={idx} fill={d.up ? `${UP_COLOR}88` : `${DOWN_COLOR}88`} />
-                  ))}
-                </Bar>
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <div ref={chartContainerRef} className="h-[420px] w-full" />
       )}
     </div>
   );
