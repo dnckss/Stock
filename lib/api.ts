@@ -555,15 +555,10 @@ export function apiEconomicCalendarToDisplay(
 
 export async function fetchEconomicCalendar(options?: {
   refresh?: 0 | 1;
-  limit?: number;
 }): Promise<ApiEconomicCalendarResponse> {
   const refresh = options?.refresh === 1 ? 1 : 0;
-  const limit = Number.isFinite(options?.limit)
-    ? Math.max(1, Math.trunc(options?.limit as number))
-    : ECON_CALENDAR_DEFAULT_LIMIT;
   const qs = new URLSearchParams({
     refresh: String(refresh),
-    limit: String(limit),
   });
 
   const res = await fetch(`${API_BASE}/api/economic-calendar?${qs.toString()}`);

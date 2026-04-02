@@ -131,7 +131,6 @@ export function useMarketData(): MarketDataState {
     try {
       const payload = await fetchEconomicCalendar({
         refresh,
-        limit: ECON_CALENDAR_DEFAULT_LIMIT,
       });
       if (!mountedRef.current) return;
 

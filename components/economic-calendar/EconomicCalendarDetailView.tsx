@@ -86,7 +86,6 @@ export default function EconomicCalendarDetailView() {
     try {
       const res = await fetchEconomicCalendar({
         refresh,
-        limit: ECON_CALENDAR_DETAIL_LIMIT,
       });
       setItems(apiEconomicCalendarToDisplay(res));
       setFetchedAt(res.fetched_at);
