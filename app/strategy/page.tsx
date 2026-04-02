@@ -144,6 +144,7 @@ function RecommendationRow({
 export default function StrategyPage() {
   const { data, isLoading, error, retry } = useStrategyData();
   const [openTicker, setOpenTicker] = useState<string | null>(null);
+  const [showPortfolioForm, setShowPortfolioForm] = useState(false);
   const [portfolioResult, setPortfolioResult] = useState<PortfolioResultType | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
@@ -160,8 +161,12 @@ export default function StrategyPage() {
         exclude: values.exclude || undefined,
       });
       const parsed = parsePortfolioResult(raw);
-      if (!parsed) setPortfolioError('포트폴리오 결과를 파싱할 수 없습니다');
-      else setPortfolioResult(parsed);
+      if (!parsed) {
+        setPortfolioError('포트폴리오 결과를 파싱할 수 없습니다');
+      } else {
+        setPortfolioResult(parsed);
+        setShowPortfolioForm(false);
+      }
     } catch (err: unknown) {
       setPortfolioError(err instanceof Error ? err.message : '포트폴리오를 생성할 수 없습니다');
     } finally {
@@ -282,25 +287,69 @@ export default function StrategyPage() {
 
                   {/* Portfolio Builder */}
                   <div className="border-t border-zinc-800">
-                    <div className="px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
-                      <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-                        AI 포트폴리오 빌더
-                      </span>
-                    </div>
-                    <div className="p-4 flex justify-center">
-                      <div className="w-full max-w-[480px]">
-                        <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={portfolioLoading} />
-                      </div>
-                    </div>
-                    {portfolioError && (
-                      <div className="px-4 pb-3 flex justify-center">
-                        <p className="text-[10px] text-red-400 max-w-[480px] w-full">{portfolioError}</p>
+                    {!showPortfolioForm && !portfolioResult && (
+                      <div className="flex justify-center py-4">
+                        <button
+                          type="button"
+                          onClick={() => setShowPortfolioForm(true)}
+                          className="inline-flex items-center gap-2 text-[11px] font-mono px-4 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 transition-colors"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
+                          AI 포트폴리오 생성
+                        </button>
                       </div>
                     )}
+
+                    {showPortfolioForm && !portfolioResult && (
+                      <>
+                        <div className="px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
+                            <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+                              포트폴리오 빌더
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowPortfolioForm(false)}
+                            className="text-[9px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
+                          >
+                            닫기
+                          </button>
+                        </div>
+                        <div className="p-4 flex justify-center">
+                          <div className="w-full max-w-[480px]">
+                            <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={portfolioLoading} />
+                          </div>
+                        </div>
+                        {portfolioError && (
+                          <div className="px-4 pb-3 flex justify-center">
+                            <p className="text-[10px] text-red-400 max-w-[480px] w-full">{portfolioError}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+
                     {portfolioResult && (
-                      <div className="px-4 pb-4">
-                        <PortfolioResultView data={portfolioResult} />
+                      <div>
+                        <div className="px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+                            <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+                              AI 포트폴리오
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { setPortfolioResult(null); setShowPortfolioForm(true); }}
+                            className="text-[9px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
+                          >
+                            다시 생성
+                          </button>
+                        </div>
+                        <div className="px-4 py-4">
+                          <PortfolioResultView data={portfolioResult} />
+                        </div>
                       </div>
                     )}
                   </div>
