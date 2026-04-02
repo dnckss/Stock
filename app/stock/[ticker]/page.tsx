@@ -8,7 +8,7 @@ import StockHeader from '@/components/detail/StockHeader';
 import StockPriceChart from '@/components/detail/StockPriceChart';
 import StockQuotePanel from '@/components/detail/StockQuotePanel';
 
-import AIReport from '@/components/detail/AIReport';
+
 import RelatedNews from '@/components/detail/RelatedNews';
 
 function PageSkeleton() {
@@ -26,18 +26,14 @@ export default function StockDetailPage() {
   const { ticker } = useParams<{ ticker: string }>();
   const {
     detail,
-    report,
     quote,
     chartBars,
     chartPeriod,
     chartLoading,
     isLoading,
-    reportLoading,
     newsRefreshing,
     lastNewsRefreshForced,
     error,
-    reportError,
-    retryReport,
     refreshLatestNews,
     setChartPeriod,
   } = useStockDetail(ticker);
@@ -112,13 +108,6 @@ export default function StockDetailPage() {
             onRefreshLatest={refreshLatestNews}
             isRefreshing={newsRefreshing}
             lastRefreshForced={lastNewsRefreshForced}
-          />
-          <AIReport
-            ticker={detail.ticker}
-            report={report}
-            isLoading={reportLoading}
-            error={reportError}
-            onRetry={retryReport}
           />
         </div>
       </div>
