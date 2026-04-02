@@ -1,10 +1,12 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import {
   ComposedChart,
+  Line,
   Bar,
+  ErrorBar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -12,15 +14,12 @@ import {
   ResponsiveContainer,
   Cell,
   ReferenceLine,
-  Customized,
 } from 'recharts';
 import { CHART_PERIODS } from '@/lib/constants';
 import type { ChartBar, ChartPeriod } from '@/types/dashboard';
 
-/* ── Colors (Korean: red=up, blue=down) ── */
 const UP_COLOR = '#ef4444';
 const DOWN_COLOR = '#3b82f6';
-const FLAT_COLOR = '#52525b';
 
 function isUp(bar: ChartBar): boolean {
   return bar.close >= bar.open;
@@ -29,10 +28,27 @@ function isUp(bar: ChartBar): boolean {
 function barColor(bar: ChartBar): string {
   if (bar.close > bar.open) return UP_COLOR;
   if (bar.close < bar.open) return DOWN_COLOR;
-  return FLAT_COLOR;
+  return '#52525b';
 }
 
-/* ── Format helpers ── */
+/* ── Preprocessed bar data for recharts stacking trick ── */
+interface CandleData {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  // For candlestick via Bar: base + body height
+  bodyBase: number;
+  bodySize: number;
+  // For ErrorBar: wick distances from body edges
+  wickUp: number;
+  wickDown: number;
+  up: boolean;
+  label: string;
+}
+
 function formatTimestamp(ts: string, period: ChartPeriod): string {
   if (!ts) return '';
   try {
@@ -62,61 +78,6 @@ function formatVolume(v: number): string {
   return String(v);
 }
 
-/* ── Candlestick renderer via Customized ── */
-function CandlestickRenderer(props: {
-  formattedGraphicalItems?: Array<{
-    props?: { data?: Array<{ x?: number; width?: number; payload?: ChartBar }> };
-  }>;
-  yAxisMap?: Record<string, { scale?: (v: number) => number }>;
-}) {
-  const { formattedGraphicalItems, yAxisMap } = props;
-  const yAxis = yAxisMap?.price;
-  if (!yAxis?.scale || !formattedGraphicalItems?.[0]?.props?.data) return null;
-
-  const scale = yAxis.scale;
-  const items = formattedGraphicalItems[0].props.data;
-
-  return (
-    <g>
-      {items.map((item, idx) => {
-        if (!item.payload || item.x == null || item.width == null) return null;
-        const bar = item.payload;
-        const x = item.x;
-        const w = item.width;
-        const cx = x + w / 2;
-
-        const oY = scale(bar.open);
-        const cY = scale(bar.close);
-        const hY = scale(bar.high);
-        const lY = scale(bar.low);
-        const bodyTop = Math.min(oY, cY);
-        const bodyH = Math.max(Math.abs(cY - oY), 1);
-        const color = barColor(bar);
-        const bodyW = Math.max(w - 2, 2);
-
-        const up = bar.close >= bar.open;
-
-        return (
-          <g key={idx}>
-            {/* Wick */}
-            <line x1={cx} y1={hY} x2={cx} y2={lY} stroke={color} strokeWidth={1} />
-            {/* Body: 상승=속 빈 테두리, 하락=채워진 */}
-            <rect
-              x={x + (w - bodyW) / 2}
-              y={bodyTop}
-              width={bodyW}
-              height={bodyH}
-              fill={up ? 'transparent' : color}
-              stroke={color}
-              strokeWidth={up ? 1.5 : 0.5}
-            />
-          </g>
-        );
-      })}
-    </g>
-  );
-}
-
 /* ── Tooltip ── */
 function ChartTooltip({
   active,
@@ -124,27 +85,27 @@ function ChartTooltip({
   period,
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: ChartBar }>;
+  payload?: Array<{ payload?: CandleData }>;
   period: ChartPeriod;
 }) {
   if (!active || !payload?.length) return null;
-  const bar = payload[0]?.payload;
-  if (!bar) return null;
-  const color = barColor(bar);
-  const changePct = bar.open !== 0 ? ((bar.close - bar.open) / bar.open) * 100 : 0;
+  const d = payload[0]?.payload;
+  if (!d) return null;
+  const color = d.up ? UP_COLOR : DOWN_COLOR;
+  const changePct = d.open !== 0 ? ((d.close - d.open) / d.open) * 100 : 0;
 
   return (
     <div className="rounded-lg border border-zinc-700/60 bg-[#0a0a0a]/95 px-3 py-2 shadow-xl backdrop-blur text-[10px] font-mono">
-      <p className="text-zinc-400 mb-1">{formatTimestamp(bar.timestamp, period)}</p>
+      <p className="text-zinc-400 mb-1">{d.label}</p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
         <span className="text-zinc-500">시가</span>
-        <span className="text-right text-zinc-300">{formatPrice(bar.open)}</span>
+        <span className="text-right text-zinc-300">{formatPrice(d.open)}</span>
         <span className="text-zinc-500">고가</span>
-        <span className="text-right text-zinc-300">{formatPrice(bar.high)}</span>
+        <span className="text-right text-zinc-300">{formatPrice(d.high)}</span>
         <span className="text-zinc-500">저가</span>
-        <span className="text-right text-zinc-300">{formatPrice(bar.low)}</span>
+        <span className="text-right text-zinc-300">{formatPrice(d.low)}</span>
         <span className="text-zinc-500">종가</span>
-        <span className="text-right font-bold" style={{ color }}>{formatPrice(bar.close)}</span>
+        <span className="text-right font-bold" style={{ color }}>{formatPrice(d.close)}</span>
       </div>
       <div className="mt-1 pt-1 border-t border-zinc-800 flex justify-between">
         <span className="text-zinc-500">등락</span>
@@ -152,14 +113,14 @@ function ChartTooltip({
       </div>
       <div className="flex justify-between">
         <span className="text-zinc-500">거래량</span>
-        <span className="text-zinc-400">{formatVolume(bar.volume)}</span>
+        <span className="text-zinc-400">{formatVolume(d.volume)}</span>
       </div>
     </div>
   );
 }
 
 /* ── Current price label ── */
-function CurrentPriceLabel({
+function PriceLabel({
   viewBox,
   price,
   up,
@@ -172,19 +133,10 @@ function CurrentPriceLabel({
   const vw = viewBox?.width ?? 0;
   const vx = viewBox?.x ?? 0;
   const color = up ? UP_COLOR : DOWN_COLOR;
-
   return (
     <g>
       <rect x={vx + vw - 58} y={vy - 9} width={58} height={18} rx={3} fill={color} />
-      <text
-        x={vx + vw - 29}
-        y={vy + 4}
-        textAnchor="middle"
-        fill="#fff"
-        fontSize={10}
-        fontFamily="monospace"
-        fontWeight="bold"
-      >
+      <text x={vx + vw - 29} y={vy + 4} textAnchor="middle" fill="#fff" fontSize={10} fontFamily="monospace" fontWeight="bold">
         {formatPrice(price)}
       </text>
     </g>
@@ -203,20 +155,36 @@ export default function StockPriceChart({
   isLoading: boolean;
   onPeriodChange: (p: ChartPeriod) => void;
 }) {
-  const lastBar = bars.length > 0 ? bars[bars.length - 1] : null;
-  const firstBar = bars.length > 0 ? bars[0] : null;
+  const candleData: CandleData[] = useMemo(
+    () =>
+      bars.map((b) => {
+        const up = b.close >= b.open;
+        const bodyTop = Math.max(b.open, b.close);
+        const bodyBot = Math.min(b.open, b.close);
+        return {
+          ...b,
+          label: formatTimestamp(b.timestamp, period),
+          up,
+          bodyBase: bodyBot,
+          bodySize: Math.max(bodyTop - bodyBot, (b.high - b.low) * 0.01),
+          wickUp: b.high - bodyTop,
+          wickDown: bodyBot - b.low,
+        };
+      }),
+    [bars, period],
+  );
+
+  const lastBar = candleData.length > 0 ? candleData[candleData.length - 1] : null;
+  const firstBar = candleData.length > 0 ? candleData[0] : null;
   const currentPrice = lastBar?.close ?? 0;
   const priceIsUp = lastBar ? lastBar.close >= (firstBar?.open ?? lastBar.open) : true;
 
   const prices = bars.flatMap((b) => [b.high, b.low]);
   const pMin = prices.length > 0 ? Math.min(...prices) : 0;
   const pMax = prices.length > 0 ? Math.max(...prices) : 100;
-  const pPad = (pMax - pMin) * 0.05 || 1;
+  const pPad = (pMax - pMin) * 0.06 || 1;
 
-  const candleRenderer = useCallback(
-    (props: Record<string, unknown>) => <CandlestickRenderer {...(props as Parameters<typeof CandlestickRenderer>[0])} />,
-    [],
-  );
+  const barWidth = bars.length > 120 ? 2 : bars.length > 60 ? 4 : bars.length > 30 ? 6 : 8;
 
   return (
     <div className="border-b border-zinc-800">
@@ -229,9 +197,7 @@ export default function StockPriceChart({
             onClick={() => onPeriodChange(p)}
             disabled={isLoading}
             className={`text-[10px] font-mono px-2.5 py-0.5 rounded transition-colors ${
-              period === p
-                ? 'bg-zinc-700 text-zinc-100'
-                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+              period === p ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
             } disabled:opacity-50`}
           >
             {p}
@@ -246,12 +212,12 @@ export default function StockPriceChart({
         </div>
       ) : (
         <div>
-          {/* Candlestick */}
-          <div className="h-[300px] px-1">
+          {/* Candlestick + Line */}
+          <div className="h-[320px] px-1">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={bars} margin={{ top: 8, right: 60, left: 0, bottom: 0 }}>
+              <ComposedChart data={candleData} margin={{ top: 8, right: 60, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#18181b" horizontal vertical={false} />
-                <XAxis dataKey="timestamp" hide />
+                <XAxis dataKey="label" hide />
                 <YAxis
                   yAxisId="price"
                   orientation="right"
@@ -264,6 +230,7 @@ export default function StockPriceChart({
                 />
                 <Tooltip content={<ChartTooltip period={period} />} />
 
+                {/* Current price line */}
                 {lastBar && (
                   <ReferenceLine
                     yAxisId="price"
@@ -271,27 +238,52 @@ export default function StockPriceChart({
                     stroke={priceIsUp ? UP_COLOR : DOWN_COLOR}
                     strokeDasharray="4 2"
                     strokeOpacity={0.4}
-                    label={<CurrentPriceLabel price={currentPrice} up={priceIsUp} />}
+                    label={<PriceLabel price={currentPrice} up={priceIsUp} />}
                   />
                 )}
 
-                {/* Invisible bar to establish data mapping for Customized */}
-                <Bar yAxisId="price" dataKey="high" fill="transparent" isAnimationActive={false} />
-                <Customized component={candleRenderer} />
+                {/* Close price line (trend) */}
+                <Line
+                  yAxisId="price"
+                  type="monotone"
+                  dataKey="close"
+                  stroke="#22c55e"
+                  strokeWidth={1}
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
+                />
+
+                {/* Candlestick body as stacked bar: invisible base + visible body */}
+                <Bar yAxisId="price" dataKey="bodyBase" stackId="candle" fill="transparent" barSize={barWidth} isAnimationActive={false} />
+                <Bar yAxisId="price" dataKey="bodySize" stackId="candle" barSize={barWidth} isAnimationActive={false}>
+                  {candleData.map((d, idx) => {
+                    const color = d.up ? UP_COLOR : DOWN_COLOR;
+                    return (
+                      <Cell
+                        key={idx}
+                        fill={d.up ? 'transparent' : color}
+                        stroke={color}
+                        strokeWidth={d.up ? 1.5 : 0}
+                      />
+                    );
+                  })}
+                  {/* Wicks via ErrorBar */}
+                  <ErrorBar dataKey="wickUp" direction="y" stroke="#52525b" strokeWidth={0.8} width={0} />
+                </Bar>
               </ComposedChart>
             </ResponsiveContainer>
           </div>
 
           {/* Volume */}
-          <div className="h-[80px] px-1 border-t border-zinc-800/30">
+          <div className="h-[70px] px-1 border-t border-zinc-800/30">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={bars} margin={{ top: 4, right: 60, left: 0, bottom: 0 }}>
+              <ComposedChart data={candleData} margin={{ top: 4, right: 60, left: 0, bottom: 0 }}>
                 <XAxis
-                  dataKey="timestamp"
+                  dataKey="label"
                   tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(v: string) => formatTimestamp(v, period)}
                   interval="preserveStartEnd"
                 />
                 <YAxis
@@ -302,13 +294,9 @@ export default function StockPriceChart({
                   tickFormatter={(v: number) => formatVolume(v)}
                   width={58}
                 />
-                <Bar
-                  dataKey="volume"
-                  barSize={bars.length > 100 ? 2 : bars.length > 50 ? 3 : 5}
-                  isAnimationActive={false}
-                >
-                  {bars.map((bar, idx) => (
-                    <Cell key={idx} fill={isUp(bar) ? `${UP_COLOR}99` : `${DOWN_COLOR}99`} />
+                <Bar dataKey="volume" barSize={barWidth} isAnimationActive={false}>
+                  {candleData.map((d, idx) => (
+                    <Cell key={idx} fill={d.up ? `${UP_COLOR}88` : `${DOWN_COLOR}88`} />
                   ))}
                 </Bar>
               </ComposedChart>
