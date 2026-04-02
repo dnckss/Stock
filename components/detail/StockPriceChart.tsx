@@ -1,23 +1,27 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Loader2, ChevronDown } from 'lucide-react';
 import { createChart, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, CandlestickData, HistogramData, Time } from 'lightweight-charts';
-import { CHART_PERIODS } from '@/lib/constants';
+import {
+  CHART_MINUTE_PERIODS,
+  CHART_UPPER_PERIODS,
+  CHART_MINUTE_LABELS,
+  CHART_UPPER_LABELS,
+} from '@/lib/constants';
 import type { ChartBar, ChartPeriod } from '@/types/dashboard';
 
 const UP_COLOR = '#ef4444';
-const UP_BORDER = '#ef4444';
 const DOWN_COLOR = '#3b82f6';
-const DOWN_BORDER = '#3b82f6';
-const WICK_UP = '#ef4444';
-const WICK_DOWN = '#3b82f6';
 
-/** 일봉 이상은 yyyy-MM-dd, 분봉(1D/5D)은 UTC 초 단위 timestamp */
-function toTime(ts: string, intraday: boolean): Time {
+function isIntraday(period: ChartPeriod): boolean {
+  return period.endsWith('m');
+}
+
+function toTime(ts: string, intra: boolean): Time {
   const d = new Date(ts);
-  if (intraday) {
+  if (intra) {
     return Math.floor(d.getTime() / 1000) as unknown as Time;
   }
   const yyyy = d.getFullYear();
@@ -26,37 +30,109 @@ function toTime(ts: string, intraday: boolean): Time {
   return `${yyyy}-${mm}-${dd}` as Time;
 }
 
-/** 중복 time 제거 (같은 시간 → 마지막 것만 유지) */
 function dedup<T extends { time: Time }>(data: T[]): T[] {
   const map = new Map<string | number, T>();
-  for (const d of data) {
-    map.set(d.time as string | number, d);
-  }
+  for (const d of data) map.set(d.time as string | number, d);
   return Array.from(map.values());
 }
 
-function toCandlestick(bars: ChartBar[], intraday: boolean): CandlestickData<Time>[] {
-  return dedup(
-    bars.map((b) => ({
-      time: toTime(b.timestamp, intraday),
-      open: b.open,
-      high: b.high,
-      low: b.low,
-      close: b.close,
-    })),
+function toCandlestick(bars: ChartBar[], intra: boolean): CandlestickData<Time>[] {
+  return dedup(bars.map((b) => ({
+    time: toTime(b.timestamp, intra),
+    open: b.open, high: b.high, low: b.low, close: b.close,
+  })));
+}
+
+function toVolume(bars: ChartBar[], intra: boolean): HistogramData<Time>[] {
+  return dedup(bars.map((b) => ({
+    time: toTime(b.timestamp, intra),
+    value: b.volume,
+    color: b.close >= b.open ? `${UP_COLOR}88` : `${DOWN_COLOR}88`,
+  })));
+}
+
+/* ── Period selector (dropdown + tabs) ── */
+function PeriodSelector({
+  current,
+  onChange,
+  disabled,
+}: {
+  current: ChartPeriod;
+  onChange: (p: ChartPeriod) => void;
+  disabled: boolean;
+}) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const isMinute = isIntraday(current);
+  const minuteLabel = isMinute ? (CHART_MINUTE_LABELS[current] ?? current) : '분';
+
+  // close dropdown on click outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    if (dropdownOpen) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [dropdownOpen]);
+
+  return (
+    <div className="flex items-center gap-0.5">
+      {/* Minute dropdown */}
+      <div ref={dropdownRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setDropdownOpen((p) => !p)}
+          disabled={disabled}
+          className={`flex items-center gap-0.5 text-[11px] font-mono px-2 py-1 rounded transition-colors ${
+            isMinute ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+          } disabled:opacity-50`}
+        >
+          {minuteLabel}
+          <ChevronDown className="w-3 h-3" />
+        </button>
+
+        {dropdownOpen && (
+          <div className="absolute top-full left-0 mt-1 z-50 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl py-1 min-w-[80px]">
+            {CHART_MINUTE_PERIODS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => {
+                  onChange(p);
+                  setDropdownOpen(false);
+                }}
+                className={`block w-full text-left px-3 py-1.5 text-[11px] font-mono transition-colors ${
+                  current === p ? 'text-zinc-100 bg-zinc-800' : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
+                }`}
+              >
+                {CHART_MINUTE_LABELS[p]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Upper period tabs */}
+      {CHART_UPPER_PERIODS.map((p) => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          disabled={disabled}
+          className={`text-[11px] font-mono px-2 py-1 rounded transition-colors ${
+            current === p ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+          } disabled:opacity-50`}
+        >
+          {CHART_UPPER_LABELS[p]}
+        </button>
+      ))}
+    </div>
   );
 }
 
-function toVolume(bars: ChartBar[], intraday: boolean): HistogramData<Time>[] {
-  return dedup(
-    bars.map((b) => ({
-      time: toTime(b.timestamp, intraday),
-      value: b.volume,
-      color: b.close >= b.open ? `${UP_COLOR}88` : `${DOWN_COLOR}88`,
-    })),
-  );
-}
-
+/* ── Main ── */
 export default function StockPriceChart({
   bars,
   period,
@@ -73,7 +149,7 @@ export default function StockPriceChart({
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
 
-  // Create chart once
+  // Create chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -108,10 +184,10 @@ export default function StockPriceChart({
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: UP_COLOR,
       downColor: DOWN_COLOR,
-      borderUpColor: UP_BORDER,
-      borderDownColor: DOWN_BORDER,
-      wickUpColor: WICK_UP,
-      wickDownColor: WICK_DOWN,
+      borderUpColor: UP_COLOR,
+      borderDownColor: DOWN_COLOR,
+      wickUpColor: UP_COLOR,
+      wickDownColor: DOWN_COLOR,
     });
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -127,20 +203,18 @@ export default function StockPriceChart({
     candleSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
 
-    const handleResize = () => {
+    const ro = new ResizeObserver(() => {
       if (chartContainerRef.current) {
         chart.applyOptions({
           width: chartContainerRef.current.clientWidth,
           height: chartContainerRef.current.clientHeight,
         });
       }
-    };
-
-    const resizeObserver = new ResizeObserver(handleResize);
-    resizeObserver.observe(chartContainerRef.current);
+    });
+    ro.observe(chartContainerRef.current);
 
     return () => {
-      resizeObserver.disconnect();
+      ro.disconnect();
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
@@ -148,48 +222,30 @@ export default function StockPriceChart({
     };
   }, []);
 
-  // Update data when bars or period change
+  // Update data
   useEffect(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current || !chartRef.current || bars.length === 0) return;
 
-    const intraday = period === '1D' || period === '5D';
-
-    // timeScale needs timeVisible for intraday
+    const intra = isIntraday(period);
     chartRef.current.timeScale().applyOptions({
-      timeVisible: intraday,
+      timeVisible: intra,
       secondsVisible: false,
     });
 
-    const candleData = toCandlestick(bars, intraday);
-    const volumeData = toVolume(bars, intraday);
-
-    candleSeriesRef.current.setData(candleData);
-    volumeSeriesRef.current.setData(volumeData);
-
+    candleSeriesRef.current.setData(toCandlestick(bars, intra));
+    volumeSeriesRef.current.setData(toVolume(bars, intra));
     chartRef.current.timeScale().fitContent();
   }, [bars, period]);
 
   return (
     <div className="border-b border-zinc-800">
-      {/* Period tabs */}
-      <div className="px-3 py-1.5 flex items-center gap-1 border-b border-zinc-800/40">
-        {CHART_PERIODS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => onPeriodChange(p)}
-            disabled={isLoading}
-            className={`text-[10px] font-mono px-2.5 py-0.5 rounded transition-colors ${
-              period === p ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
-            } disabled:opacity-50`}
-          >
-            {p}
-          </button>
-        ))}
-        {isLoading && <Loader2 className="w-3 h-3 text-zinc-600 animate-spin ml-2" />}
+      {/* Period selector */}
+      <div className="px-3 py-1.5 flex items-center gap-2 border-b border-zinc-800/40">
+        <PeriodSelector current={period} onChange={onPeriodChange} disabled={isLoading} />
+        {isLoading && <Loader2 className="w-3 h-3 text-zinc-600 animate-spin" />}
       </div>
 
-      {/* Chart container */}
+      {/* Chart */}
       {bars.length === 0 && !isLoading ? (
         <div className="h-[420px] flex items-center justify-center bg-[#0a0a0a]">
           <span className="text-[10px] font-mono text-zinc-600">NO CHART DATA</span>
