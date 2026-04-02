@@ -135,17 +135,43 @@ export default function EconomicCalendarDetailView() {
     return true;
   });
 
-  // group by dateLabel
-  const grouped = new Map<string, EconomicCalendarItem[]>();
+  // group by dateLabel, 오늘 날짜 우선 정렬
+  const groupMap = new Map<string, EconomicCalendarItem[]>();
   for (const item of filteredItems) {
     const key = item.dateLabel || '날짜 미정';
-    const arr = grouped.get(key);
+    const arr = groupMap.get(key);
     if (arr) {
       arr.push(item);
     } else {
-      grouped.set(key, [item]);
+      groupMap.set(key, [item]);
     }
   }
+
+  // 오늘 날짜 문자열 (dateLabel 형식에 맞춤)
+  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+  // 날짜 파싱 → 오늘+미래 먼저(오름차순), 과거 뒤(내림차순)
+  const entries = Array.from(groupMap.entries());
+  const todayAndFuture: [string, EconomicCalendarItem[]][] = [];
+  const past: [string, EconomicCalendarItem[]][] = [];
+
+  for (const entry of entries) {
+    const dateKey = entry[0];
+    // dateLabel에서 날짜 추출 시도
+    const parsed = new Date(dateKey);
+    const dateStr = Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleDateString('en-CA');
+
+    if (!dateStr || dateStr >= todayStr) {
+      todayAndFuture.push(entry);
+    } else {
+      past.push(entry);
+    }
+  }
+
+  todayAndFuture.sort((a, b) => a[0].localeCompare(b[0]));
+  past.sort((a, b) => b[0].localeCompare(a[0]));
+
+  const grouped = [...todayAndFuture, ...past];
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
@@ -264,7 +290,7 @@ export default function EconomicCalendarDetailView() {
           </div>
         ) : (
           <div className="space-y-6">
-            {Array.from(grouped.entries()).map(([dateLabel, groupItems]) => (
+            {grouped.map(([dateLabel, groupItems]) => (
               <section key={dateLabel}>
                 <div className="sticky top-[53px] z-[5] bg-[#0a0a0a]/95 backdrop-blur py-1.5 mb-2 border-b border-zinc-800">
                   <h2 className="text-[11px] font-mono font-semibold text-zinc-300 tracking-wide">
