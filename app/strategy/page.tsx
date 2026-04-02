@@ -223,29 +223,6 @@ export default function StrategyPage() {
               />
               <StrategyNewsThemes themes={data.newsThemes} />
               <StrategyEconPanel data={data.econAnalysis} />
-
-              {/* Portfolio Builder */}
-              <div className="border-b border-zinc-800">
-                <div className="px-3 py-1.5 bg-zinc-800/30 flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
-                  <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-                    포트폴리오 빌더
-                  </span>
-                </div>
-                <div className="px-3 py-3">
-                  <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={portfolioLoading} />
-                </div>
-                {portfolioError && (
-                  <div className="px-3 pb-2">
-                    <p className="text-[10px] text-red-400">{portfolioError}</p>
-                  </div>
-                )}
-                {portfolioResult && (
-                  <div className="px-3 pb-3">
-                    <PortfolioResultView data={portfolioResult} />
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Right column: Sector + Recommendations */}
@@ -283,7 +260,7 @@ export default function StrategyPage() {
                   <span className="w-3.5" />
                 </div>
 
-                {/* Scrollable rows */}
+                {/* Scrollable rows + portfolio */}
                 <div className="flex-1 overflow-y-auto terminal-scroll">
                   {data.recommendations.length === 0 ? (
                     <div className="flex items-center justify-center py-8">
@@ -302,6 +279,29 @@ export default function StrategyPage() {
                       />
                     ))
                   )}
+
+                  {/* Portfolio Builder */}
+                  <div className="border-t border-zinc-800">
+                    <div className="px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
+                      <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+                        AI 포트폴리오 빌더
+                      </span>
+                    </div>
+                    <div className="p-4">
+                      <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={portfolioLoading} />
+                    </div>
+                    {portfolioError && (
+                      <div className="px-4 pb-3">
+                        <p className="text-[10px] text-red-400">{portfolioError}</p>
+                      </div>
+                    )}
+                    {portfolioResult && (
+                      <div className="px-4 pb-4">
+                        <PortfolioResultView data={portfolioResult} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
