@@ -150,27 +150,20 @@ export default function EconomicCalendarDetailView() {
   // 과거→미래 순서 유지 (위로 올리면 과거, 아래로 내리면 미래)
   const grouped = Array.from(groupMap.entries());
 
-  // 오늘 날짜에 해당하는 그룹 인덱스 찾기 (자동 스크롤용)
+  // 오늘 날짜 자동 스크롤
   const todayRef = useRef<HTMLDivElement>(null);
   const scrolledRef = useRef(false);
   const now = new Date();
-  const todayParts = [
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-    String(now.getFullYear()),
-    now.toLocaleDateString('en-US', { weekday: 'short' }),
-    now.toLocaleDateString('en-US', { month: 'short' }),
-    String(now.getDate()),
-  ];
 
+  // dateLabel 형식: "2026년 4월 2일 수요일"
+  // 년/월/일 숫자를 추출해서 오늘과 비교
   function isTodayLabel(label: string): boolean {
-    const l = label.toLowerCase();
-    // "Apr 02" / "April 2" / "2026-04-02" / "Wed Apr 02" 등 다양한 형식 대응
-    const day = String(now.getDate());
-    const dayPad = day.padStart(2, '0');
-    const mon = now.toLocaleDateString('en-US', { month: 'short' }).toLowerCase();
-    return (l.includes(mon) && (l.includes(` ${day}`) || l.includes(` ${dayPad}`))) ||
-      l.includes(`${now.getFullYear()}-${todayParts[0]}-${todayParts[1]}`);
+    const nums = label.match(/(\d+)/g);
+    if (!nums || nums.length < 3) return false;
+    const y = Number(nums[0]);
+    const m = Number(nums[1]);
+    const d = Number(nums[2]);
+    return y === now.getFullYear() && m === now.getMonth() + 1 && d === now.getDate();
   }
 
   useEffect(() => {
