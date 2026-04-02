@@ -13,7 +13,7 @@ import RelatedNews from '@/components/detail/RelatedNews';
 
 function PageSkeleton() {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+    <div className="h-screen bg-[#0a0a0a] flex items-center justify-center">
       <div className="text-center">
         <Loader2 className="w-6 h-6 text-zinc-500 animate-spin mx-auto mb-3" />
         <p className="text-xs text-zinc-500 font-mono">데이터 로딩 중...</p>
@@ -46,7 +46,7 @@ export default function StockDetailPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
           <p className="text-xs text-red-400 font-mono mb-2">{ticker.toUpperCase()}</p>
           <p className="text-sm text-zinc-500 mb-6">{error}</p>
@@ -65,15 +65,15 @@ export default function StockDetailPage() {
   if (!detail) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a]">
+    <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
       {/* Nav */}
-      <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-[#0a0a0a]/95 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
+      <nav className="shrink-0 border-b border-zinc-800 bg-[#0a0a0a]">
+        <div className="px-3 py-1.5 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3 h-3" />
             <span className="font-mono text-[9px] uppercase tracking-widest">Terminal</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -86,23 +86,31 @@ export default function StockDetailPage() {
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto">
-        {/* Stock Header: Ticker + Price + Signal */}
+      {/* Stock Header */}
+      <div className="shrink-0">
         <StockHeader detail={detail} quote={quote} />
+      </div>
 
-        {/* Price Chart */}
-        <StockPriceChart
-          bars={chartBars}
-          period={chartPeriod}
-          isLoading={chartLoading}
-          onPeriodChange={setChartPeriod}
-        />
+      {/* Main: 2-panel layout */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Left: Chart + Quote */}
+        <div className="flex-1 flex flex-col overflow-y-auto terminal-scroll min-w-0 border-r border-zinc-800">
+          <StockPriceChart
+            bars={chartBars}
+            period={chartPeriod}
+            isLoading={chartLoading}
+            onPeriodChange={setChartPeriod}
+          />
+          <StockQuotePanel quote={quote} />
+          {detail.history.length > 0 && (
+            <div className="border-t border-zinc-800">
+              <DivergenceChart data={detail.history} />
+            </div>
+          )}
+        </div>
 
-        {/* Quote Panel: 호가 + 시세 */}
-        <StockQuotePanel quote={quote} />
-
-        {/* Related News */}
-        <div className="border-b border-zinc-800">
+        {/* Right: News + AI Report */}
+        <div className="w-[420px] shrink-0 flex flex-col overflow-y-auto terminal-scroll">
           <RelatedNews
             items={detail.relatedNews}
             ticker={detail.ticker}
@@ -110,10 +118,6 @@ export default function StockDetailPage() {
             isRefreshing={newsRefreshing}
             lastRefreshForced={lastNewsRefreshForced}
           />
-        </div>
-
-        {/* AI Report */}
-        <div className="border-b border-zinc-800">
           <AIReport
             ticker={detail.ticker}
             report={report}
@@ -122,21 +126,13 @@ export default function StockDetailPage() {
             onRetry={retryReport}
           />
         </div>
+      </div>
 
-        {/* Divergence Chart */}
-        {detail.history.length > 0 && (
-          <div className="border-b border-zinc-800">
-            <DivergenceChart data={detail.history} />
-          </div>
-        )}
-      </main>
-
-      <footer className="border-t border-zinc-800 mt-4">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between text-[8px] font-mono text-zinc-700">
-          <span>QUANTIX v3.7.2</span>
-          <span>&copy; 2025 Quantix Terminal</span>
-        </div>
-      </footer>
+      {/* Status bar */}
+      <div className="shrink-0 px-3 py-1 border-t border-zinc-800 flex items-center justify-between text-[8px] font-mono text-zinc-700">
+        <span>QUANTIX v3.7.2</span>
+        <span>&copy; 2025 Quantix</span>
+      </div>
     </div>
   );
 }
