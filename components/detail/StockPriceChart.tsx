@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, ChevronDown } from 'lucide-react';
 import { createChart, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
-import type { IChartApi, ISeriesApi, CandlestickData, HistogramData, Time } from 'lightweight-charts';
+import type { IChartApi, ISeriesApi, CandlestickData, HistogramData, Time, UTCTimestamp } from 'lightweight-charts';
 import {
   CHART_MINUTE_PERIODS,
   CHART_UPPER_PERIODS,
@@ -19,10 +19,14 @@ function isIntraday(period: ChartPeriod): boolean {
   return period.endsWith('m');
 }
 
+/**
+ * 분봉 → UTCTimestamp (초 단위)
+ * 일봉 이상 → 'YYYY-MM-DD' 문자열
+ */
 function toTime(ts: string, intra: boolean): Time {
   const d = new Date(ts);
   if (intra) {
-    return Math.floor(d.getTime() / 1000) as unknown as Time;
+    return Math.floor(d.getTime() / 1000) as UTCTimestamp;
   }
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -30,21 +34,35 @@ function toTime(ts: string, intra: boolean): Time {
   return `${yyyy}-${mm}-${dd}` as Time;
 }
 
-function dedup<T extends { time: Time }>(data: T[]): T[] {
+/** time 기준 오름차순 정렬 키 추출 */
+function timeToSortKey(t: Time): number {
+  if (typeof t === 'number') return t;
+  if (typeof t === 'string') return new Date(t).getTime();
+  // BusinessDay
+  return new Date((t as { year: number; month: number; day: number }).year,
+    (t as { year: number; month: number; day: number }).month - 1,
+    (t as { year: number; month: number; day: number }).day).getTime();
+}
+
+/** 중복 제거 + 오름차순 정렬 (lightweight-charts 필수 조건) */
+function dedupSort<T extends { time: Time }>(data: T[]): T[] {
   const map = new Map<string | number, T>();
-  for (const d of data) map.set(d.time as string | number, d);
-  return Array.from(map.values());
+  for (const d of data) {
+    const key = typeof d.time === 'number' ? d.time : String(d.time);
+    map.set(key, d);
+  }
+  return Array.from(map.values()).sort((a, b) => timeToSortKey(a.time) - timeToSortKey(b.time));
 }
 
 function toCandlestick(bars: ChartBar[], intra: boolean): CandlestickData<Time>[] {
-  return dedup(bars.map((b) => ({
+  return dedupSort(bars.map((b) => ({
     time: toTime(b.timestamp, intra),
     open: b.open, high: b.high, low: b.low, close: b.close,
   })));
 }
 
 function toVolume(bars: ChartBar[], intra: boolean): HistogramData<Time>[] {
-  return dedup(bars.map((b) => ({
+  return dedupSort(bars.map((b) => ({
     time: toTime(b.timestamp, intra),
     value: b.volume,
     color: b.close >= b.open ? `${UP_COLOR}88` : `${DOWN_COLOR}88`,
