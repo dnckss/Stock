@@ -140,21 +140,33 @@ export function usePortfolioStream(): UsePortfolioStreamReturn {
     es.addEventListener('agent_result', (e: MessageEvent) => {
       if (!mountedRef.current) return;
       try {
-        const raw: ApiPortfolioStreamResult = JSON.parse(e.data);
-        const parsed = parsePortfolioFullResult(raw);
-        if (parsed) {
-          setResult(parsed);
-          setStatus('complete');
-        } else {
-          setError('포트폴리오 결과를 파싱할 수 없습니다');
-          setStatus('error');
+        const raw = JSON.parse(e.data);
+        const payload = raw.data ?? raw.result ?? raw;
+
+        // allocations가 있으면 최종 포트폴리오 결과
+        if (Array.isArray(payload.allocations)) {
+          const parsed = parsePortfolioFullResult(payload as ApiPortfolioStreamResult);
+          if (parsed) {
+            setResult(parsed);
+            setStatus('complete');
+          } else {
+            setError('포트폴리오 결과를 파싱할 수 없습니다');
+            setStatus('error');
+          }
+          es.close();
+          esRef.current = null;
+          return;
+        }
+
+        // 중간 에이전트 결과 → 사고 과정 로그에 요약 추가
+        const agent = String(raw.agent ?? '');
+        const summary = payload.market_summary ?? payload.summary ?? '';
+        if (agent && summary) {
+          setThinkingLog((prev) => [...prev, { agent, content: summary }]);
         }
       } catch {
-        setError('포트폴리오 결과를 처리할 수 없습니다');
-        setStatus('error');
+        // 개별 agent_result 파싱 실패는 무시 — 스트리밍 계속
       }
-      es.close();
-      esRef.current = null;
     });
 
     es.addEventListener('agent_error', (e: MessageEvent) => {
@@ -170,14 +182,22 @@ export function usePortfolioStream(): UsePortfolioStreamReturn {
       esRef.current = null;
     });
 
+    // 서버가 pipeline_end를 보내면 스트림 정상 종료
+    es.addEventListener('pipeline_end', () => {
+      if (!mountedRef.current) return;
+      // result가 이미 설정되지 않은 경우에만 에러 처리
+      // (agent_result에서 allocations 수신 시 이미 complete 처리됨)
+      es.close();
+      esRef.current = null;
+    });
+
     es.onerror = () => {
       if (!mountedRef.current) return;
-      // EventSource는 자동 재연결 시도를 하므로, CLOSED 상태일 때만 에러 처리
-      if (es.readyState === EventSource.CLOSED) {
-        setError('서버와의 연결이 끊어졌습니다');
-        setStatus('error');
-        esRef.current = null;
-      }
+      // 자동 재연결을 방지하여 파이프라인이 처음부터 반복되는 것을 막음
+      es.close();
+      esRef.current = null;
+      setError('서버와의 연결이 끊어졌습니다');
+      setStatus('error');
     };
   }, [cleanup]);
 
