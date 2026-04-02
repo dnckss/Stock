@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import {
@@ -147,8 +147,37 @@ export default function EconomicCalendarDetailView() {
     }
   }
 
-  // API가 과거→미래 순으로 반환하므로 역순으로 뒤집어 최신(오늘) 날짜가 먼저 나오게 함
-  const grouped = Array.from(groupMap.entries()).reverse();
+  // 과거→미래 순서 유지 (위로 올리면 과거, 아래로 내리면 미래)
+  const grouped = Array.from(groupMap.entries());
+
+  // 오늘 날짜에 해당하는 그룹 인덱스 찾기 (자동 스크롤용)
+  const todayRef = useRef<HTMLDivElement>(null);
+  const scrolledRef = useRef(false);
+  const now = new Date();
+  const todayParts = [
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getFullYear()),
+    now.toLocaleDateString('en-US', { weekday: 'short' }),
+    now.toLocaleDateString('en-US', { month: 'short' }),
+    String(now.getDate()),
+  ];
+
+  function isTodayLabel(label: string): boolean {
+    const l = label.toLowerCase();
+    // "Apr 02" / "April 2" / "2026-04-02" / "Wed Apr 02" 등 다양한 형식 대응
+    const day = String(now.getDate());
+    const dayPad = day.padStart(2, '0');
+    const mon = now.toLocaleDateString('en-US', { month: 'short' }).toLowerCase();
+    return (l.includes(mon) && (l.includes(` ${day}`) || l.includes(` ${dayPad}`))) ||
+      l.includes(`${now.getFullYear()}-${todayParts[0]}-${todayParts[1]}`);
+  }
+
+  useEffect(() => {
+    if (scrolledRef.current || !todayRef.current) return;
+    todayRef.current.scrollIntoView({ block: 'start' });
+    scrolledRef.current = true;
+  });
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
@@ -267,11 +296,13 @@ export default function EconomicCalendarDetailView() {
           </div>
         ) : (
           <div className="space-y-6">
-            {grouped.map(([dateLabel, groupItems]) => (
-              <section key={dateLabel}>
-                <div className="sticky top-[53px] z-[5] bg-[#0a0a0a]/95 backdrop-blur py-1.5 mb-2 border-b border-zinc-800">
-                  <h2 className="text-[11px] font-mono font-semibold text-zinc-300 tracking-wide">
-                    {dateLabel}
+            {grouped.map(([dateLabel, groupItems]) => {
+              const isToday = isTodayLabel(dateLabel);
+              return (
+              <section key={dateLabel} ref={isToday ? todayRef : undefined}>
+                <div className={`sticky top-[53px] z-[5] backdrop-blur py-1.5 mb-2 border-b ${isToday ? 'bg-green-500/5 border-green-500/20' : 'bg-[#0a0a0a]/95 border-zinc-800'}`}>
+                  <h2 className={`text-[11px] font-mono font-semibold tracking-wide ${isToday ? 'text-green-400' : 'text-zinc-300'}`}>
+                    {dateLabel}{isToday ? ' — 오늘' : ''}
                   </h2>
                 </div>
                 <div className="space-y-1">
@@ -323,7 +354,8 @@ export default function EconomicCalendarDetailView() {
                   ))}
                 </div>
               </section>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
