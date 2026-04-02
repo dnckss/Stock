@@ -22,6 +22,8 @@ import type {
   ChartBar,
   ChartPeriod,
   ApiStockAnalysisResponse,
+  ApiEconEventDetailResponse,
+  EconEventDetail,
   StockAnalysis,
   TrendType,
   TechnicalCondition,
@@ -566,4 +568,58 @@ export async function fetchEconomicCalendar(options?: {
     throw new ApiError(res.status, '경제 일정을 불러올 수 없습니다');
   }
   return res.json();
+}
+
+export async function fetchEconEventDetail(options: {
+  event: string;
+  country?: string;
+  currency?: string;
+  forecast?: string;
+  previous?: string;
+}): Promise<ApiEconEventDetailResponse> {
+  const qs = new URLSearchParams({ event: options.event });
+  if (options.country) qs.set('country', options.country);
+  if (options.currency) qs.set('currency', options.currency);
+  if (options.forecast) qs.set('forecast', options.forecast);
+  if (options.previous) qs.set('previous', options.previous);
+
+  const res = await fetch(`${API_BASE}/api/economic-calendar/detail?${qs.toString()}`);
+  if (!res.ok) {
+    throw new ApiError(res.status, '경제 일정 상세를 불러올 수 없습니다');
+  }
+  return res.json();
+}
+
+export function parseEconEventDetail(raw: ApiEconEventDetailResponse | null | undefined): EconEventDetail | null {
+  if (!raw?.detail) return null;
+  const d = raw.detail;
+  return {
+    event: raw.event ?? '',
+    cacheHit: raw.cache_hit ?? false,
+    nameKo: String(d.name_ko ?? '').trim(),
+    category: String(d.category ?? '').trim(),
+    description: String(d.description ?? '').trim(),
+    whyImportant: String(d.why_important ?? '').trim(),
+    marketImpact: {
+      stocks: String(d.market_impact?.stocks ?? '').trim(),
+      currency: String(d.market_impact?.currency ?? '').trim(),
+      sectors: Array.isArray(d.market_impact?.sectors)
+        ? d.market_impact.sectors.map((s) => String(s).trim()).filter(Boolean)
+        : [],
+    },
+    readingGuide: {
+      aboveExpected: String(d.reading_guide?.above_expected ?? '').trim(),
+      belowExpected: String(d.reading_guide?.below_expected ?? '').trim(),
+      keyThreshold: String(d.reading_guide?.key_threshold ?? '').trim(),
+    },
+    releaseInfo: {
+      frequency: String(d.release_info?.frequency ?? '').trim(),
+      source: String(d.release_info?.source ?? '').trim(),
+      typicalImpactDuration: String(d.release_info?.typical_impact_duration ?? '').trim(),
+    },
+    relatedIndicators: Array.isArray(d.related_indicators)
+      ? d.related_indicators.map((i) => String(i).trim()).filter(Boolean)
+      : [],
+    summary: String(d.summary ?? '').trim(),
+  };
 }

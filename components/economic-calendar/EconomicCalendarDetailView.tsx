@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import {
   fetchEconomicCalendar,
@@ -65,6 +66,7 @@ function ValueCell({ label, value }: { label: string; value: string | null }) {
 }
 
 export default function EconomicCalendarDetailView() {
+  const router = useRouter();
   const [items, setItems] = useState<EconomicCalendarItem[]>([]);
   const [error, setError] = useState<ApiEconomicCalendarError | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -301,7 +303,20 @@ export default function EconomicCalendarDetailView() {
                   {groupItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-start gap-3 px-3 py-2.5 rounded bg-zinc-900 border border-zinc-800/60 hover:border-zinc-700/80 transition-colors"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        const qs = new URLSearchParams({ event: item.event });
+                        if (item.countryName) qs.set('country', item.countryName);
+                        if (item.currency) qs.set('currency', item.currency);
+                        if (item.forecast) qs.set('forecast', item.forecast);
+                        if (item.previous) qs.set('previous', item.previous);
+                        router.push(`/economic-calendar/detail?${qs.toString()}`);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click();
+                      }}
+                      className="flex items-start gap-3 px-3 py-2.5 rounded bg-zinc-900 border border-zinc-800/60 hover:border-zinc-700/80 hover:bg-zinc-800/30 transition-colors cursor-pointer"
                     >
                       {/* Time + Country */}
                       <div className="shrink-0 w-[80px]">

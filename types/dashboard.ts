@@ -487,6 +487,62 @@ export interface EconomicCalendarItem {
   previous: string | null;
 }
 
+// ── Economic Calendar Event Detail ──
+
+export interface ApiEconEventDetailResponse {
+  event: string;
+  cache_hit: boolean;
+  detail: {
+    name_ko?: string;
+    category?: string;
+    description?: string;
+    why_important?: string;
+    market_impact?: {
+      stocks?: string;
+      currency?: string;
+      sectors?: string[];
+    };
+    reading_guide?: {
+      above_expected?: string;
+      below_expected?: string;
+      key_threshold?: string;
+    };
+    release_info?: {
+      frequency?: string;
+      source?: string;
+      typical_impact_duration?: string;
+    };
+    related_indicators?: string[];
+    summary?: string;
+  };
+}
+
+export interface EconEventDetail {
+  event: string;
+  cacheHit: boolean;
+  nameKo: string;
+  category: string;
+  description: string;
+  whyImportant: string;
+  marketImpact: {
+    stocks: string;
+    currency: string;
+    sectors: string[];
+  };
+  readingGuide: {
+    aboveExpected: string;
+    belowExpected: string;
+    keyThreshold: string;
+  };
+  releaseInfo: {
+    frequency: string;
+    source: string;
+    typicalImpactDuration: string;
+  };
+  relatedIndicators: string[];
+  summary: string;
+}
+
 // ── Strategy (AI Strategy Room) ──
 
 // -- API types (snake_case, backend response) --
