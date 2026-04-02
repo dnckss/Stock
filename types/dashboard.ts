@@ -228,12 +228,18 @@ export interface ApiStockDetailResponse {
   company_name?: string | null;
   latest_report: ApiReportRecord | null;
   history: ApiHistoryItem[];
-  stock_news: ApiStockNewsItem[];
+  /** 뉴스 (백엔드 필드명: stock_news 또는 news) */
+  stock_news?: ApiStockNewsItem[];
+  news?: ApiStockNewsItem[];
   stock_news_meta?: {
     refresh: boolean;
   };
   quote?: ApiStockQuote | null;
   chart?: ApiChartResponse | null;
+  analysis?: {
+    latest_report?: ApiReportRecord | null;
+    history?: ApiHistoryItem[];
+  };
 }
 
 export interface ApiStockNewsItem {

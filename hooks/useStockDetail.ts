@@ -110,12 +110,18 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     fetchStockDetail(ticker, { newsLimit: STOCK_NEWS_DEFAULT_LIMIT, newsRefresh: 0 })
       .then((data) => {
         if (cancelled) return;
-        const history = Array.isArray(data.history) ? data.history : [];
+        const history = Array.isArray(data.history)
+          ? data.history
+          : Array.isArray(data.analysis?.history)
+            ? data.analysis.history
+            : [];
         const latest = history[0];
         const signal = (latest?.signal ?? 'HOLD') as SignalType;
         const priceReturn = latest?.price_return ?? 0;
         const sentiment = latest?.sentiment ?? 0;
         const divergence = latest?.divergence ?? 0;
+
+        const newsItems = data.stock_news ?? data.news ?? [];
 
         setDetail({
           ticker: data.ticker,
@@ -129,17 +135,20 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
           divergence,
           confidence: deriveConfidence(divergence),
           history: apiHistoryToChart(history),
-          relatedNews: apiStockNewsToRelatedNews(data.stock_news),
+          relatedNews: apiStockNewsToRelatedNews(newsItems),
         });
         setLastNewsRefreshForced(Boolean(data.stock_news_meta?.refresh));
         if (data.stock_news_meta?.refresh) lastForcedAtRef.current = Date.now();
+
+        // report from analysis fallback
+        const reportRecord = data.latest_report ?? data.analysis?.latest_report ?? null;
 
         // quote & chart from initial response
         if (data.quote) setQuote(parseQuote(data.quote));
         if (data.chart) setChartBars(parseChartBars(data.chart.bars));
 
-        if (data.latest_report) {
-          setReport(data.latest_report.report);
+        if (reportRecord) {
+          setReport(reportRecord.report);
         } else {
           generateReport(data.ticker);
         }
@@ -220,7 +229,7 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
         if (cancelled) return;
         setDetail((prev) => {
           if (!prev) return prev;
-          return { ...prev, relatedNews: apiStockNewsToRelatedNews(data.stock_news) };
+          return { ...prev, relatedNews: apiStockNewsToRelatedNews(data.stock_news ?? data.news ?? []) };
         });
         const forced = Boolean(data.stock_news_meta?.refresh);
         setLastNewsRefreshForced(forced);
