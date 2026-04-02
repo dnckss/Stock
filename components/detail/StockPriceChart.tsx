@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, ChevronDown } from 'lucide-react';
 import { createChart, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
-import type { IChartApi, ISeriesApi, CandlestickData, HistogramData, UTCTimestamp } from 'lightweight-charts';
+import type { IChartApi, UTCTimestamp } from 'lightweight-charts';
 import {
   CHART_MINUTE_PERIODS,
   CHART_UPPER_PERIODS,
@@ -19,9 +19,14 @@ function isIntraday(period: ChartPeriod): boolean {
   return period.endsWith('m');
 }
 
-/** 모든 기간에 UTCTimestamp(초) 사용 — lightweight-charts가 자동으로 적절한 레이블 포맷 결정 */
+/**
+ * ISO 8601 UTC → UTCTimestamp (초)
+ * "2026-04-01T14:30:00Z" → 1775001600
+ */
 function toUtc(ts: string): UTCTimestamp {
-  return Math.floor(new Date(ts).getTime() / 1000) as UTCTimestamp;
+  const ms = new Date(ts).getTime();
+  if (Number.isNaN(ms)) return 0 as UTCTimestamp;
+  return Math.floor(ms / 1000) as UTCTimestamp;
 }
 
 /** 중복 제거 + 오름차순 정렬 */
@@ -31,22 +36,7 @@ function dedupSort<T extends { time: UTCTimestamp }>(data: T[]): T[] {
   return Array.from(map.values()).sort((a, b) => a.time - b.time);
 }
 
-function toCandlestick(bars: ChartBar[]): CandlestickData<UTCTimestamp>[] {
-  return dedupSort(bars.map((b) => ({
-    time: toUtc(b.timestamp),
-    open: b.open, high: b.high, low: b.low, close: b.close,
-  })));
-}
-
-function toVolume(bars: ChartBar[]): HistogramData<UTCTimestamp>[] {
-  return dedupSort(bars.map((b) => ({
-    time: toUtc(b.timestamp),
-    value: b.volume,
-    color: b.close >= b.open ? `${UP_COLOR}88` : `${DOWN_COLOR}88`,
-  })));
-}
-
-/* ── Period selector (dropdown + tabs) ── */
+/* ── Period selector ── */
 function PeriodSelector({
   current,
   onChange,
@@ -56,48 +46,41 @@ function PeriodSelector({
   onChange: (p: ChartPeriod) => void;
   disabled: boolean;
 }) {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const isMinute = isIntraday(current);
-  const minuteLabel = isMinute ? (CHART_MINUTE_LABELS[current] ?? current) : '분';
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const isMin = isIntraday(current);
+  const label = isMin ? (CHART_MINUTE_LABELS[current] ?? current) : '분';
 
-  // close dropdown on click outside
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
+    if (!open) return;
+    function close(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
-    if (dropdownOpen) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [dropdownOpen]);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
 
   return (
     <div className="flex items-center gap-0.5">
-      {/* Minute dropdown */}
-      <div ref={dropdownRef} className="relative">
+      <div ref={ref} className="relative">
         <button
           type="button"
-          onClick={() => setDropdownOpen((p) => !p)}
+          onClick={() => setOpen((p) => !p)}
           disabled={disabled}
           className={`flex items-center gap-0.5 text-[11px] font-mono px-2 py-1 rounded transition-colors ${
-            isMinute ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+            isMin ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
           } disabled:opacity-50`}
         >
-          {minuteLabel}
+          {label}
           <ChevronDown className="w-3 h-3" />
         </button>
-
-        {dropdownOpen && (
+        {open && (
           <div className="absolute top-full left-0 mt-1 z-50 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl py-1 min-w-[80px]">
             {CHART_MINUTE_PERIODS.map((p) => (
               <button
                 key={p}
                 type="button"
-                onClick={() => {
-                  onChange(p);
-                  setDropdownOpen(false);
-                }}
+                onClick={() => { onChange(p); setOpen(false); }}
                 className={`block w-full text-left px-3 py-1.5 text-[11px] font-mono transition-colors ${
                   current === p ? 'text-zinc-100 bg-zinc-800' : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
                 }`}
@@ -108,8 +91,6 @@ function PeriodSelector({
           </div>
         )}
       </div>
-
-      {/* Upper period tabs */}
       {CHART_UPPER_PERIODS.map((p) => (
         <button
           key={p}
@@ -139,16 +120,28 @@ export default function StockPriceChart({
   isLoading: boolean;
   onPeriodChange: (p: ChartPeriod) => void;
 }) {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
 
-  // Create chart
-  useEffect(() => {
-    if (!chartContainerRef.current) return;
+  /**
+   * 차트 생성/재생성 함수
+   * period가 바뀌면(분봉↔일봉) timeVisible이 달라져야 하므로
+   * 차트를 완전히 재생성한다.
+   */
+  const buildChart = useCallback(() => {
+    if (!containerRef.current || bars.length === 0) return;
 
-    const chart = createChart(chartContainerRef.current, {
+    // 기존 차트 제거
+    if (chartRef.current) {
+      chartRef.current.remove();
+      chartRef.current = null;
+    }
+
+    const intra = isIntraday(period);
+
+    const chart = createChart(containerRef.current, {
+      width: containerRef.current.clientWidth,
+      height: containerRef.current.clientHeight,
       layout: {
         background: { color: '#0a0a0a' },
         textColor: '#52525b',
@@ -169,14 +162,15 @@ export default function StockPriceChart({
       },
       timeScale: {
         borderColor: '#27272a',
-        timeVisible: false,
+        timeVisible: intra,
         secondsVisible: false,
       },
       handleScroll: true,
       handleScale: true,
     });
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
+    // Candlestick
+    const candles = chart.addSeries(CandlestickSeries, {
       upColor: UP_COLOR,
       downColor: DOWN_COLOR,
       borderUpColor: UP_COLOR,
@@ -185,68 +179,84 @@ export default function StockPriceChart({
       wickDownColor: DOWN_COLOR,
     });
 
-    const volumeSeries = chart.addSeries(HistogramSeries, {
+    const candleData = dedupSort(
+      bars.map((b) => ({
+        time: toUtc(b.timestamp),
+        open: b.open,
+        high: b.high,
+        low: b.low,
+        close: b.close,
+      })),
+    );
+    candles.setData(candleData);
+
+    // Volume
+    const volume = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
     });
-
     chart.priceScale('volume').applyOptions({
       scaleMargins: { top: 0.8, bottom: 0 },
     });
 
+    const volData = dedupSort(
+      bars.map((b) => ({
+        time: toUtc(b.timestamp),
+        value: b.volume,
+        color: b.close >= b.open ? `${UP_COLOR}88` : `${DOWN_COLOR}88`,
+      })),
+    );
+    volume.setData(volData);
+
+    chart.timeScale().fitContent();
     chartRef.current = chart;
-    candleSeriesRef.current = candleSeries;
-    volumeSeriesRef.current = volumeSeries;
+  }, [bars, period]);
+
+  // bars 또는 period 변경 시 차트 재생성
+  useEffect(() => {
+    buildChart();
+  }, [buildChart]);
+
+  // 리사이즈 대응
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
 
     const ro = new ResizeObserver(() => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
+      if (chartRef.current && el) {
+        chartRef.current.applyOptions({
+          width: el.clientWidth,
+          height: el.clientHeight,
         });
       }
     });
-    ro.observe(chartContainerRef.current);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
+  // cleanup
+  useEffect(() => {
     return () => {
-      ro.disconnect();
-      chart.remove();
-      chartRef.current = null;
-      candleSeriesRef.current = null;
-      volumeSeriesRef.current = null;
+      if (chartRef.current) {
+        chartRef.current.remove();
+        chartRef.current = null;
+      }
     };
   }, []);
 
-  // Update data
-  useEffect(() => {
-    if (!candleSeriesRef.current || !volumeSeriesRef.current || !chartRef.current || bars.length === 0) return;
-
-    const intra = isIntraday(period);
-    chartRef.current.timeScale().applyOptions({
-      timeVisible: intra,
-      secondsVisible: false,
-    });
-
-    candleSeriesRef.current.setData(toCandlestick(bars));
-    volumeSeriesRef.current.setData(toVolume(bars));
-    chartRef.current.timeScale().fitContent();
-  }, [bars, period]);
-
   return (
     <div className="border-b border-zinc-800">
-      {/* Period selector */}
       <div className="px-3 py-1.5 flex items-center gap-2 border-b border-zinc-800/40">
         <PeriodSelector current={period} onChange={onPeriodChange} disabled={isLoading} />
         {isLoading && <Loader2 className="w-3 h-3 text-zinc-600 animate-spin" />}
       </div>
 
-      {/* Chart */}
       {bars.length === 0 && !isLoading ? (
         <div className="h-[420px] flex items-center justify-center bg-[#0a0a0a]">
           <span className="text-[10px] font-mono text-zinc-600">NO CHART DATA</span>
         </div>
       ) : (
-        <div ref={chartContainerRef} className="h-[420px] w-full" />
+        <div ref={containerRef} className="h-[420px] w-full bg-[#0a0a0a]" />
       )}
     </div>
   );
