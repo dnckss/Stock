@@ -14,30 +14,47 @@ const DOWN_BORDER = '#3b82f6';
 const WICK_UP = '#ef4444';
 const WICK_DOWN = '#3b82f6';
 
-function toTime(ts: string): Time {
+/** 일봉 이상은 yyyy-MM-dd, 분봉(1D/5D)은 UTC 초 단위 timestamp */
+function toTime(ts: string, intraday: boolean): Time {
   const d = new Date(ts);
+  if (intraday) {
+    return Math.floor(d.getTime() / 1000) as unknown as Time;
+  }
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}` as Time;
 }
 
-function toCandlestick(bars: ChartBar[]): CandlestickData<Time>[] {
-  return bars.map((b) => ({
-    time: toTime(b.timestamp),
-    open: b.open,
-    high: b.high,
-    low: b.low,
-    close: b.close,
-  }));
+/** 중복 time 제거 (같은 시간 → 마지막 것만 유지) */
+function dedup<T extends { time: Time }>(data: T[]): T[] {
+  const map = new Map<string | number, T>();
+  for (const d of data) {
+    map.set(d.time as string | number, d);
+  }
+  return Array.from(map.values());
 }
 
-function toVolume(bars: ChartBar[]): HistogramData<Time>[] {
-  return bars.map((b) => ({
-    time: toTime(b.timestamp),
-    value: b.volume,
-    color: b.close >= b.open ? `${UP_COLOR}88` : `${DOWN_COLOR}88`,
-  }));
+function toCandlestick(bars: ChartBar[], intraday: boolean): CandlestickData<Time>[] {
+  return dedup(
+    bars.map((b) => ({
+      time: toTime(b.timestamp, intraday),
+      open: b.open,
+      high: b.high,
+      low: b.low,
+      close: b.close,
+    })),
+  );
+}
+
+function toVolume(bars: ChartBar[], intraday: boolean): HistogramData<Time>[] {
+  return dedup(
+    bars.map((b) => ({
+      time: toTime(b.timestamp, intraday),
+      value: b.volume,
+      color: b.close >= b.open ? `${UP_COLOR}88` : `${DOWN_COLOR}88`,
+    })),
+  );
 }
 
 export default function StockPriceChart({
@@ -131,18 +148,26 @@ export default function StockPriceChart({
     };
   }, []);
 
-  // Update data when bars change
+  // Update data when bars or period change
   useEffect(() => {
-    if (!candleSeriesRef.current || !volumeSeriesRef.current || bars.length === 0) return;
+    if (!candleSeriesRef.current || !volumeSeriesRef.current || !chartRef.current || bars.length === 0) return;
 
-    const candleData = toCandlestick(bars);
-    const volumeData = toVolume(bars);
+    const intraday = period === '1D' || period === '5D';
+
+    // timeScale needs timeVisible for intraday
+    chartRef.current.timeScale().applyOptions({
+      timeVisible: intraday,
+      secondsVisible: false,
+    });
+
+    const candleData = toCandlestick(bars, intraday);
+    const volumeData = toVolume(bars, intraday);
 
     candleSeriesRef.current.setData(candleData);
     volumeSeriesRef.current.setData(volumeData);
 
-    chartRef.current?.timeScale().fitContent();
-  }, [bars]);
+    chartRef.current.timeScale().fitContent();
+  }, [bars, period]);
 
   return (
     <div className="border-b border-zinc-800">
