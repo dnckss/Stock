@@ -543,6 +543,75 @@ export interface EconEventDetail {
   summary: string;
 }
 
+// ── AI Portfolio Builder ──
+
+export type PortfolioStyle = 'aggressive' | 'balanced' | 'conservative';
+export type PortfolioPeriod = 'short' | 'medium' | 'long';
+
+export interface ApiPortfolioAllocation {
+  ticker: string;
+  name?: string;
+  price: number;
+  shares: number;
+  amount: number;
+  weight_pct: number;
+  rationale?: string;
+}
+
+export interface ApiPortfolioResponse {
+  budget: number;
+  style: string;
+  style_ko?: string;
+  period: string;
+  period_ko?: string;
+  allocations: ApiPortfolioAllocation[];
+  total_invested: number;
+  cash_remaining: number;
+  portfolio_thesis?: string;
+  sector_exposure?: Record<string, number>;
+  risk_assessment?: {
+    level?: string;
+    max_drawdown_est?: string;
+    volatility_note?: string;
+  };
+  rebalance_trigger?: string;
+  warnings?: string[];
+  market_regime?: string;
+  generated_at?: string;
+}
+
+export interface PortfolioAllocation {
+  ticker: string;
+  name: string;
+  price: number;
+  shares: number;
+  amount: number;
+  weightPct: number;
+  rationale: string;
+}
+
+export interface PortfolioResult {
+  budget: number;
+  style: string;
+  styleKo: string;
+  period: string;
+  periodKo: string;
+  allocations: PortfolioAllocation[];
+  totalInvested: number;
+  cashRemaining: number;
+  portfolioThesis: string;
+  sectorExposure: Record<string, number>;
+  riskAssessment: {
+    level: string;
+    maxDrawdownEst: string;
+    volatilityNote: string;
+  };
+  rebalanceTrigger: string;
+  warnings: string[];
+  marketRegime: string;
+  generatedAt: string | null;
+}
+
 // ── Strategy (AI Strategy Room) ──
 
 // -- API types (snake_case, backend response) --

@@ -47,6 +47,18 @@ export const CHART_UPPER_LABELS: Record<string, string> = {
 };
 export const CHART_DEFAULT_PERIOD = 'day';
 export const QUOTE_POLL_INTERVAL_MS = 8_000; // 8초
+// ── Portfolio builder ──
+export const PORTFOLIO_STYLES = [
+  { key: 'aggressive', label: '공격적' },
+  { key: 'balanced', label: '균형' },
+  { key: 'conservative', label: '안정적' },
+] as const;
+export const PORTFOLIO_PERIODS = [
+  { key: 'short', label: '단기 (1개월 이내)' },
+  { key: 'medium', label: '중기 (1~3개월)' },
+  { key: 'long', label: '장기 (3개월+)' },
+] as const;
+
 export const ECON_CALENDAR_DEFAULT_LIMIT = 50;
 export const ECON_CALENDAR_SIDEBAR_PAGE_SIZE = 10;
 export const ECON_CALENDAR_DETAIL_LIMIT = 200;

@@ -149,6 +149,13 @@ export default function TerminalPage() {
             <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
             AI 전략실
           </Link>
+          <Link
+            href="/portfolio"
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-zinc-800/50 bg-zinc-800/20 hover:bg-zinc-800/60 hover:border-zinc-700 transition-colors text-[10px] text-zinc-300 font-mono"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
+            포트폴리오
+          </Link>
         </div>
       </div>
 

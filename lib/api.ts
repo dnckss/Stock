@@ -24,6 +24,10 @@ import type {
   ApiStockAnalysisResponse,
   ApiEconEventDetailResponse,
   EconEventDetail,
+  ApiPortfolioResponse,
+  PortfolioResult,
+  PortfolioStyle,
+  PortfolioPeriod,
   StockAnalysis,
   TrendType,
   TechnicalCondition,
@@ -621,5 +625,60 @@ export function parseEconEventDetail(raw: ApiEconEventDetailResponse | null | un
       ? d.related_indicators.map((i) => String(i).trim()).filter(Boolean)
       : [],
     summary: String(d.summary ?? '').trim(),
+  };
+}
+
+// ── Portfolio Builder ──
+
+export async function fetchPortfolio(options: {
+  budget: number;
+  style: PortfolioStyle;
+  period: PortfolioPeriod;
+  exclude?: string;
+}): Promise<ApiPortfolioResponse> {
+  const qs = new URLSearchParams({
+    budget: String(options.budget),
+    style: options.style,
+    period: options.period,
+  });
+  if (options.exclude) qs.set('exclude', options.exclude);
+
+  const res = await fetch(`${API_BASE}/api/portfolio?${qs.toString()}`);
+  if (!res.ok) {
+    throw new ApiError(res.status, '포트폴리오를 생성할 수 없습니다');
+  }
+  return res.json();
+}
+
+export function parsePortfolioResult(raw: ApiPortfolioResponse | null | undefined): PortfolioResult | null {
+  if (!raw || !Array.isArray(raw.allocations)) return null;
+  return {
+    budget: raw.budget ?? 0,
+    style: raw.style ?? '',
+    styleKo: raw.style_ko ?? raw.style ?? '',
+    period: raw.period ?? '',
+    periodKo: raw.period_ko ?? raw.period ?? '',
+    allocations: raw.allocations.map((a) => ({
+      ticker: String(a.ticker ?? '').trim().toUpperCase(),
+      name: String(a.name ?? '').trim(),
+      price: a.price ?? 0,
+      shares: a.shares ?? 0,
+      amount: a.amount ?? 0,
+      weightPct: a.weight_pct ?? 0,
+      rationale: String(a.rationale ?? '').trim(),
+    })),
+    totalInvested: raw.total_invested ?? 0,
+    cashRemaining: raw.cash_remaining ?? 0,
+    portfolioThesis: String(raw.portfolio_thesis ?? '').trim(),
+    sectorExposure: raw.sector_exposure ?? {},
+    riskAssessment: {
+      level: String(raw.risk_assessment?.level ?? '').trim(),
+      maxDrawdownEst: String(raw.risk_assessment?.max_drawdown_est ?? '').trim(),
+      volatilityNote: String(raw.risk_assessment?.volatility_note ?? '').trim(),
+    },
+    rebalanceTrigger: String(raw.rebalance_trigger ?? '').trim(),
+    warnings: Array.isArray(raw.warnings) ? raw.warnings.map((w) => String(w).trim()).filter(Boolean) : [],
+    marketRegime: String(raw.market_regime ?? '').trim(),
+    generatedAt: typeof raw.generated_at === 'string' ? raw.generated_at.trim() : null,
   };
 }
