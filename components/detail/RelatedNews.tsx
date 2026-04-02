@@ -17,8 +17,8 @@ const SENTIMENT_COLORS: Record<SentimentType, string> = {
 };
 
 const SENTIMENT_LABELS: Record<SentimentType, string> = {
-  positive: '긍정',
-  negative: '부정',
+  positive: '호재',
+  negative: '악재',
   neutral: '중립',
 };
 
