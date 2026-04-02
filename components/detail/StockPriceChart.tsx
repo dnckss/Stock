@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import {
   ComposedChart,
@@ -11,14 +12,15 @@ import {
   ResponsiveContainer,
   Cell,
   ReferenceLine,
+  Customized,
 } from 'recharts';
 import { CHART_PERIODS } from '@/lib/constants';
 import type { ChartBar, ChartPeriod } from '@/types/dashboard';
 
-/* ── Colors (Korean style: red=up, blue=down) ── */
-const UP_COLOR = '#ef4444';    // red
-const DOWN_COLOR = '#3b82f6';  // blue
-const FLAT_COLOR = '#52525b';  // zinc
+/* ── Colors (Korean: red=up, blue=down) ── */
+const UP_COLOR = '#ef4444';
+const DOWN_COLOR = '#3b82f6';
+const FLAT_COLOR = '#52525b';
 
 function isUp(bar: ChartBar): boolean {
   return bar.close >= bar.open;
@@ -28,48 +30,6 @@ function barColor(bar: ChartBar): string {
   if (bar.close > bar.open) return UP_COLOR;
   if (bar.close < bar.open) return DOWN_COLOR;
   return FLAT_COLOR;
-}
-
-/* ── Candlestick custom shape ── */
-function CandlestickShape(props: {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  payload?: ChartBar;
-  yAxis?: { scale: (v: number) => number };
-}) {
-  const { x = 0, width = 0, payload, yAxis } = props;
-  if (!payload || !yAxis?.scale) return null;
-
-  const scale = yAxis.scale;
-  const o = scale(payload.open);
-  const c = scale(payload.close);
-  const h = scale(payload.high);
-  const l = scale(payload.low);
-
-  const bodyTop = Math.min(o, c);
-  const bodyBottom = Math.max(o, c);
-  const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
-  const color = barColor(payload);
-  const cx = x + width / 2;
-
-  return (
-    <g>
-      {/* Wick (high-low line) */}
-      <line x1={cx} y1={h} x2={cx} y2={l} stroke={color} strokeWidth={1} />
-      {/* Body */}
-      <rect
-        x={x + 1}
-        y={bodyTop}
-        width={Math.max(width - 2, 2)}
-        height={bodyHeight}
-        fill={isUp(payload) ? color : color}
-        stroke={color}
-        strokeWidth={0.5}
-      />
-    </g>
-  );
 }
 
 /* ── Format helpers ── */
@@ -102,6 +62,57 @@ function formatVolume(v: number): string {
   return String(v);
 }
 
+/* ── Candlestick renderer via Customized ── */
+function CandlestickRenderer(props: {
+  formattedGraphicalItems?: Array<{
+    props?: { data?: Array<{ x?: number; width?: number; payload?: ChartBar }> };
+  }>;
+  yAxisMap?: Record<string, { scale?: (v: number) => number }>;
+}) {
+  const { formattedGraphicalItems, yAxisMap } = props;
+  const yAxis = yAxisMap?.price;
+  if (!yAxis?.scale || !formattedGraphicalItems?.[0]?.props?.data) return null;
+
+  const scale = yAxis.scale;
+  const items = formattedGraphicalItems[0].props.data;
+
+  return (
+    <g>
+      {items.map((item, idx) => {
+        if (!item.payload || item.x == null || item.width == null) return null;
+        const bar = item.payload;
+        const x = item.x;
+        const w = item.width;
+        const cx = x + w / 2;
+
+        const oY = scale(bar.open);
+        const cY = scale(bar.close);
+        const hY = scale(bar.high);
+        const lY = scale(bar.low);
+        const bodyTop = Math.min(oY, cY);
+        const bodyH = Math.max(Math.abs(cY - oY), 1);
+        const color = barColor(bar);
+        const bodyW = Math.max(w - 2, 2);
+
+        return (
+          <g key={idx}>
+            <line x1={cx} y1={hY} x2={cx} y2={lY} stroke={color} strokeWidth={1} />
+            <rect
+              x={x + (w - bodyW) / 2}
+              y={bodyTop}
+              width={bodyW}
+              height={bodyH}
+              fill={color}
+              stroke={color}
+              strokeWidth={0.5}
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 /* ── Tooltip ── */
 function ChartTooltip({
   active,
@@ -129,15 +140,11 @@ function ChartTooltip({
         <span className="text-zinc-500">저가</span>
         <span className="text-right text-zinc-300">{formatPrice(bar.low)}</span>
         <span className="text-zinc-500">종가</span>
-        <span className="text-right font-bold" style={{ color }}>
-          {formatPrice(bar.close)}
-        </span>
+        <span className="text-right font-bold" style={{ color }}>{formatPrice(bar.close)}</span>
       </div>
       <div className="mt-1 pt-1 border-t border-zinc-800 flex justify-between">
         <span className="text-zinc-500">등락</span>
-        <span style={{ color }}>
-          {changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%
-        </span>
+        <span style={{ color }}>{changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>
       </div>
       <div className="flex justify-between">
         <span className="text-zinc-500">거래량</span>
@@ -147,31 +154,24 @@ function ChartTooltip({
   );
 }
 
-/* ── Current price label on Y axis ── */
+/* ── Current price label ── */
 function CurrentPriceLabel({
   viewBox,
   price,
-  isUp: up,
+  up,
 }: {
   viewBox?: { x?: number; y?: number; width?: number };
   price: number;
-  isUp: boolean;
+  up: boolean;
 }) {
-  const vx = viewBox?.x ?? 0;
   const vy = viewBox?.y ?? 0;
   const vw = viewBox?.width ?? 0;
+  const vx = viewBox?.x ?? 0;
   const color = up ? UP_COLOR : DOWN_COLOR;
 
   return (
     <g>
-      <rect
-        x={vx + vw - 58}
-        y={vy - 9}
-        width={58}
-        height={18}
-        rx={3}
-        fill={color}
-      />
+      <rect x={vx + vw - 58} y={vy - 9} width={58} height={18} rx={3} fill={color} />
       <text
         x={vx + vw - 29}
         y={vy + 4}
@@ -187,7 +187,7 @@ function CurrentPriceLabel({
   );
 }
 
-/* ── Main component ── */
+/* ── Main ── */
 export default function StockPriceChart({
   bars,
   period,
@@ -204,11 +204,15 @@ export default function StockPriceChart({
   const currentPrice = lastBar?.close ?? 0;
   const priceIsUp = lastBar ? lastBar.close >= (firstBar?.open ?? lastBar.open) : true;
 
-  // Compute price domain with padding
   const prices = bars.flatMap((b) => [b.high, b.low]);
   const pMin = prices.length > 0 ? Math.min(...prices) : 0;
   const pMax = prices.length > 0 ? Math.max(...prices) : 100;
   const pPad = (pMax - pMin) * 0.05 || 1;
+
+  const candleRenderer = useCallback(
+    (props: Record<string, unknown>) => <CandlestickRenderer {...(props as Parameters<typeof CandlestickRenderer>[0])} />,
+    [],
+  );
 
   return (
     <div className="border-b border-zinc-800">
@@ -238,25 +242,12 @@ export default function StockPriceChart({
         </div>
       ) : (
         <div>
-          {/* Candlestick chart */}
+          {/* Candlestick */}
           <div className="h-[300px] px-1">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={bars} margin={{ top: 8, right: 60, left: 0, bottom: 0 }}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#18181b"
-                  horizontal
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="timestamp"
-                  tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v: string) => formatTimestamp(v, period)}
-                  interval="preserveStartEnd"
-                  hide
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="#18181b" horizontal vertical={false} />
+                <XAxis dataKey="timestamp" hide />
                 <YAxis
                   yAxisId="price"
                   orientation="right"
@@ -269,32 +260,25 @@ export default function StockPriceChart({
                 />
                 <Tooltip content={<ChartTooltip period={period} />} />
 
-                {/* Current price reference line */}
                 {lastBar && (
                   <ReferenceLine
                     yAxisId="price"
                     y={currentPrice}
                     stroke={priceIsUp ? UP_COLOR : DOWN_COLOR}
                     strokeDasharray="4 2"
-                    strokeOpacity={0.5}
-                    label={
-                      <CurrentPriceLabel price={currentPrice} isUp={priceIsUp} />
-                    }
+                    strokeOpacity={0.4}
+                    label={<CurrentPriceLabel price={currentPrice} up={priceIsUp} />}
                   />
                 )}
 
-                {/* Candlestick bodies via Bar + custom shape */}
-                <Bar
-                  yAxisId="price"
-                  dataKey="high"
-                  shape={<CandlestickShape />}
-                  isAnimationActive={false}
-                />
+                {/* Invisible bar to establish data mapping for Customized */}
+                <Bar yAxisId="price" dataKey="high" fill="transparent" isAnimationActive={false} />
+                <Customized component={candleRenderer} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Volume chart (separate) */}
+          {/* Volume */}
           <div className="h-[80px] px-1 border-t border-zinc-800/30">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={bars} margin={{ top: 4, right: 60, left: 0, bottom: 0 }}>
@@ -314,12 +298,13 @@ export default function StockPriceChart({
                   tickFormatter={(v: number) => formatVolume(v)}
                   width={58}
                 />
-                <Bar dataKey="volume" barSize={bars.length > 100 ? 2 : bars.length > 50 ? 3 : 5} isAnimationActive={false}>
+                <Bar
+                  dataKey="volume"
+                  barSize={bars.length > 100 ? 2 : bars.length > 50 ? 3 : 5}
+                  isAnimationActive={false}
+                >
                   {bars.map((bar, idx) => (
-                    <Cell
-                      key={idx}
-                      fill={isUp(bar) ? `${UP_COLOR}99` : `${DOWN_COLOR}99`}
-                    />
+                    <Cell key={idx} fill={isUp(bar) ? `${UP_COLOR}99` : `${DOWN_COLOR}99`} />
                   ))}
                 </Bar>
               </ComposedChart>
