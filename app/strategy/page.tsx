@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, RefreshCw, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStrategyData } from '@/hooks/useStrategy';
+import { fetchPortfolio, parsePortfolioResult } from '@/lib/api';
 import StrategySkeleton from '@/components/strategy/StrategySkeleton';
 import StrategyRiskWarnings from '@/components/strategy/StrategyRiskWarnings';
 import StrategyMarketSituation from '@/components/strategy/StrategyMarketSituation';
@@ -12,6 +13,10 @@ import StrategyNewsThemes from '@/components/strategy/StrategyNewsThemes';
 import StrategyEconPanel from '@/components/strategy/StrategyEconPanel';
 import StrategySectorHeatmap from '@/components/strategy/StrategySectorHeatmap';
 import StrategyRecommendationCard from '@/components/strategy/StrategyRecommendationCard';
+import PortfolioForm from '@/components/portfolio/PortfolioForm';
+import PortfolioResultView from '@/components/portfolio/PortfolioResultView';
+import type { PortfolioFormValues } from '@/components/portfolio/PortfolioForm';
+import type { PortfolioResult as PortfolioResultType } from '@/types/dashboard';
 import {
   STRATEGY_DIRECTION_CONFIG,
   STRATEGY_CONFIDENCE_CONFIG,
@@ -139,6 +144,30 @@ function RecommendationRow({
 export default function StrategyPage() {
   const { data, isLoading, error, retry } = useStrategyData();
   const [openTicker, setOpenTicker] = useState<string | null>(null);
+  const [portfolioResult, setPortfolioResult] = useState<PortfolioResultType | null>(null);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [portfolioError, setPortfolioError] = useState<string | null>(null);
+
+  const handlePortfolioSubmit = useCallback(async (values: PortfolioFormValues) => {
+    setPortfolioLoading(true);
+    setPortfolioError(null);
+    setPortfolioResult(null);
+    try {
+      const raw = await fetchPortfolio({
+        budget: values.budget,
+        style: values.style,
+        period: values.period,
+        exclude: values.exclude || undefined,
+      });
+      const parsed = parsePortfolioResult(raw);
+      if (!parsed) setPortfolioError('포트폴리오 결과를 파싱할 수 없습니다');
+      else setPortfolioResult(parsed);
+    } catch (err: unknown) {
+      setPortfolioError(err instanceof Error ? err.message : '포트폴리오를 생성할 수 없습니다');
+    } finally {
+      setPortfolioLoading(false);
+    }
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
@@ -194,6 +223,29 @@ export default function StrategyPage() {
               />
               <StrategyNewsThemes themes={data.newsThemes} />
               <StrategyEconPanel data={data.econAnalysis} />
+
+              {/* Portfolio Builder */}
+              <div className="border-b border-zinc-800">
+                <div className="px-3 py-1.5 bg-zinc-800/30 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
+                  <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+                    포트폴리오 빌더
+                  </span>
+                </div>
+                <div className="px-3 py-3">
+                  <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={portfolioLoading} />
+                </div>
+                {portfolioError && (
+                  <div className="px-3 pb-2">
+                    <p className="text-[10px] text-red-400">{portfolioError}</p>
+                  </div>
+                )}
+                {portfolioResult && (
+                  <div className="px-3 pb-3">
+                    <PortfolioResultView data={portfolioResult} />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Right column: Sector + Recommendations */}
