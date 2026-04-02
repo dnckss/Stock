@@ -16,6 +16,11 @@ import type {
   RelatedNewsItem,
   ApiEconomicCalendarResponse,
   EconomicCalendarItem,
+  ApiChartResponse,
+  ApiStockQuote,
+  StockQuote,
+  ChartBar,
+  ChartPeriod,
 } from '@/types/dashboard';
 import { ECON_CALENDAR_DEFAULT_LIMIT } from '@/lib/constants';
 
@@ -362,6 +367,76 @@ export async function requestReport(
     throw new ApiError(res.status, '리포트를 생성할 수 없습니다');
   }
   return res.json();
+}
+
+// ── Stock Chart / Quote ──
+
+export async function fetchStockChart(
+  ticker: string,
+  period: ChartPeriod = '1M',
+): Promise<ApiChartResponse> {
+  const qs = new URLSearchParams({ period });
+  const res = await fetch(
+    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/chart?${qs.toString()}`,
+  );
+  if (!res.ok) {
+    throw new ApiError(res.status, '차트 데이터를 불러올 수 없습니다');
+  }
+  return res.json();
+}
+
+export async function fetchStockQuote(
+  ticker: string,
+): Promise<ApiStockQuote> {
+  const res = await fetch(
+    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/quote`,
+  );
+  if (!res.ok) {
+    throw new ApiError(res.status, '시세 데이터를 불러올 수 없습니다');
+  }
+  return res.json();
+}
+
+export function parseQuote(raw: ApiStockQuote | null | undefined): StockQuote | null {
+  if (!raw || typeof raw.price !== 'number') return null;
+  return {
+    price: raw.price,
+    open: raw.open ?? 0,
+    high: raw.high ?? 0,
+    low: raw.low ?? 0,
+    prevClose: raw.prev_close ?? 0,
+    change: raw.change ?? 0,
+    changePct: raw.change_pct ?? 0,
+    volume: raw.volume ?? 0,
+    volumeDisplay: raw.volume_display ?? String(raw.volume ?? 0),
+    marketCap: raw.market_cap ?? 0,
+    marketCapDisplay: raw.market_cap_display ?? '',
+    peRatio: raw.pe_ratio ?? null,
+    forwardPe: raw.forward_pe ?? null,
+    dividendYield: raw.dividend_yield ?? null,
+    beta: raw.beta ?? null,
+    ma50: raw.ma_50 ?? null,
+    ma200: raw.ma_200 ?? null,
+    bid: raw.bid ?? null,
+    ask: raw.ask ?? null,
+    bidSize: raw.bid_size ?? null,
+    askSize: raw.ask_size ?? null,
+    asOf: raw.as_of ?? '',
+  };
+}
+
+export function parseChartBars(bars: ApiChartResponse['bars'] | null | undefined): ChartBar[] {
+  if (!Array.isArray(bars)) return [];
+  return bars
+    .filter((b) => b && typeof b.close === 'number')
+    .map((b) => ({
+      timestamp: String(b.timestamp ?? ''),
+      open: b.open,
+      high: b.high,
+      low: b.low,
+      close: b.close,
+      volume: b.volume ?? 0,
+    }));
 }
 
 export async function fetchStrategy(): Promise<ApiStrategyResponse> {

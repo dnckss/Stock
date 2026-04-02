@@ -35,6 +35,11 @@ export const NEWS_SENTIMENT_SCORE_THRESHOLD = 0.3;
 export const STOCK_NEWS_DEFAULT_LIMIT = 10;
 export const STOCK_NEWS_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2분
 export const STOCK_NEWS_FORCE_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10분
+
+// ── Stock detail chart / quote ──
+export const CHART_PERIODS = ['1D', '5D', '1M', '3M', '6M', '1Y', '5Y'] as const;
+export const CHART_DEFAULT_PERIOD = '1M';
+export const QUOTE_POLL_INTERVAL_MS = 8_000; // 8초
 export const ECON_CALENDAR_DEFAULT_LIMIT = 50;
 export const ECON_CALENDAR_SIDEBAR_PAGE_SIZE = 10;
 export const ECON_CALENDAR_DETAIL_LIMIT = 200;

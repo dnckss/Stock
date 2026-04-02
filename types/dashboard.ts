@@ -145,6 +145,84 @@ export interface ApiReportRecord {
   created_at: string;
 }
 
+// ── Stock Quote / Chart API Types ──
+
+export interface ApiStockQuote {
+  price: number;
+  open: number;
+  high: number;
+  low: number;
+  prev_close: number;
+  change: number;
+  change_pct: number;
+  volume: number;
+  volume_display?: string;
+  market_cap?: number;
+  market_cap_display?: string;
+  pe_ratio?: number | null;
+  forward_pe?: number | null;
+  dividend_yield?: number | null;
+  beta?: number | null;
+  ma_50?: number | null;
+  ma_200?: number | null;
+  bid?: number | null;
+  ask?: number | null;
+  bid_size?: number | null;
+  ask_size?: number | null;
+  as_of?: string;
+}
+
+export interface ApiChartBar {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface ApiChartResponse {
+  period: string;
+  bars: ApiChartBar[];
+  count: number;
+}
+
+export type ChartPeriod = '1D' | '5D' | '1M' | '3M' | '6M' | '1Y' | '5Y';
+
+export interface StockQuote {
+  price: number;
+  open: number;
+  high: number;
+  low: number;
+  prevClose: number;
+  change: number;
+  changePct: number;
+  volume: number;
+  volumeDisplay: string;
+  marketCap: number;
+  marketCapDisplay: string;
+  peRatio: number | null;
+  forwardPe: number | null;
+  dividendYield: number | null;
+  beta: number | null;
+  ma50: number | null;
+  ma200: number | null;
+  bid: number | null;
+  ask: number | null;
+  bidSize: number | null;
+  askSize: number | null;
+  asOf: string;
+}
+
+export interface ChartBar {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 export interface ApiStockDetailResponse {
   ticker: string;
   company_name?: string | null;
@@ -152,9 +230,10 @@ export interface ApiStockDetailResponse {
   history: ApiHistoryItem[];
   stock_news: ApiStockNewsItem[];
   stock_news_meta?: {
-    /** 이번 응답이 refresh 강제였는지 여부 */
     refresh: boolean;
   };
+  quote?: ApiStockQuote | null;
+  chart?: ApiChartResponse | null;
 }
 
 export interface ApiStockNewsItem {

@@ -4,7 +4,9 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useStockDetail } from '@/hooks/useStockDetail';
-import StockHero from '@/components/detail/StockHero';
+import StockHeader from '@/components/detail/StockHeader';
+import StockPriceChart from '@/components/detail/StockPriceChart';
+import StockQuotePanel from '@/components/detail/StockQuotePanel';
 import DivergenceChart from '@/components/detail/DivergenceChart';
 import AIReport from '@/components/detail/AIReport';
 import RelatedNews from '@/components/detail/RelatedNews';
@@ -25,6 +27,10 @@ export default function StockDetailPage() {
   const {
     detail,
     report,
+    quote,
+    chartBars,
+    chartPeriod,
+    chartLoading,
     isLoading,
     reportLoading,
     newsRefreshing,
@@ -33,6 +39,7 @@ export default function StockDetailPage() {
     reportError,
     retryReport,
     refreshLatestNews,
+    setChartPeriod,
   } = useStockDetail(ticker);
 
   if (isLoading) return <PageSkeleton />;
@@ -41,12 +48,7 @@ export default function StockDetailPage() {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-            <span className="text-red-500 text-xl font-bold">!</span>
-          </div>
-          <h1 className="text-lg font-mono font-bold text-zinc-100 mb-2">
-            {ticker.toUpperCase()}
-          </h1>
+          <p className="text-xs text-red-400 font-mono mb-2">{ticker.toUpperCase()}</p>
           <p className="text-sm text-zinc-500 mb-6">{error}</p>
           <Link
             href="/"
@@ -64,50 +66,43 @@ export default function StockDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
-      {/* Navigation Bar */}
-      <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+      {/* Nav */}
+      <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-[#0a0a0a]/95 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto px-4 py-2 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="font-mono text-[10px] uppercase tracking-widest">
-              Back to Terminal
-            </span>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="font-mono text-[9px] uppercase tracking-widest">Terminal</span>
           </Link>
-          <div className="flex items-center gap-3">
-            <span className="font-mono text-sm font-bold text-zinc-100 tracking-wider">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] font-bold text-zinc-100 tracking-wider">
               Quant<span className="text-green-500">ix</span>
             </span>
             <span className="text-zinc-700">|</span>
-            <span className="text-[10px] text-zinc-500 font-mono">
-              {detail.ticker} Deep Dive
-            </span>
+            <span className="text-[9px] text-zinc-500 font-mono">{detail.ticker}</span>
           </div>
         </div>
       </nav>
 
-      {/* Content */}
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-        <div className="stagger-1">
-          <StockHero data={detail} />
-        </div>
-        {detail.history.length > 0 && (
-          <div className="stagger-2">
-            <DivergenceChart data={detail.history} />
-          </div>
-        )}
-        <div className="stagger-3">
-          <AIReport
-            ticker={detail.ticker}
-            report={report}
-            isLoading={reportLoading}
-            error={reportError}
-            onRetry={retryReport}
-          />
-        </div>
-        <div className="stagger-4">
+      <main className="max-w-4xl mx-auto">
+        {/* Stock Header: Ticker + Price + Signal */}
+        <StockHeader detail={detail} quote={quote} />
+
+        {/* Price Chart */}
+        <StockPriceChart
+          bars={chartBars}
+          period={chartPeriod}
+          isLoading={chartLoading}
+          onPeriodChange={setChartPeriod}
+        />
+
+        {/* Quote Panel: 호가 + 시세 */}
+        <StockQuotePanel quote={quote} />
+
+        {/* Related News */}
+        <div className="border-b border-zinc-800">
           <RelatedNews
             items={detail.relatedNews}
             ticker={detail.ticker}
@@ -116,12 +111,30 @@ export default function StockDetailPage() {
             lastRefreshForced={lastNewsRefreshForced}
           />
         </div>
+
+        {/* AI Report */}
+        <div className="border-b border-zinc-800">
+          <AIReport
+            ticker={detail.ticker}
+            report={report}
+            isLoading={reportLoading}
+            error={reportError}
+            onRetry={retryReport}
+          />
+        </div>
+
+        {/* Divergence Chart */}
+        {detail.history.length > 0 && (
+          <div className="border-b border-zinc-800">
+            <DivergenceChart data={detail.history} />
+          </div>
+        )}
       </main>
 
-      <footer className="border-t border-zinc-800 mt-8">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between text-[9px] font-mono text-zinc-600">
+      <footer className="border-t border-zinc-800 mt-4">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between text-[8px] font-mono text-zinc-700">
           <span>QUANTIX v3.7.2</span>
-          <span>© 2025 Quantix Terminal</span>
+          <span>&copy; 2025 Quantix Terminal</span>
         </div>
       </footer>
     </div>
