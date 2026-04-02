@@ -110,7 +110,8 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     fetchStockDetail(ticker, { newsLimit: STOCK_NEWS_DEFAULT_LIMIT, newsRefresh: 0 })
       .then((data) => {
         if (cancelled) return;
-        const latest = data.history[0];
+        const history = Array.isArray(data.history) ? data.history : [];
+        const latest = history[0];
         const signal = (latest?.signal ?? 'HOLD') as SignalType;
         const priceReturn = latest?.price_return ?? 0;
         const sentiment = latest?.sentiment ?? 0;
@@ -127,7 +128,7 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
           sentiment,
           divergence,
           confidence: deriveConfidence(divergence),
-          history: apiHistoryToChart(data.history),
+          history: apiHistoryToChart(history),
           relatedNews: apiStockNewsToRelatedNews(data.stock_news),
         });
         setLastNewsRefreshForced(Boolean(data.stock_news_meta?.refresh));
