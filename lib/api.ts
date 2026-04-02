@@ -25,7 +25,9 @@ import type {
   ApiEconEventDetailResponse,
   EconEventDetail,
   ApiPortfolioResponse,
+  ApiPortfolioStreamResult,
   PortfolioResult,
+  PortfolioFullResult,
   PortfolioStyle,
   PortfolioPeriod,
   StockAnalysis,
@@ -680,5 +682,97 @@ export function parsePortfolioResult(raw: ApiPortfolioResponse | null | undefine
     warnings: Array.isArray(raw.warnings) ? raw.warnings.map((w) => String(w).trim()).filter(Boolean) : [],
     marketRegime: String(raw.market_regime ?? '').trim(),
     generatedAt: typeof raw.generated_at === 'string' ? raw.generated_at.trim() : null,
+  };
+}
+
+// ── Portfolio Streaming (SSE) ──
+
+export function buildPortfolioStreamUrl(options: {
+  budget: number;
+  style: PortfolioStyle;
+  period: PortfolioPeriod;
+  exclude?: string;
+}): string {
+  const qs = new URLSearchParams({
+    budget: String(options.budget),
+    style: options.style,
+    period: options.period,
+  });
+  if (options.exclude) qs.set('exclude', options.exclude);
+  return `${API_BASE}/api/portfolio/stream?${qs.toString()}`;
+}
+
+export function parsePortfolioFullResult(
+  raw: ApiPortfolioStreamResult | null | undefined,
+): PortfolioFullResult | null {
+  const base = parsePortfolioResult(raw);
+  if (!base) return null;
+
+  const ra = raw?.risk_analysis;
+  const xaiRaw = raw?.xai;
+
+  return {
+    ...base,
+    riskAnalysisDetail: ra
+      ? {
+          correlation: {
+            matrix: ra.correlation?.matrix ?? {},
+            diversificationScore: ra.correlation?.diversification_score ?? 0,
+          },
+          volatility: Array.isArray(ra.volatility)
+            ? ra.volatility.map((v) => ({
+                ticker: String(v.ticker ?? '').trim().toUpperCase(),
+                annualVolatility: v.annual_volatility ?? 0,
+                mdd: v.mdd ?? 0,
+                sharpe: v.sharpe ?? 0,
+              }))
+            : [],
+          var: {
+            var95: ra.var?.var_95 ?? 0,
+            var99: ra.var?.var_99 ?? 0,
+            cvar: ra.var?.cvar ?? 0,
+          },
+          monteCarlo: {
+            expectedReturn: ra.monte_carlo?.expected_return ?? 0,
+            lossProbability: ra.monte_carlo?.loss_probability ?? 0,
+            paths: Array.isArray(ra.monte_carlo?.paths) ? ra.monte_carlo.paths : [],
+          },
+          scenarios: Array.isArray(ra.scenarios)
+            ? ra.scenarios.map((s) => ({
+                name: String(s.name ?? '').trim(),
+                impact: s.impact ?? 0,
+                description: String(s.description ?? '').trim(),
+              }))
+            : [],
+          anomalies: Array.isArray(ra.anomalies)
+            ? ra.anomalies.map((a) => ({
+                ticker: String(a.ticker ?? '').trim().toUpperCase(),
+                type: String(a.type ?? '').trim(),
+                message: String(a.message ?? '').trim(),
+                severity: String(a.severity ?? '').trim(),
+              }))
+            : [],
+        }
+      : null,
+    xai: xaiRaw
+      ? {
+          stockBriefs: Array.isArray(xaiRaw.stock_briefs)
+            ? xaiRaw.stock_briefs.map((sb) => ({
+                ticker: String(sb.ticker ?? '').trim().toUpperCase(),
+                reason: String(sb.reason ?? '').trim(),
+                keyEvidence: Array.isArray(sb.key_evidence)
+                  ? sb.key_evidence.map((e) => String(e).trim()).filter(Boolean)
+                  : [],
+              }))
+            : [],
+          portfolioNarrative: String(xaiRaw.portfolio_narrative ?? '').trim(),
+          riskNarrative: String(xaiRaw.risk_narrative ?? '').trim(),
+          scenarioBrief: String(xaiRaw.scenario_brief ?? '').trim(),
+          actionItems: Array.isArray(xaiRaw.action_items)
+            ? xaiRaw.action_items.map((a) => String(a).trim()).filter(Boolean)
+            : [],
+        }
+      : null,
+    totalElapsedSec: raw?.total_elapsed_sec ?? null,
   };
 }

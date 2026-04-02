@@ -59,6 +59,9 @@ export const PORTFOLIO_PERIODS = [
   { key: 'long', label: '장기 (3개월+)' },
 ] as const;
 
+// ── Portfolio streaming ──
+export const PORTFOLIO_STREAM_TOTAL_STEPS = 5;
+
 export const ECON_CALENDAR_DEFAULT_LIMIT = 50;
 export const ECON_CALENDAR_SIDEBAR_PAGE_SIZE = 10;
 export const ECON_CALENDAR_DETAIL_LIMIT = 200;

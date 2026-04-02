@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, RefreshCw, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStrategyData } from '@/hooks/useStrategy';
-import { fetchPortfolio, parsePortfolioResult } from '@/lib/api';
+import { usePortfolioStream } from '@/hooks/usePortfolioStream';
 import StrategySkeleton from '@/components/strategy/StrategySkeleton';
 import StrategyRiskWarnings from '@/components/strategy/StrategyRiskWarnings';
 import StrategyMarketSituation from '@/components/strategy/StrategyMarketSituation';
@@ -14,9 +14,9 @@ import StrategyEconPanel from '@/components/strategy/StrategyEconPanel';
 import StrategySectorHeatmap from '@/components/strategy/StrategySectorHeatmap';
 import StrategyRecommendationCard from '@/components/strategy/StrategyRecommendationCard';
 import PortfolioForm from '@/components/portfolio/PortfolioForm';
+import PortfolioStreamView from '@/components/portfolio/PortfolioStreamView';
 import PortfolioResultView from '@/components/portfolio/PortfolioResultView';
 import type { PortfolioFormValues } from '@/components/portfolio/PortfolioForm';
-import type { PortfolioResult as PortfolioResultType } from '@/types/dashboard';
 import {
   STRATEGY_DIRECTION_CONFIG,
   STRATEGY_CONFIDENCE_CONFIG,
@@ -145,34 +145,28 @@ export default function StrategyPage() {
   const { data, isLoading, error, retry } = useStrategyData();
   const [openTicker, setOpenTicker] = useState<string | null>(null);
   const [showPortfolioForm, setShowPortfolioForm] = useState(false);
-  const [portfolioResult, setPortfolioResult] = useState<PortfolioResultType | null>(null);
-  const [portfolioLoading, setPortfolioLoading] = useState(false);
-  const [portfolioError, setPortfolioError] = useState<string | null>(null);
 
-  const handlePortfolioSubmit = useCallback(async (values: PortfolioFormValues) => {
-    setPortfolioLoading(true);
-    setPortfolioError(null);
-    setPortfolioResult(null);
-    try {
-      const raw = await fetchPortfolio({
-        budget: values.budget,
-        style: values.style,
-        period: values.period,
-        exclude: values.exclude || undefined,
-      });
-      const parsed = parsePortfolioResult(raw);
-      if (!parsed) {
-        setPortfolioError('포트폴리오 결과를 파싱할 수 없습니다');
-      } else {
-        setPortfolioResult(parsed);
-        setShowPortfolioForm(false);
-      }
-    } catch (err: unknown) {
-      setPortfolioError(err instanceof Error ? err.message : '포트폴리오를 생성할 수 없습니다');
-    } finally {
-      setPortfolioLoading(false);
-    }
-  }, []);
+  const stream = usePortfolioStream();
+  const isStreaming = stream.status === 'streaming' || stream.status === 'connecting';
+
+  const handlePortfolioSubmit = (values: PortfolioFormValues) => {
+    setShowPortfolioForm(false);
+    stream.start({
+      budget: values.budget,
+      style: values.style,
+      period: values.period,
+      exclude: values.exclude || undefined,
+    });
+  };
+
+  const handleStreamCancel = () => {
+    stream.reset();
+  };
+
+  const handleRegenerate = () => {
+    stream.reset();
+    setShowPortfolioForm(true);
+  };
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
@@ -287,7 +281,8 @@ export default function StrategyPage() {
 
                   {/* Portfolio Builder */}
                   <div className="border-t border-zinc-800">
-                    {!showPortfolioForm && !portfolioResult && (
+                    {/* Idle: show trigger button */}
+                    {stream.status === 'idle' && !showPortfolioForm && (
                       <div className="flex justify-center py-4">
                         <button
                           type="button"
@@ -300,15 +295,13 @@ export default function StrategyPage() {
                       </div>
                     )}
 
-                    {/* Modal */}
-                    {showPortfolioForm && !portfolioResult && (
+                    {/* Form modal */}
+                    {showPortfolioForm && (
                       <div className="fixed inset-0 z-50 flex items-center justify-center">
-                        {/* Backdrop */}
                         <div
                           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                          onClick={() => { if (!portfolioLoading) setShowPortfolioForm(false); }}
+                          onClick={() => setShowPortfolioForm(false)}
                         />
-                        {/* Dialog */}
                         <div className="relative w-full max-w-[480px] mx-4 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
                           <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -320,25 +313,33 @@ export default function StrategyPage() {
                             <button
                               type="button"
                               onClick={() => setShowPortfolioForm(false)}
-                              disabled={portfolioLoading}
-                              className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 disabled:opacity-50 transition-colors"
+                              className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
                             >
                               ✕
                             </button>
                           </div>
                           <div className="p-5">
-                            <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={portfolioLoading} />
+                            <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={false} />
                           </div>
-                          {portfolioError && (
-                            <div className="px-5 pb-4">
-                              <p className="text-[10px] text-red-400">{portfolioError}</p>
-                            </div>
-                          )}
                         </div>
                       </div>
                     )}
 
-                    {portfolioResult && (
+                    {/* Streaming progress */}
+                    {(isStreaming || stream.status === 'error') && !stream.result && (
+                      <PortfolioStreamView
+                        status={stream.status}
+                        currentStep={stream.currentStep}
+                        totalSteps={stream.totalSteps}
+                        currentAgent={stream.currentAgent}
+                        thinkingLog={stream.thinkingLog}
+                        error={stream.error}
+                        onCancel={handleStreamCancel}
+                      />
+                    )}
+
+                    {/* Complete: show result */}
+                    {stream.result && (
                       <div>
                         <div className="px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -349,14 +350,14 @@ export default function StrategyPage() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => { setPortfolioResult(null); setShowPortfolioForm(true); }}
+                            onClick={handleRegenerate}
                             className="text-[9px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
                           >
                             다시 생성
                           </button>
                         </div>
                         <div className="px-4 py-4">
-                          <PortfolioResultView data={portfolioResult} />
+                          <PortfolioResultView data={stream.result} />
                         </div>
                       </div>
                     )}

@@ -612,6 +612,193 @@ export interface PortfolioResult {
   generatedAt: string | null;
 }
 
+// ── Portfolio SSE Streaming ──
+
+// -- SSE event payloads (snake_case, from backend) --
+
+export interface ApiPortfolioPipelineStart {
+  budget: number;
+  style: string;
+  style_ko: string;
+  period: string;
+  period_ko: string;
+  total_steps: number;
+}
+
+export interface ApiPortfolioAgentStart {
+  agent: string;
+  step: number;
+  total_steps: number;
+  title: string;
+  description: string;
+}
+
+export interface ApiPortfolioThinking {
+  agent: string;
+  content: string;
+}
+
+export interface ApiPortfolioAgentError {
+  agent: string;
+  error: string;
+}
+
+// -- Risk Analysis (snake_case, from backend) --
+
+export interface ApiRiskCorrelation {
+  matrix?: Record<string, Record<string, number>>;
+  diversification_score?: number;
+}
+
+export interface ApiRiskVolatilityItem {
+  ticker: string;
+  annual_volatility?: number;
+  mdd?: number;
+  sharpe?: number;
+}
+
+export interface ApiRiskVar {
+  var_95?: number;
+  var_99?: number;
+  cvar?: number;
+}
+
+export interface ApiRiskMonteCarlo {
+  expected_return?: number;
+  loss_probability?: number;
+  paths?: number[][];
+}
+
+export interface ApiRiskScenario {
+  name: string;
+  impact?: number;
+  description?: string;
+}
+
+export interface ApiRiskAnomaly {
+  ticker?: string;
+  type?: string;
+  message: string;
+  severity?: string;
+}
+
+export interface ApiRiskAnalysis {
+  correlation?: ApiRiskCorrelation;
+  volatility?: ApiRiskVolatilityItem[];
+  var?: ApiRiskVar;
+  monte_carlo?: ApiRiskMonteCarlo;
+  scenarios?: ApiRiskScenario[];
+  anomalies?: ApiRiskAnomaly[];
+}
+
+// -- XAI (snake_case, from backend) --
+
+export interface ApiXaiStockBrief {
+  ticker: string;
+  reason?: string;
+  key_evidence?: string[];
+}
+
+export interface ApiXai {
+  stock_briefs?: ApiXaiStockBrief[];
+  portfolio_narrative?: string;
+  risk_narrative?: string;
+  scenario_brief?: string;
+  action_items?: string[];
+}
+
+// -- Extended portfolio response (agent_result event data) --
+
+export interface ApiPortfolioStreamResult extends ApiPortfolioResponse {
+  risk_analysis?: ApiRiskAnalysis;
+  xai?: ApiXai;
+  total_elapsed_sec?: number;
+}
+
+// -- UI display types (camelCase) --
+
+export interface RiskCorrelation {
+  matrix: Record<string, Record<string, number>>;
+  diversificationScore: number;
+}
+
+export interface RiskVolatilityItem {
+  ticker: string;
+  annualVolatility: number;
+  mdd: number;
+  sharpe: number;
+}
+
+export interface RiskVar {
+  var95: number;
+  var99: number;
+  cvar: number;
+}
+
+export interface RiskMonteCarlo {
+  expectedReturn: number;
+  lossProbability: number;
+  paths: number[][];
+}
+
+export interface RiskScenario {
+  name: string;
+  impact: number;
+  description: string;
+}
+
+export interface RiskAnomaly {
+  ticker: string;
+  type: string;
+  message: string;
+  severity: string;
+}
+
+export interface RiskAnalysis {
+  correlation: RiskCorrelation;
+  volatility: RiskVolatilityItem[];
+  var: RiskVar;
+  monteCarlo: RiskMonteCarlo;
+  scenarios: RiskScenario[];
+  anomalies: RiskAnomaly[];
+}
+
+export interface XaiStockBrief {
+  ticker: string;
+  reason: string;
+  keyEvidence: string[];
+}
+
+export interface Xai {
+  stockBriefs: XaiStockBrief[];
+  portfolioNarrative: string;
+  riskNarrative: string;
+  scenarioBrief: string;
+  actionItems: string[];
+}
+
+export interface PortfolioFullResult extends PortfolioResult {
+  riskAnalysisDetail: RiskAnalysis | null;
+  xai: Xai | null;
+  totalElapsedSec: number | null;
+}
+
+// -- Stream state --
+
+export type PortfolioStreamStatus = 'idle' | 'connecting' | 'streaming' | 'complete' | 'error';
+
+export interface PortfolioAgentStep {
+  agent: string;
+  step: number;
+  title: string;
+  description: string;
+}
+
+export interface PortfolioThinkingEntry {
+  agent: string;
+  content: string;
+}
+
 // ── Strategy (AI Strategy Room) ──
 
 // -- API types (snake_case, backend response) --
