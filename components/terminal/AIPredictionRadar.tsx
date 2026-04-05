@@ -10,6 +10,7 @@ import {
   formatDivergence,
   formatPrice,
   formatVolume,
+  formatTimestamp,
 } from '@/lib/api';
 import type { RadarStock } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,7 @@ interface AIPredictionRadarProps {
   stocks: RadarStock[];
   isLoading: boolean;
   error: string | null;
+  updatedAt: string | null;
 }
 
 function sortAndFilter(
@@ -247,6 +249,7 @@ export default function AIPredictionRadar({
   stocks,
   isLoading,
   error,
+  updatedAt,
 }: AIPredictionRadarProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<RadarSortKey>('divergence');
@@ -283,6 +286,11 @@ export default function AIPredictionRadar({
               LIVE
             </span>
           </div>
+          {updatedAt && (
+            <span className="text-[10px] text-zinc-500 font-mono">
+              {formatTimestamp(updatedAt)}
+            </span>
+          )}
         </div>
         {stocks.length > 0 && (
           <div className="flex items-center gap-3 text-[10px] font-mono">

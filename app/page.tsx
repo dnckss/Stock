@@ -170,6 +170,7 @@ export default function TerminalPage() {
             stocks={stocks}
             isLoading={isLoading}
             error={error}
+            updatedAt={updatedAt}
           />
         </div>
         <div className="w-[320px] shrink-0 terminal-panel-3">
