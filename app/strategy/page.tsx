@@ -203,39 +203,77 @@ export default function StrategyPage() {
       ) : error ? (
         <ErrorState message={error} onRetry={retry} />
       ) : data ? (
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <motion.div
+          className="flex-1 flex flex-col overflow-hidden"
+          initial="hidden"
+          animate="visible"
+          variants={{ visible: { transition: { staggerChildren: 0.15 } } }}
+        >
           {/* Risk banner */}
           {data.riskWarnings.length > 0 && (
-            <div className="shrink-0 px-3 py-1">
+            <motion.div
+              className="shrink-0 px-3 py-1"
+              variants={{ hidden: { opacity: 0, y: -10 }, visible: { opacity: 1, y: 0 } }}
+              transition={{ duration: 0.4 }}
+            >
               <StrategyRiskWarnings warnings={data.riskWarnings} />
-            </div>
+            </motion.div>
           )}
 
           {/* Dashboard grid */}
           <div className="flex-1 flex overflow-hidden min-h-0">
             {/* Left column: Market + News + Econ */}
-            <div className="w-[340px] shrink-0 border-r border-zinc-800 flex flex-col overflow-y-auto terminal-scroll">
-              <StrategyMarketSituation
-                summary={data.marketSummary}
-                regime={data.marketRegime}
-                fearGreed={data.fearGreed}
-              />
-              <StrategyNewsThemes themes={data.newsThemes} />
-              <StrategyEconPanel data={data.econAnalysis} />
-            </div>
+            <motion.div
+              className="w-[340px] shrink-0 border-r border-zinc-800 flex flex-col overflow-y-auto terminal-scroll"
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.18 } } }}
+            >
+              <motion.div
+                variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
+                transition={{ duration: 0.45 }}
+              >
+                <StrategyMarketSituation
+                  summary={data.marketSummary}
+                  regime={data.marketRegime}
+                  fearGreed={data.fearGreed}
+                />
+              </motion.div>
+              <motion.div
+                variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
+                transition={{ duration: 0.45 }}
+              >
+                <StrategyNewsThemes themes={data.newsThemes} />
+              </motion.div>
+              <motion.div
+                variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
+                transition={{ duration: 0.45 }}
+              >
+                <StrategyEconPanel data={data.econAnalysis} />
+              </motion.div>
+            </motion.div>
 
             {/* Right column: Sector + Recommendations */}
-            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+            <motion.div
+              className="flex-1 flex flex-col overflow-hidden min-w-0"
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.12, delayChildren: 0.2 } } }}
+            >
               {/* Sector chart - compact */}
               {data.sectors.length > 0 && (
-                <div className="shrink-0 border-b border-zinc-800">
+                <motion.div
+                  className="shrink-0 border-b border-zinc-800"
+                  variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
+                  transition={{ duration: 0.45 }}
+                >
                   <StrategySectorHeatmap data={data} />
-                </div>
+                </motion.div>
               )}
 
               {/* Recommendations table */}
               <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                <div className="shrink-0 px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center justify-between">
+                <motion.div
+                  className="shrink-0 px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center justify-between"
+                  variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
+                  transition={{ duration: 0.3 }}
+                >
                   <div className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase tracking-widest">
@@ -245,10 +283,14 @@ export default function StrategyPage() {
                   <span className="text-[9px] font-mono text-zinc-600">
                     {data.recommendations.length} PICKS
                   </span>
-                </div>
+                </motion.div>
 
                 {/* Table header */}
-                <div className="shrink-0 px-3 py-1 bg-zinc-900/80 border-b border-zinc-800/40 flex items-center gap-3 text-[8px] font-mono text-zinc-600 uppercase tracking-wider">
+                <motion.div
+                  className="shrink-0 px-3 py-1 bg-zinc-900/80 border-b border-zinc-800/40 flex items-center gap-3 text-[8px] font-mono text-zinc-600 uppercase tracking-wider"
+                  variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
+                  transition={{ duration: 0.3 }}
+                >
                   <span className="w-[52px]">Signal</span>
                   <span className="w-[60px]">Ticker</span>
                   <span className="hidden md:block w-[120px]">Name</span>
@@ -257,7 +299,7 @@ export default function StrategyPage() {
                   <span className="hidden sm:block w-[50px]">Conf.</span>
                   <span className="w-[40px] text-right">R:R</span>
                   <span className="w-3.5" />
-                </div>
+                </motion.div>
 
                 {/* Scrollable rows + portfolio */}
                 <div className="flex-1 overflow-y-auto terminal-scroll">
@@ -266,16 +308,22 @@ export default function StrategyPage() {
                       <span className="text-[10px] font-mono text-zinc-600">NO RECOMMENDATIONS</span>
                     </div>
                   ) : (
-                    data.recommendations.map((rec) => (
-                      <RecommendationRow
+                    data.recommendations.map((rec, i) => (
+                      <motion.div
                         key={rec.ticker}
-                        rec={rec}
-                        isOpen={openTicker === rec.ticker}
-                        onToggle={() =>
-                          setOpenTicker((prev) => (prev === rec.ticker ? null : rec.ticker))
-                        }
-                        newsThemes={data.newsThemes}
-                      />
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.35, delay: 0.5 + i * 0.1 }}
+                      >
+                        <RecommendationRow
+                          rec={rec}
+                          isOpen={openTicker === rec.ticker}
+                          onToggle={() =>
+                            setOpenTicker((prev) => (prev === rec.ticker ? null : rec.ticker))
+                          }
+                          newsThemes={data.newsThemes}
+                        />
+                      </motion.div>
                     ))
                   )}
 
@@ -365,15 +413,19 @@ export default function StrategyPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Status bar */}
-          <div className="shrink-0 px-3 py-1 border-t border-zinc-800 flex items-center justify-between text-[8px] font-mono text-zinc-700">
+          <motion.div
+            className="shrink-0 px-3 py-1 border-t border-zinc-800 flex items-center justify-between text-[8px] font-mono text-zinc-700"
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
+            transition={{ duration: 0.4, delay: 0.8 }}
+          >
             <span>QUANTIX STRATEGY ENGINE</span>
             <span>&copy; 2025 Quantix</span>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       ) : null}
     </div>
   );
