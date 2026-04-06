@@ -215,6 +215,7 @@ export function apiMacroToDisplay(macro: ApiMacroData | null | undefined): Macro
       change: pct * 100,
       changeLabel: formatChangePct(pct),
       sparkline: [] as number[],
+      flash: s?.flash ?? false,
     };
   };
 

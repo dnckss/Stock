@@ -46,6 +46,7 @@ export interface MacroIndicator {
   change: number;
   changeLabel: string;
   sparkline: number[];
+  flash?: boolean;
 }
 
 export interface FearGreedData {
@@ -397,6 +398,7 @@ export interface ApiMacroItem {
   value: number;
   change: number;
   pct: number;
+  flash?: boolean;
 }
 
 export interface ApiMacroData {

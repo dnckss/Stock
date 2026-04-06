@@ -68,18 +68,45 @@ function SparklineChart({
   );
 }
 
+/** flash 하이라이트 지속 시간 (ms) */
+const FLASH_DURATION_MS = 1500;
+
 /** 백엔드에서 내려준 지표 1개 — name, value, change, pct 그대로 표시 */
 function MacroItem({ data }: { data: MacroIndicator }) {
   const isPositive = data.change >= 0;
+  const [isFlashing, setIsFlashing] = useState(false);
+
+  useEffect(() => {
+    if (!data.flash) return;
+    setIsFlashing(true);
+    const timer = setTimeout(() => setIsFlashing(false), FLASH_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [data.flash, data.value]);
 
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 hover:bg-zinc-800/30 transition-colors">
+    <div
+      className={`flex items-center justify-between py-2.5 px-3 transition-colors duration-500 ${
+        isFlashing
+          ? isPositive
+            ? 'bg-green-500/10'
+            : 'bg-red-500/10'
+          : 'hover:bg-zinc-800/30'
+      }`}
+    >
       <div className="flex-1 min-w-0">
         <div className="text-[9px] text-zinc-500 uppercase tracking-wider font-medium">
           {data.label}
         </div>
         <div className="flex items-baseline gap-2 mt-0.5">
-          <span className="font-mono text-sm font-semibold text-zinc-100 tabular-nums">
+          <span
+            className={`font-mono text-sm font-semibold tabular-nums transition-colors duration-500 ${
+              isFlashing
+                ? isPositive
+                  ? 'text-green-400'
+                  : 'text-red-400'
+                : 'text-zinc-100'
+            }`}
+          >
             {data.value}
           </span>
           <span
