@@ -6,7 +6,7 @@ import { ArrowLeft, RefreshCw, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStrategyData } from '@/hooks/useStrategy';
 import { usePortfolioStream } from '@/hooks/usePortfolioStream';
-import StrategySkeleton from '@/components/strategy/StrategySkeleton';
+import StrategyLoadingCanvas from '@/components/strategy/StrategyLoadingCanvas';
 import StrategyRiskWarnings from '@/components/strategy/StrategyRiskWarnings';
 import StrategyMarketSituation from '@/components/strategy/StrategyMarketSituation';
 import StrategyNewsThemes from '@/components/strategy/StrategyNewsThemes';
@@ -199,7 +199,7 @@ export default function StrategyPage() {
       </nav>
 
       {isLoading ? (
-        <StrategySkeleton />
+        <StrategyLoadingCanvas />
       ) : error ? (
         <ErrorState message={error} onRetry={retry} />
       ) : data ? (
