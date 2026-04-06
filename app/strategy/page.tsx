@@ -335,6 +335,7 @@ export default function StrategyPage() {
                         thinkingLog={stream.thinkingLog}
                         error={stream.error}
                         onCancel={handleStreamCancel}
+                        strategyData={data}
                       />
                     )}
 
