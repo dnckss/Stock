@@ -288,7 +288,7 @@ export default function AIPredictionRadar({
           </div>
           {updatedAt && (
             <span className="text-[10px] text-zinc-500 font-mono">
-              {formatTimestamp(updatedAt)}
+              갱신 {formatTimestamp(updatedAt)}
             </span>
           )}
         </div>
