@@ -301,9 +301,14 @@ function CenterCore({ phase, phaseIndex }: { phase: typeof PHASES[number]; phase
 // ── Main ──
 
 export default function StrategyLoadingCanvas() {
-  const [particles, setParticles] = useState<Particle[]>(() => generateBatch(MAX_VISIBLE));
+  const [particles, setParticles] = useState<Particle[]>([]);
   const [phaseIndex, setPhaseIndex] = useState(0);
   const spawnRef = useRef<ReturnType<typeof setInterval>>(undefined);
+
+  // 클라이언트에서만 초기 파티클 생성 (hydration mismatch 방지)
+  useEffect(() => {
+    setParticles(generateBatch(MAX_VISIBLE));
+  }, []);
 
   // 주기적으로 새 파티클 추가 & 오래된 것 제거
   const cycleParticles = useCallback(() => {
