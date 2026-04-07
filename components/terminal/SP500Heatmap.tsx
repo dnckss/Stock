@@ -392,7 +392,7 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
 
   if (error && !data) return <HeatmapError message={error} onRetry={refetch} />;
 
-  if (!data || layout.length === 0) {
+  if (!data) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <p className="text-[11px] text-zinc-500">히트맵 데이터가 없습니다</p>
@@ -448,7 +448,7 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
         </div>
       </div>
 
-      {/* Treemap */}
+      {/* Treemap - ref 컨테이너는 항상 렌더링 (ResizeObserver 측정 필요) */}
       <div
         ref={containerRef}
         className="flex-1 relative min-h-0 overflow-hidden bg-[#0a0a0a]"
