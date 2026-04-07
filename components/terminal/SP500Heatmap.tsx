@@ -10,14 +10,11 @@ import {
   HEATMAP_COLOR_POSITIVE,
   HEATMAP_COLOR_NEGATIVE,
   HEATMAP_COLOR_NEUTRAL,
-  HEATMAP_MIN_CELL_TEXT_W,
-  HEATMAP_MIN_CELL_TEXT_H,
-  HEATMAP_MIN_CELL_PCT_H,
 } from '@/lib/constants';
 import type { HeatmapSector, HeatmapStock } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 
-// ── Treemap layout types ──
+// ── Treemap layout ──
 
 interface Rect {
   x: number;
@@ -31,8 +28,6 @@ interface LayoutNode<T> {
   value: number;
   rect: Rect;
 }
-
-// ── Squarified treemap algorithm ──
 
 function worstAspectRatio(areas: number[], shortSide: number): number {
   const sum = areas.reduce((s, a) => s + a, 0);
@@ -77,8 +72,6 @@ function squarifiedLayout<T>(
     }
 
     const shortSide = Math.min(rect.w, rect.h);
-
-    // 최적의 row 분할 찾기
     let rowEnd = 1;
     let bestWorst = worstAspectRatio([remaining[0].area], shortSide);
 
@@ -95,7 +88,6 @@ function squarifiedLayout<T>(
 
     const row = remaining.slice(0, rowEnd);
     remaining = remaining.slice(rowEnd);
-
     const rowArea = row.reduce((s, n) => s + n.area, 0);
     const isHorizontal = rect.w >= rect.h;
 
@@ -131,7 +123,10 @@ function squarifiedLayout<T>(
   return result;
 }
 
-// ── Color helpers ──
+// ── Color ──
+
+const SECTOR_HEADER_H = 16;
+const SECTOR_BORDER = 2;
 
 function interpolateColor(
   from: { r: number; g: number; b: number },
@@ -147,22 +142,12 @@ function interpolateColor(
 
 function getHeatColor(changePct: number): string {
   const t = Math.min(1, Math.abs(changePct) / HEATMAP_COLOR_RANGE_PCT);
-  if (changePct >= 0.05) {
-    return interpolateColor(HEATMAP_COLOR_NEUTRAL, HEATMAP_COLOR_POSITIVE, t);
-  }
-  if (changePct <= -0.05) {
-    return interpolateColor(HEATMAP_COLOR_NEUTRAL, HEATMAP_COLOR_NEGATIVE, t);
-  }
+  if (changePct >= 0.05) return interpolateColor(HEATMAP_COLOR_NEUTRAL, HEATMAP_COLOR_POSITIVE, t);
+  if (changePct <= -0.05) return interpolateColor(HEATMAP_COLOR_NEUTRAL, HEATMAP_COLOR_NEGATIVE, t);
   return `rgb(${HEATMAP_COLOR_NEUTRAL.r}, ${HEATMAP_COLOR_NEUTRAL.g}, ${HEATMAP_COLOR_NEUTRAL.b})`;
 }
 
-function getTextColor(changePct: number): string {
-  const intensity = Math.min(1, Math.abs(changePct) / HEATMAP_COLOR_RANGE_PCT);
-  if (intensity > 0.3) return 'rgba(255,255,255,0.95)';
-  return 'rgba(255,255,255,0.7)';
-}
-
-// ── Two-level treemap layout ──
+// ── Two-level layout ──
 
 interface SectorLayout {
   sector: HeatmapSector;
@@ -182,56 +167,76 @@ function computeLayout(
 
   return sectorNodes.map((node) => {
     const { rect } = node;
-    // 섹터 내부에 1px padding (경계선 역할)
-    const innerRect: Rect = {
-      x: rect.x + 1,
-      y: rect.y + 1,
-      w: Math.max(0, rect.w - 2),
-      h: Math.max(0, rect.h - 2),
+    const showHeader = rect.w > 50 && rect.h > 30;
+    const headerH = showHeader ? SECTOR_HEADER_H : 0;
+
+    // 섹터 내부 종목 영역 (헤더 + 보더 제외)
+    const stockRect: Rect = {
+      x: rect.x + SECTOR_BORDER,
+      y: rect.y + headerH,
+      w: Math.max(0, rect.w - SECTOR_BORDER * 2),
+      h: Math.max(0, rect.h - headerH - SECTOR_BORDER),
     };
 
     const stocks = squarifiedLayout(
       node.data.stocks.map((s) => ({ data: s, value: s.marketCap })),
-      innerRect,
+      stockRect,
     );
 
     return { sector: node.data, rect, stocks };
   });
 }
 
-// ── Tooltip component ──
+// ── Font size by cell area ──
+
+function tickerFontSize(w: number, h: number): number {
+  const area = w * h;
+  if (area > 15000) return 16;
+  if (area > 8000) return 13;
+  if (area > 4000) return 11;
+  if (area > 1500) return 10;
+  return 9;
+}
+
+function pctFontSize(w: number, h: number): number {
+  const area = w * h;
+  if (area > 15000) return 14;
+  if (area > 8000) return 12;
+  if (area > 4000) return 10;
+  if (area > 1500) return 9;
+  return 8;
+}
+
+// ── Tooltip ──
 
 function HeatmapTooltip({
   stock,
   sectorName,
   x,
   y,
-  containerRect,
+  containerW,
+  containerH,
 }: {
   stock: HeatmapStock;
   sectorName: string;
   x: number;
   y: number;
-  containerRect: DOMRect | null;
+  containerW: number;
+  containerH: number;
 }) {
-  const tooltipW = 200;
-  const tooltipH = 100;
-
-  // 컨테이너 안에서 위치 조정
-  let left = x + 12;
-  let top = y + 12;
-
-  if (containerRect) {
-    if (left + tooltipW > containerRect.width) left = x - tooltipW - 8;
-    if (top + tooltipH > containerRect.height) top = y - tooltipH - 8;
-    if (left < 0) left = 4;
-    if (top < 0) top = 4;
-  }
+  const W = 210;
+  const H = 105;
+  let left = x + 14;
+  let top = y + 14;
+  if (left + W > containerW) left = x - W - 8;
+  if (top + H > containerH) top = y - H - 8;
+  if (left < 0) left = 4;
+  if (top < 0) top = 4;
 
   return (
     <div
       className="absolute z-50 pointer-events-none rounded border border-zinc-700/60 bg-zinc-900/95 px-3 py-2 shadow-xl backdrop-blur"
-      style={{ left, top, minWidth: tooltipW }}
+      style={{ left, top, minWidth: W }}
     >
       <div className="flex items-center gap-2 mb-1.5">
         <span className="text-[11px] font-bold text-zinc-100 font-mono">
@@ -270,48 +275,7 @@ function HeatmapTooltip({
   );
 }
 
-// ── Skeleton ──
-
-function HeatmapSkeleton() {
-  return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center">
-        <div className="inline-flex items-center gap-2 mb-2">
-          <div className="w-4 h-4 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin" />
-          <span className="text-[11px] text-zinc-500 font-mono">
-            S&P 500 히트맵 로딩 중...
-          </span>
-        </div>
-        <p className="text-[10px] text-zinc-600">
-          첫 호출 시 10~15초 소요될 수 있습니다
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function HeatmapError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div className="text-center">
-        <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-3">
-          <span className="text-red-500 text-lg">!</span>
-        </div>
-        <p className="text-xs text-red-400 mb-1">히트맵 로드 실패</p>
-        <p className="text-[10px] text-zinc-500 max-w-[200px] mb-3">{message}</p>
-        <button
-          onClick={onRetry}
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded text-[10px] font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition-colors"
-        >
-          <RefreshCw className="w-3 h-3" />
-          재시도
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Main component ──
+// ── Main ──
 
 interface SP500HeatmapProps {
   enabled: boolean;
@@ -328,11 +292,18 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
     sectorName: string;
   } | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const [containerRect, setContainerRect] = useState<DOMRect | null>(null);
 
-  // ResizeObserver로 컨테이너 크기 추적
-  useEffect(() => {
-    const el = containerRef.current;
+  // callback ref: DOM 노드가 붙거나 떨어질 때마다 ResizeObserver 재설정
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const attachObserver = useCallback((el: HTMLDivElement | null) => {
+    // 기존 observer 정리
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    containerRef.current = el;
     if (!el) return;
 
     const observer = new ResizeObserver((entries) => {
@@ -344,18 +315,22 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
         });
       }
     });
-
     observer.observe(el);
-    return () => observer.disconnect();
+    observerRef.current = observer;
   }, []);
 
-  // Treemap 레이아웃 계산
+  // 언마운트 시 cleanup
+  useEffect(() => {
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, []);
+
   const layout = useMemo(() => {
     if (!data || dimensions.w === 0 || dimensions.h === 0) return [];
     return computeLayout(data.sectors, dimensions.w, dimensions.h);
   }, [data, dimensions]);
 
-  // 총 종목 수
   const totalStocks = useMemo(
     () => (data?.sectors ?? []).reduce((sum, s) => sum + s.stocks.length, 0),
     [data],
@@ -365,168 +340,180 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
     (e: React.MouseEvent, stock: HeatmapStock, sectorName: string) => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      setTooltipPos({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
-      setContainerRect(rect);
+      setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
       setHovered({ stock, sectorName });
     },
     [],
   );
 
-  const handleMouseLeave = useCallback(() => {
-    setHovered(null);
-  }, []);
+  const handleMouseLeave = useCallback(() => setHovered(null), []);
 
   const handleStockClick = useCallback(
-    (ticker: string) => {
-      router.push(`/stock/${ticker}`);
-    },
+    (ticker: string) => router.push(`/stock/${ticker}`),
     [router],
   );
 
   if (!enabled) return null;
 
-  if (isLoading && !data) return <HeatmapSkeleton />;
-
-  if (error && !data) return <HeatmapError message={error} onRetry={refetch} />;
-
-  if (!data) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <p className="text-[11px] text-zinc-500">히트맵 데이터가 없습니다</p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Info bar */}
-      <div className="px-3 py-1.5 border-b border-zinc-800/60 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3 text-[10px] font-mono">
-          <span className="text-zinc-500">
-            {data.sectors.length} sectors
-          </span>
-          <span className="text-zinc-700">|</span>
-          <span className="text-zinc-500">{totalStocks} stocks</span>
-          {data.updatedAt && (
-            <>
-              <span className="text-zinc-700">|</span>
-              <span className="text-zinc-600">
-                {formatTimestamp(data.updatedAt)}
-              </span>
-            </>
-          )}
-          {isLoading && (
-            <span className="text-zinc-600 animate-pulse">갱신 중...</span>
-          )}
-        </div>
-        {/* 범례 */}
-        <div className="flex items-center gap-2 text-[9px] font-mono text-zinc-600">
-          <div className="flex items-center gap-1">
-            <div
-              className="w-2.5 h-2.5 rounded-sm"
-              style={{ backgroundColor: getHeatColor(-HEATMAP_COLOR_RANGE_PCT) }}
-            />
-            <span>-{HEATMAP_COLOR_RANGE_PCT}%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div
-              className="w-2.5 h-2.5 rounded-sm"
-              style={{ backgroundColor: getHeatColor(0) }}
-            />
-            <span>0%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div
-              className="w-2.5 h-2.5 rounded-sm"
-              style={{ backgroundColor: getHeatColor(HEATMAP_COLOR_RANGE_PCT) }}
-            />
-            <span>+{HEATMAP_COLOR_RANGE_PCT}%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Treemap - ref 컨테이너는 항상 렌더링 (ResizeObserver 측정 필요) */}
-      <div
-        ref={containerRef}
-        className="flex-1 relative min-h-0 overflow-hidden bg-[#0a0a0a]"
-      >
-        {layout.map((sectorLayout) => (
-          <div key={sectorLayout.sector.name}>
-            {/* 섹터 라벨 (충분한 크기일 때만) */}
-            {sectorLayout.rect.w > 60 && sectorLayout.rect.h > 30 && (
-              <div
-                className="absolute z-10 pointer-events-none"
-                style={{
-                  left: sectorLayout.rect.x + 3,
-                  top: sectorLayout.rect.y + 2,
-                }}
-              >
-                <span className="text-[8px] font-mono font-bold text-white/30 uppercase tracking-wider">
-                  {sectorLayout.sector.name}
-                </span>
-              </div>
+      {data && (
+        <div className="px-3 py-1 border-b border-zinc-800/60 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3 text-[10px] font-mono">
+            <span className="text-zinc-500">{data.sectors.length} sectors</span>
+            <span className="text-zinc-700">|</span>
+            <span className="text-zinc-500">{totalStocks} stocks</span>
+            {data.updatedAt && (
+              <>
+                <span className="text-zinc-700">|</span>
+                <span className="text-zinc-600">{formatTimestamp(data.updatedAt)}</span>
+              </>
             )}
+            {isLoading && <span className="text-zinc-600 animate-pulse">갱신 중...</span>}
+          </div>
+          <div className="flex items-center gap-2 text-[9px] font-mono text-zinc-600">
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: getHeatColor(-HEATMAP_COLOR_RANGE_PCT) }} />
+              <span>-{HEATMAP_COLOR_RANGE_PCT}%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: getHeatColor(0) }} />
+              <span>0%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: getHeatColor(HEATMAP_COLOR_RANGE_PCT) }} />
+              <span>+{HEATMAP_COLOR_RANGE_PCT}%</span>
+            </div>
+          </div>
+        </div>
+      )}
 
-            {/* 종목 셀 */}
-            {sectorLayout.stocks.map((stockNode) => {
-              const { rect } = stockNode;
-              const stock = stockNode.data;
-              const showText =
-                rect.w >= HEATMAP_MIN_CELL_TEXT_W &&
-                rect.h >= HEATMAP_MIN_CELL_TEXT_H;
-              const showPct = rect.h >= HEATMAP_MIN_CELL_PCT_H && showText;
+      {/* Treemap container - 항상 렌더링하여 ResizeObserver 측정 보장 */}
+      <div
+        ref={attachObserver}
+        className="flex-1 relative min-h-0 overflow-hidden"
+        style={{ backgroundColor: '#1a1a1a' }}
+      >
+        {/* 로딩 오버레이 */}
+        {isLoading && !data && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#1a1a1a]">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 mb-2">
+                <div className="w-4 h-4 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin" />
+                <span className="text-[11px] text-zinc-500 font-mono">S&P 500 히트맵 로딩 중...</span>
+              </div>
+              <p className="text-[10px] text-zinc-600">첫 호출 시 10~15초 소요될 수 있습니다</p>
+            </div>
+          </div>
+        )}
 
-              return (
+        {/* 에러 오버레이 */}
+        {error && !data && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#1a1a1a]">
+            <div className="text-center">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-3">
+                <span className="text-red-500 text-lg">!</span>
+              </div>
+              <p className="text-xs text-red-400 mb-1">히트맵 로드 실패</p>
+              <p className="text-[10px] text-zinc-500 max-w-[200px] mb-3">{error}</p>
+              <button
+                onClick={refetch}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded text-[10px] font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" />
+                재시도
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 섹터 + 종목 treemap */}
+        {layout.map((sl) => {
+          const { rect } = sl;
+          const showHeader = rect.w > 50 && rect.h > 30;
+
+          return (
+            <div key={sl.sector.name}>
+              {/* 섹터 경계 (배경) */}
+              <div
+                className="absolute"
+                style={{
+                  left: rect.x,
+                  top: rect.y,
+                  width: rect.w,
+                  height: rect.h,
+                  backgroundColor: '#1a1a1a',
+                }}
+              />
+
+              {/* 섹터 헤더 */}
+              {showHeader && (
                 <div
-                  key={stock.ticker}
-                  className="absolute border border-[#0a0a0a] cursor-pointer transition-[filter] duration-100 hover:brightness-125 hover:z-20 flex flex-col items-center justify-center overflow-hidden"
+                  className="absolute z-10 flex items-center px-1.5 overflow-hidden"
                   style={{
-                    left: rect.x,
+                    left: rect.x + SECTOR_BORDER,
                     top: rect.y,
-                    width: rect.w,
-                    height: rect.h,
-                    backgroundColor: getHeatColor(stock.changePct),
+                    width: rect.w - SECTOR_BORDER * 2,
+                    height: SECTOR_HEADER_H,
+                    backgroundColor: '#1a1a1a',
                   }}
-                  onClick={() => handleStockClick(stock.ticker)}
-                  onMouseMove={(e) =>
-                    handleMouseMove(e, stock, sectorLayout.sector.name)
-                  }
-                  onMouseLeave={handleMouseLeave}
                 >
-                  {showText && (
-                    <>
+                  <span
+                    className="font-mono font-bold text-white/80 uppercase tracking-wider truncate"
+                    style={{ fontSize: rect.w > 200 ? 11 : 9 }}
+                  >
+                    {sl.sector.name}
+                  </span>
+                </div>
+              )}
+
+              {/* 종목 셀 */}
+              {sl.stocks.map((stockNode) => {
+                const sr = stockNode.rect;
+                const stock = stockNode.data;
+                const canShowTicker = sr.w >= 28 && sr.h >= 18;
+                const canShowPct = sr.w >= 32 && sr.h >= 32;
+
+                return (
+                  <div
+                    key={stock.ticker}
+                    className="absolute cursor-pointer transition-[filter] duration-100 hover:brightness-130 hover:z-20 flex flex-col items-center justify-center overflow-hidden"
+                    style={{
+                      left: sr.x,
+                      top: sr.y,
+                      width: sr.w,
+                      height: sr.h,
+                      backgroundColor: getHeatColor(stock.changePct),
+                      border: '1px solid #1a1a1a',
+                    }}
+                    onClick={() => handleStockClick(stock.ticker)}
+                    onMouseMove={(e) => handleMouseMove(e, stock, sl.sector.name)}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    {canShowTicker && (
                       <span
-                        className="font-mono font-bold leading-tight"
-                        style={{
-                          fontSize: rect.w > 70 ? 11 : 9,
-                          color: getTextColor(stock.changePct),
-                        }}
+                        className="font-mono font-bold text-white leading-tight"
+                        style={{ fontSize: tickerFontSize(sr.w, sr.h) }}
                       >
                         {stock.ticker}
                       </span>
-                      {showPct && (
-                        <span
-                          className="font-mono tabular-nums leading-tight"
-                          style={{
-                            fontSize: rect.w > 70 ? 10 : 8,
-                            color: getTextColor(stock.changePct),
-                            opacity: 0.8,
-                          }}
-                        >
-                          {stock.changePct >= 0 ? '+' : ''}
-                          {stock.changePct.toFixed(2)}%
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                    )}
+                    {canShowPct && (
+                      <span
+                        className="font-mono tabular-nums text-white/80 leading-tight"
+                        style={{ fontSize: pctFontSize(sr.w, sr.h) }}
+                      >
+                        {stock.changePct >= 0 ? '+' : ''}
+                        {stock.changePct.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
 
         {/* Tooltip */}
         {hovered && (
@@ -535,7 +522,8 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
             sectorName={hovered.sectorName}
             x={tooltipPos.x}
             y={tooltipPos.y}
-            containerRect={containerRect}
+            containerW={dimensions.w}
+            containerH={dimensions.h}
           />
         )}
       </div>
