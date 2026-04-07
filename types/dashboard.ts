@@ -545,6 +545,45 @@ export interface EconEventDetail {
   summary: string;
 }
 
+// ── S&P 500 Heatmap Types ──
+
+export interface ApiHeatmapStock {
+  ticker: string;
+  name: string;
+  market_cap: number;
+  change_pct: number;
+  price: number;
+}
+
+export interface ApiHeatmapSector {
+  name: string;
+  stocks: ApiHeatmapStock[];
+}
+
+export interface ApiHeatmapResponse {
+  sectors: ApiHeatmapSector[];
+  updated_at: string;
+}
+
+export interface HeatmapStock {
+  ticker: string;
+  name: string;
+  marketCap: number;
+  changePct: number;
+  price: number;
+}
+
+export interface HeatmapSector {
+  name: string;
+  stocks: HeatmapStock[];
+  totalMarketCap: number;
+}
+
+export interface HeatmapData {
+  sectors: HeatmapSector[];
+  updatedAt: string;
+}
+
 // ── AI Portfolio Builder ──
 
 export type PortfolioStyle = 'aggressive' | 'balanced' | 'conservative';

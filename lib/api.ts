@@ -35,6 +35,9 @@ import type {
   TechnicalCondition,
   ReboundRating,
   StrategyAction,
+  ApiHeatmapResponse,
+  HeatmapData,
+  HeatmapSector,
 } from '@/types/dashboard';
 import { ECON_CALENDAR_DEFAULT_LIMIT } from '@/lib/constants';
 
@@ -521,6 +524,52 @@ export async function fetchStrategy(): Promise<ApiStrategyResponse> {
     throw new ApiError(res.status, '전략 데이터를 불러올 수 없습니다');
   }
   return res.json();
+}
+
+// ── S&P 500 Heatmap ──
+
+export async function fetchSP500Heatmap(): Promise<ApiHeatmapResponse> {
+  const res = await fetch(`${API_BASE}/api/heatmap/sp500`);
+  if (!res.ok) {
+    throw new ApiError(res.status, '히트맵 데이터를 불러올 수 없습니다');
+  }
+  return res.json();
+}
+
+export function apiHeatmapToDisplay(
+  payload: ApiHeatmapResponse | null | undefined,
+): HeatmapData | null {
+  if (!payload || !Array.isArray(payload.sectors)) return null;
+
+  const sectors: HeatmapSector[] = payload.sectors
+    .map((sector) => {
+      const stocks = (sector.stocks ?? []).map((s) => ({
+        ticker: String(s.ticker ?? ''),
+        name: String(s.name ?? ''),
+        marketCap: Number(s.market_cap) || 0,
+        changePct: Number(s.change_pct) || 0,
+        price: Number(s.price) || 0,
+      }));
+      const totalMarketCap = stocks.reduce((sum, s) => sum + s.marketCap, 0);
+      return {
+        name: String(sector.name ?? ''),
+        stocks,
+        totalMarketCap,
+      };
+    })
+    .filter((s) => s.stocks.length > 0 && s.totalMarketCap > 0);
+
+  return {
+    sectors,
+    updatedAt: payload.updated_at ?? '',
+  };
+}
+
+export function formatMarketCap(value: number): string {
+  if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(0)}M`;
+  return `$${value.toLocaleString()}`;
 }
 
 function toImportance(value: unknown): 0 | 1 | 2 | 3 {

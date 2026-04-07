@@ -14,6 +14,7 @@ import {
 } from '@/lib/api';
 import type { RadarStock } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
+import SP500Heatmap from './SP500Heatmap';
 
 const DIVERGENCE_MAX = 0.5;
 
@@ -253,6 +254,7 @@ export default function AIPredictionRadar({
 }: AIPredictionRadarProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<RadarSortKey>('divergence');
+  const [showHeatmap, setShowHeatmap] = useState(false);
 
   const sorted = useMemo(
     () => sortAndFilter(stocks, activeTab),
@@ -309,10 +311,13 @@ export default function AIPredictionRadar({
         {RADAR_TABS.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => handleTabChange(tab.key)}
+            onClick={() => {
+              setShowHeatmap(false);
+              handleTabChange(tab.key);
+            }}
             className={cn(
               'px-2.5 py-1 rounded text-[10px] font-medium whitespace-nowrap transition-all duration-150',
-              activeTab === tab.key
+              !showHeatmap && activeTab === tab.key
                 ? tab.key === 'buy'
                   ? 'bg-green-500/15 text-green-400 ring-1 ring-green-500/30'
                   : tab.key === 'sell'
@@ -324,10 +329,24 @@ export default function AIPredictionRadar({
             {tab.label}
           </button>
         ))}
+        <div className="w-px h-4 bg-zinc-700/40 mx-0.5 shrink-0" />
+        <button
+          onClick={() => setShowHeatmap(true)}
+          className={cn(
+            'px-2.5 py-1 rounded text-[10px] font-medium whitespace-nowrap transition-all duration-150',
+            showHeatmap
+              ? 'bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/30'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50',
+          )}
+        >
+          S&P 히트맵
+        </button>
       </div>
 
       {/* Content */}
-      {isLoading ? (
+      {showHeatmap ? (
+        <SP500Heatmap enabled={showHeatmap} />
+      ) : isLoading ? (
         <TableSkeleton />
       ) : error ? (
         <ErrorState message={error} />

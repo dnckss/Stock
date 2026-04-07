@@ -62,6 +62,16 @@ export const PORTFOLIO_PERIODS = [
 // ── Portfolio streaming ──
 export const PORTFOLIO_STREAM_TOTAL_STEPS = 5;
 
+// ── S&P 500 Heatmap ──
+export const HEATMAP_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2분
+export const HEATMAP_COLOR_RANGE_PCT = 3; // ±3% 에서 최대 색상 채도
+export const HEATMAP_COLOR_POSITIVE = { r: 22, g: 128, b: 61 };
+export const HEATMAP_COLOR_NEGATIVE = { r: 153, g: 27, b: 27 };
+export const HEATMAP_COLOR_NEUTRAL = { r: 39, g: 39, b: 42 };
+export const HEATMAP_MIN_CELL_TEXT_W = 32;
+export const HEATMAP_MIN_CELL_TEXT_H = 24;
+export const HEATMAP_MIN_CELL_PCT_H = 36;
+
 export const ECON_CALENDAR_DEFAULT_LIMIT = 50;
 export const ECON_CALENDAR_SIDEBAR_PAGE_SIZE = 10;
 export const ECON_CALENDAR_DETAIL_LIMIT = 200;
