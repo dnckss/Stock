@@ -11,58 +11,45 @@ export interface HeatmapDataState {
   error: string | null;
 }
 
-/**
- * S&P 500 히트맵 데이터를 관리하는 훅.
- * `enabled`가 true일 때만 데이터를 패칭하고 자동 리프레시한다.
- */
-export function useHeatmapData(enabled: boolean): HeatmapDataState & { refetch: () => void } {
+export function useHeatmapData(): HeatmapDataState & { refetch: () => void } {
   const [data, setData] = useState<HeatmapData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const mountedRef = useRef(true);
   const fetchedOnceRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     setError(null);
     try {
       const raw = await fetchSP500Heatmap();
-      if (!mountedRef.current) return;
+      if (signal?.aborted) return;
       const display = apiHeatmapToDisplay(raw);
       setData(display);
       fetchedOnceRef.current = true;
     } catch (err: unknown) {
-      if (!mountedRef.current) return;
+      if (signal?.aborted) return;
       const message =
         err instanceof Error ? err.message : '히트맵 데이터를 불러올 수 없습니다';
       setError(message);
     } finally {
-      if (mountedRef.current) setIsLoading(false);
+      if (!signal?.aborted) setIsLoading(false);
     }
   }, []);
 
-  // 최초 활성화 시 패칭, 이후 자동 리프레시
   useEffect(() => {
-    mountedRef.current = true;
-    if (!enabled) return;
+    const controller = new AbortController();
 
-    // 이미 데이터가 있으면 재패칭 스킵 (탭 전환 시 깜빡임 방지)
     if (!fetchedOnceRef.current) {
-      load();
+      load(controller.signal);
     }
 
-    const interval = setInterval(load, HEATMAP_POLL_INTERVAL_MS);
+    const interval = setInterval(() => load(controller.signal), HEATMAP_POLL_INTERVAL_MS);
+
     return () => {
+      controller.abort();
       clearInterval(interval);
     };
-  }, [enabled, load]);
+  }, [load]);
 
-  // 언마운트 시 cleanup
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  return { data, isLoading, error, refetch: load };
+  return { data, isLoading, error, refetch: () => load() };
 }

@@ -11,8 +11,8 @@ import {
   HEATMAP_COLOR_NEGATIVE,
   HEATMAP_COLOR_NEUTRAL,
 } from '@/lib/constants';
+import { interpolateRgb, rgbString, cn } from '@/lib/utils';
 import type { HeatmapSector, HeatmapStock } from '@/types/dashboard';
-import { cn } from '@/lib/utils';
 
 // ── Treemap layout ──
 
@@ -127,24 +127,13 @@ function squarifiedLayout<T>(
 
 const SECTOR_HEADER_H = 16;
 const SECTOR_BORDER = 2;
-
-function interpolateColor(
-  from: { r: number; g: number; b: number },
-  to: { r: number; g: number; b: number },
-  t: number,
-): string {
-  const c = Math.max(0, Math.min(1, t));
-  const r = Math.round(from.r + (to.r - from.r) * c);
-  const g = Math.round(from.g + (to.g - from.g) * c);
-  const b = Math.round(from.b + (to.b - from.b) * c);
-  return `rgb(${r}, ${g}, ${b})`;
-}
+const BG_COLOR = '#1a1a1a';
 
 function getHeatColor(changePct: number): string {
   const t = Math.min(1, Math.abs(changePct) / HEATMAP_COLOR_RANGE_PCT);
-  if (changePct >= 0.05) return interpolateColor(HEATMAP_COLOR_NEUTRAL, HEATMAP_COLOR_POSITIVE, t);
-  if (changePct <= -0.05) return interpolateColor(HEATMAP_COLOR_NEUTRAL, HEATMAP_COLOR_NEGATIVE, t);
-  return `rgb(${HEATMAP_COLOR_NEUTRAL.r}, ${HEATMAP_COLOR_NEUTRAL.g}, ${HEATMAP_COLOR_NEUTRAL.b})`;
+  if (changePct >= 0.05) return rgbString(interpolateRgb(HEATMAP_COLOR_NEUTRAL, HEATMAP_COLOR_POSITIVE, t));
+  if (changePct <= -0.05) return rgbString(interpolateRgb(HEATMAP_COLOR_NEUTRAL, HEATMAP_COLOR_NEGATIVE, t));
+  return rgbString(HEATMAP_COLOR_NEUTRAL);
 }
 
 // ── Two-level layout ──
@@ -170,7 +159,6 @@ function computeLayout(
     const showHeader = rect.w > 50 && rect.h > 30;
     const headerH = showHeader ? SECTOR_HEADER_H : 0;
 
-    // 섹터 내부 종목 영역 (헤더 + 보더 제외)
     const stockRect: Rect = {
       x: rect.x + SECTOR_BORDER,
       y: rect.y + headerH,
@@ -212,32 +200,12 @@ function pctFontSize(w: number, h: number): number {
 function HeatmapTooltip({
   stock,
   sectorName,
-  x,
-  y,
-  containerW,
-  containerH,
 }: {
   stock: HeatmapStock;
   sectorName: string;
-  x: number;
-  y: number;
-  containerW: number;
-  containerH: number;
 }) {
-  const W = 210;
-  const H = 105;
-  let left = x + 14;
-  let top = y + 14;
-  if (left + W > containerW) left = x - W - 8;
-  if (top + H > containerH) top = y - H - 8;
-  if (left < 0) left = 4;
-  if (top < 0) top = 4;
-
   return (
-    <div
-      className="absolute z-50 pointer-events-none rounded border border-zinc-700/60 bg-zinc-900/95 px-3 py-2 shadow-xl backdrop-blur"
-      style={{ left, top, minWidth: W }}
-    >
+    <>
       <div className="flex items-center gap-2 mb-1.5">
         <span className="text-[11px] font-bold text-zinc-100 font-mono">
           {stock.ticker}
@@ -271,59 +239,43 @@ function HeatmapTooltip({
           <span className="text-zinc-400 truncate ml-2">{sectorName}</span>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
 // ── Main ──
 
-interface SP500HeatmapProps {
-  enabled: boolean;
-}
-
-export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
+export default function SP500Heatmap() {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
-  const { data, isLoading, error, refetch } = useHeatmapData(enabled);
+  const { data, isLoading, error, refetch } = useHeatmapData();
 
   const [hovered, setHovered] = useState<{
     stock: HeatmapStock;
     sectorName: string;
   } | null>(null);
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const currentTickerRef = useRef<string | null>(null);
 
-  // callback ref: DOM 노드가 붙거나 떨어질 때마다 ResizeObserver 재설정
+  // callback ref: ResizeObserver를 DOM 노드 연결 시점에 설정
   const observerRef = useRef<ResizeObserver | null>(null);
-
   const attachObserver = useCallback((el: HTMLDivElement | null) => {
-    // 기존 observer 정리
     if (observerRef.current) {
       observerRef.current.disconnect();
       observerRef.current = null;
     }
-
     containerRef.current = el;
     if (!el) return;
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
-        setDimensions({
-          w: entry.contentRect.width,
-          h: entry.contentRect.height,
-        });
+        setDimensions({ w: entry.contentRect.width, h: entry.contentRect.height });
       }
     });
     observer.observe(el);
     observerRef.current = observer;
-  }, []);
-
-  // 언마운트 시 cleanup
-  useEffect(() => {
-    return () => {
-      observerRef.current?.disconnect();
-    };
   }, []);
 
   const layout = useMemo(() => {
@@ -336,28 +288,46 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
     [data],
   );
 
+  // 툴팁 위치는 ref로 직접 업데이트 (re-render 없이), stock 변경 시만 setState
   const handleMouseMove = useCallback(
     (e: React.MouseEvent, stock: HeatmapStock, sectorName: string) => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-      setHovered({ stock, sectorName });
+      const container = containerRef.current;
+      const tip = tooltipRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      let left = e.clientX - rect.left + 14;
+      let top = e.clientY - rect.top + 14;
+      if (left + 210 > rect.width) left = e.clientX - rect.left - 218;
+      if (top + 105 > rect.height) top = e.clientY - rect.top - 113;
+      if (left < 0) left = 4;
+      if (top < 0) top = 4;
+
+      if (tip) {
+        tip.style.left = `${left}px`;
+        tip.style.top = `${top}px`;
+      }
+
+      if (currentTickerRef.current !== stock.ticker) {
+        currentTickerRef.current = stock.ticker;
+        setHovered({ stock, sectorName });
+      }
     },
     [],
   );
 
-  const handleMouseLeave = useCallback(() => setHovered(null), []);
+  const handleMouseLeave = useCallback(() => {
+    currentTickerRef.current = null;
+    setHovered(null);
+  }, []);
 
   const handleStockClick = useCallback(
     (ticker: string) => router.push(`/stock/${ticker}`),
     [router],
   );
 
-  if (!enabled) return null;
-
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {/* Info bar */}
       {data && (
         <div className="px-3 py-1 border-b border-zinc-800/60 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 text-[10px] font-mono">
@@ -389,15 +359,13 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
         </div>
       )}
 
-      {/* Treemap container - 항상 렌더링하여 ResizeObserver 측정 보장 */}
       <div
         ref={attachObserver}
         className="flex-1 relative min-h-0 overflow-hidden"
-        style={{ backgroundColor: '#1a1a1a' }}
+        style={{ backgroundColor: BG_COLOR }}
       >
-        {/* 로딩 오버레이 */}
         {isLoading && !data && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#1a1a1a]">
+          <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ backgroundColor: BG_COLOR }}>
             <div className="text-center">
               <div className="inline-flex items-center gap-2 mb-2">
                 <div className="w-4 h-4 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin" />
@@ -408,9 +376,8 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
           </div>
         )}
 
-        {/* 에러 오버레이 */}
         {error && !data && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#1a1a1a]">
+          <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ backgroundColor: BG_COLOR }}>
             <div className="text-center">
               <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-3">
                 <span className="text-red-500 text-lg">!</span>
@@ -428,26 +395,12 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
           </div>
         )}
 
-        {/* 섹터 + 종목 treemap */}
         {layout.map((sl) => {
           const { rect } = sl;
           const showHeader = rect.w > 50 && rect.h > 30;
 
           return (
             <div key={sl.sector.name}>
-              {/* 섹터 경계 (배경) */}
-              <div
-                className="absolute"
-                style={{
-                  left: rect.x,
-                  top: rect.y,
-                  width: rect.w,
-                  height: rect.h,
-                  backgroundColor: '#1a1a1a',
-                }}
-              />
-
-              {/* 섹터 헤더 */}
               {showHeader && (
                 <div
                   className="absolute z-10 flex items-center px-1.5 overflow-hidden"
@@ -456,7 +409,7 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
                     top: rect.y,
                     width: rect.w - SECTOR_BORDER * 2,
                     height: SECTOR_HEADER_H,
-                    backgroundColor: '#1a1a1a',
+                    backgroundColor: BG_COLOR,
                   }}
                 >
                   <span
@@ -468,7 +421,6 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
                 </div>
               )}
 
-              {/* 종목 셀 */}
               {sl.stocks.map((stockNode) => {
                 const sr = stockNode.rect;
                 const stock = stockNode.data;
@@ -485,7 +437,7 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
                       width: sr.w,
                       height: sr.h,
                       backgroundColor: getHeatColor(stock.changePct),
-                      border: '1px solid #1a1a1a',
+                      border: `1px solid ${BG_COLOR}`,
                     }}
                     onClick={() => handleStockClick(stock.ticker)}
                     onMouseMove={(e) => handleMouseMove(e, stock, sl.sector.name)}
@@ -515,16 +467,14 @@ export default function SP500Heatmap({ enabled }: SP500HeatmapProps) {
           );
         })}
 
-        {/* Tooltip */}
         {hovered && (
-          <HeatmapTooltip
-            stock={hovered.stock}
-            sectorName={hovered.sectorName}
-            x={tooltipPos.x}
-            y={tooltipPos.y}
-            containerW={dimensions.w}
-            containerH={dimensions.h}
-          />
+          <div
+            ref={tooltipRef}
+            className="absolute z-50 pointer-events-none rounded border border-zinc-700/60 bg-zinc-900/95 px-3 py-2 shadow-xl backdrop-blur"
+            style={{ minWidth: 210 }}
+          >
+            <HeatmapTooltip stock={hovered.stock} sectorName={hovered.sectorName} />
+          </div>
         )}
       </div>
     </div>

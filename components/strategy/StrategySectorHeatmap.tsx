@@ -11,6 +11,7 @@ import {
   YAxis,
 } from 'recharts';
 import { STRATEGY_DIVERGENCE_BAR_ALPHA, STRATEGY_DIVERGENCE_COLOR_GREEN, STRATEGY_DIVERGENCE_COLOR_RED } from '@/lib/strategyConstants';
+import { interpolateRgb, rgbaString } from '@/lib/utils';
 import type { StrategyData } from '@/types/dashboard';
 
 type TooltipPayload = { value?: number; payload?: StrategyData['sectors'][number] };
@@ -18,19 +19,6 @@ type TooltipPayload = { value?: number; payload?: StrategyData['sectors'][number
 function formatSigned(v: number, d: number): string {
   const f = v.toFixed(d);
   return v >= 0 ? `+${f}` : f;
-}
-
-function interpolate(
-  low: { r: number; g: number; b: number },
-  high: { r: number; g: number; b: number },
-  t: number,
-) {
-  const c = Math.max(0, Math.min(1, t));
-  return {
-    r: Math.round(low.r + (high.r - low.r) * c),
-    g: Math.round(low.g + (high.g - low.g) * c),
-    b: Math.round(low.b + (high.b - low.b) * c),
-  };
 }
 
 function DivTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
@@ -107,11 +95,11 @@ export default function StrategySectorHeatmap({
             <Bar dataKey="divergence" radius={[3, 3, 3, 3]} barSize={10}>
               {list.map((s, idx) => {
                 const t = max === min ? 0.5 : (s.divergence - min) / (max - min);
-                const c = interpolate(STRATEGY_DIVERGENCE_COLOR_RED, STRATEGY_DIVERGENCE_COLOR_GREEN, t);
+                const c = interpolateRgb(STRATEGY_DIVERGENCE_COLOR_RED, STRATEGY_DIVERGENCE_COLOR_GREEN, t);
                 return (
                   <Cell
                     key={`${s.sector}-${idx}`}
-                    fill={`rgba(${c.r}, ${c.g}, ${c.b}, ${STRATEGY_DIVERGENCE_BAR_ALPHA})`}
+                    fill={rgbaString(c, STRATEGY_DIVERGENCE_BAR_ALPHA)}
                   />
                 );
               })}

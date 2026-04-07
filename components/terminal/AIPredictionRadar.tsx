@@ -345,7 +345,7 @@ export default function AIPredictionRadar({
 
       {/* Content */}
       {showHeatmap ? (
-        <SP500Heatmap enabled={showHeatmap} />
+        <SP500Heatmap />
       ) : isLoading ? (
         <TableSkeleton />
       ) : error ? (
