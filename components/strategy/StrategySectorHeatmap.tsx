@@ -12,14 +12,10 @@ import {
 } from 'recharts';
 import { STRATEGY_DIVERGENCE_BAR_ALPHA, STRATEGY_DIVERGENCE_COLOR_GREEN, STRATEGY_DIVERGENCE_COLOR_RED } from '@/lib/strategyConstants';
 import { interpolateRgb, rgbaString } from '@/lib/utils';
+import { formatDivergence } from '@/lib/api';
 import type { StrategyData } from '@/types/dashboard';
 
 type TooltipPayload = { value?: number; payload?: StrategyData['sectors'][number] };
-
-function formatSigned(v: number, d: number): string {
-  const f = v.toFixed(d);
-  return v >= 0 ? `+${f}` : f;
-}
 
 function DivTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
   if (!active || !payload?.length) return null;
@@ -30,7 +26,7 @@ function DivTooltip({ active, payload }: { active?: boolean; payload?: TooltipPa
     <div className="rounded border border-zinc-700/60 bg-zinc-900/95 px-2 py-1 shadow-lg backdrop-blur text-[10px] font-mono">
       <span className="text-zinc-300">{p.sector}</span>
       <span className={`ml-2 tabular-nums ${v >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-        {formatSigned(v, 3)}
+        {formatDivergence(v)}
       </span>
     </div>
   );

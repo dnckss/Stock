@@ -21,7 +21,7 @@ export function useHeatmapData(): HeatmapDataState & { refetch: () => void } {
     setIsLoading(true);
     setError(null);
     try {
-      const raw = await fetchSP500Heatmap();
+      const raw = await fetchSP500Heatmap(signal);
       if (signal?.aborted) return;
       const display = apiHeatmapToDisplay(raw);
       setData(display);
@@ -51,5 +51,7 @@ export function useHeatmapData(): HeatmapDataState & { refetch: () => void } {
     };
   }, [load]);
 
-  return { data, isLoading, error, refetch: () => load() };
+  const refetch = useCallback(() => load(), [load]);
+
+  return { data, isLoading, error, refetch };
 }

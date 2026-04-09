@@ -528,8 +528,8 @@ export async function fetchStrategy(): Promise<ApiStrategyResponse> {
 
 // ── S&P 500 Heatmap ──
 
-export async function fetchSP500Heatmap(): Promise<ApiHeatmapResponse> {
-  const res = await fetch(`${API_BASE}/api/heatmap/sp500`);
+export async function fetchSP500Heatmap(signal?: AbortSignal): Promise<ApiHeatmapResponse> {
+  const res = await fetch(`${API_BASE}/api/heatmap/sp500`, { signal });
   if (!res.ok) {
     throw new ApiError(res.status, '히트맵 데이터를 불러올 수 없습니다');
   }

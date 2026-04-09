@@ -257,8 +257,9 @@ export default function SP500Heatmap() {
     sectorName: string;
   } | null>(null);
   const currentTickerRef = useRef<string | null>(null);
+  const tooltipPosRef = useRef({ left: -9999, top: -9999 });
+  const containerRectRef = useRef<DOMRect | null>(null);
 
-  // callback ref: ResizeObserver를 DOM 노드 연결 시점에 설정
   const observerRef = useRef<ResizeObserver | null>(null);
   const attachObserver = useCallback((el: HTMLDivElement | null) => {
     if (observerRef.current) {
@@ -272,6 +273,7 @@ export default function SP500Heatmap() {
       const entry = entries[0];
       if (entry) {
         setDimensions({ w: entry.contentRect.width, h: entry.contentRect.height });
+        containerRectRef.current = el.getBoundingClientRect();
       }
     });
     observer.observe(el);
@@ -288,14 +290,13 @@ export default function SP500Heatmap() {
     [data],
   );
 
-  // 툴팁 위치는 ref로 직접 업데이트 (re-render 없이), stock 변경 시만 setState
   const handleMouseMove = useCallback(
     (e: React.MouseEvent, stock: HeatmapStock, sectorName: string) => {
+      // 컨테이너 rect를 캐시에서 가져오되, fallback으로 직접 측정
       const container = containerRef.current;
-      const tip = tooltipRef.current;
       if (!container) return;
+      const rect = containerRectRef.current ?? container.getBoundingClientRect();
 
-      const rect = container.getBoundingClientRect();
       let left = e.clientX - rect.left + 14;
       let top = e.clientY - rect.top + 14;
       if (left + 210 > rect.width) left = e.clientX - rect.left - 218;
@@ -303,6 +304,8 @@ export default function SP500Heatmap() {
       if (left < 0) left = 4;
       if (top < 0) top = 4;
 
+      tooltipPosRef.current = { left, top };
+      const tip = tooltipRef.current;
       if (tip) {
         tip.style.left = `${left}px`;
         tip.style.top = `${top}px`;
@@ -471,7 +474,7 @@ export default function SP500Heatmap() {
           <div
             ref={tooltipRef}
             className="absolute z-50 pointer-events-none rounded border border-zinc-700/60 bg-zinc-900/95 px-3 py-2 shadow-xl backdrop-blur"
-            style={{ minWidth: 210 }}
+            style={{ minWidth: 210, left: tooltipPosRef.current.left, top: tooltipPosRef.current.top }}
           >
             <HeatmapTooltip stock={hovered.stock} sectorName={hovered.sectorName} />
           </div>
