@@ -47,7 +47,7 @@ import type {
   GrowthQuarter,
   StabilityQuarter,
   FundamentalsSectionKey,
-  ApiPricePerformanceResponse,
+  ApiPricePerformanceData,
   PricePerformanceItem,
 } from '@/types/dashboard';
 import { ECON_CALENDAR_DEFAULT_LIMIT } from '@/lib/constants';
@@ -1056,26 +1056,27 @@ export function parseFundamentals(
 
 export async function fetchPricePerformance(
   ticker: string,
-): Promise<ApiPricePerformanceResponse> {
+): Promise<ApiPricePerformanceData | null> {
   const res = await fetch(
-    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/fundamentals/price_performance`,
+    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/fundamentals`,
   );
   if (!res.ok) {
     throw new ApiError(res.status, '가격 성과 데이터를 불러올 수 없습니다');
   }
-  return res.json();
+  const body = await res.json();
+  return body?.price_performance ?? null;
 }
 
 export function parsePricePerformance(
-  raw: ApiPricePerformanceResponse | null | undefined,
+  raw: ApiPricePerformanceData | null | undefined,
 ): Map<string, PricePerformanceItem> {
   const map = new Map<string, PricePerformanceItem>();
-  if (!raw || !Array.isArray(raw.price_performance)) return map;
+  if (!raw || !Array.isArray(raw.periods)) return map;
 
-  for (const item of raw.price_performance) {
-    if (!item || typeof item.period !== 'string') continue;
-    map.set(item.period.toUpperCase(), {
-      period: item.period.toUpperCase(),
+  for (const item of raw.periods) {
+    if (!item || typeof item.label !== 'string') continue;
+    map.set(item.label.toUpperCase(), {
+      period: item.label.toUpperCase(),
       changePct: typeof item.change_pct === 'number' ? item.change_pct : 0,
       volume: typeof item.volume === 'number' ? item.volume : 0,
       tradingValue: typeof item.trading_value === 'number' ? item.trading_value : 0,

@@ -1279,16 +1279,15 @@ export interface FundamentalsData {
 
 // ── Price Performance API Types ──
 
-export interface ApiPricePerformanceItem {
-  period: string;
+export interface ApiPricePerformancePeriod {
+  label: string;
   change_pct: number | null;
   volume: number | null;
   trading_value: number | null;
 }
 
-export interface ApiPricePerformanceResponse {
-  ticker: string;
-  price_performance: ApiPricePerformanceItem[];
+export interface ApiPricePerformanceData {
+  periods: ApiPricePerformancePeriod[];
 }
 
 export interface PricePerformanceItem {
