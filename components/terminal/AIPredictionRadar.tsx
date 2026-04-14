@@ -21,7 +21,7 @@ import {
 } from '@/lib/api';
 import { useRadarPerformance, type PerfMap } from '@/hooks/useRadarPerformance';
 import StockLogo from '@/components/common/StockLogo';
-import type { RadarStock } from '@/types/dashboard';
+import type { RadarStock, PricePerformanceItem } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 import SP500Heatmap from './SP500Heatmap';
 
@@ -137,14 +137,26 @@ function SignalBadge({ signal }: { signal: RadarStock['signal'] }) {
   );
 }
 
+function formatTradingValue(v: number): string {
+  if (v >= 1e12) return `$${(v / 1e12).toFixed(1)}T`;
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
+  return `$${v.toLocaleString('en-US')}`;
+}
+
 function PredictionRow({
   stock,
   onClick,
+  perf,
 }: {
   stock: RadarStock;
   onClick: () => void;
+  perf: PricePerformanceItem | undefined;
 }) {
   const sentimentPositive = stock.sentiment >= 0;
+  const displayReturn = perf ? perf.changePct / 100 : stock.priceReturn;
+  const displayVolume = perf ? perf.volume : stock.volume;
+  const displayTv = perf ? perf.tradingValue : stock.price * stock.volume;
 
   return (
     <tr
@@ -185,16 +197,22 @@ function PredictionRow({
         <span
           className={cn(
             'font-mono text-xs font-medium tabular-nums',
-            stock.priceReturn >= 0 ? 'text-green-500' : 'text-red-500',
+            displayReturn >= 0 ? 'text-green-500' : 'text-red-500',
           )}
         >
-          {formatReturn(stock.priceReturn)}
+          {formatReturn(displayReturn)}
         </span>
       </td>
 
       <td className="py-2.5 px-2 text-right">
         <span className="font-mono text-[10px] text-zinc-400 tabular-nums">
-          {formatVolume(stock.volume)}
+          {formatVolume(displayVolume)}
+        </span>
+      </td>
+
+      <td className="py-2.5 px-2 text-right">
+        <span className="font-mono text-[10px] text-zinc-400 tabular-nums">
+          {formatTradingValue(displayTv)}
         </span>
       </td>
 
@@ -419,10 +437,13 @@ export default function AIPredictionRadar({
                   Price
                 </th>
                 <th className="py-2 px-2 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
-                  5D Return
+                  {activePeriod === '1D' ? '5D' : activePeriod} Return
                 </th>
                 <th className="py-2 px-2 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
                   Vol
+                </th>
+                <th className="py-2 px-2 text-right text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
+                  거래대금
                 </th>
                 <th className="py-2 px-2 text-center text-[9px] font-medium text-zinc-600 uppercase tracking-wider">
                   Signal
@@ -441,6 +462,7 @@ export default function AIPredictionRadar({
                 <PredictionRow
                   key={stock.ticker}
                   stock={stock}
+                  perf={perfMap.get(stock.ticker.toUpperCase())}
                   onClick={() => router.push(`/stock/${stock.ticker}`)}
                 />
               ))}
