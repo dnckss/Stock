@@ -4,10 +4,11 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useStockDetail } from '@/hooks/useStockDetail';
+import { useStockFundamentals } from '@/hooks/useStockFundamentals';
 import StockHeader from '@/components/detail/StockHeader';
 import StockPriceChart from '@/components/detail/StockPriceChart';
 import StockQuotePanel from '@/components/detail/StockQuotePanel';
-
+import FundamentalsPanel from '@/components/detail/fundamentals/FundamentalsPanel';
 
 import RelatedNews from '@/components/detail/RelatedNews';
 import StockAnalysisPanel from '@/components/detail/StockAnalysis';
@@ -42,6 +43,14 @@ export default function StockDetailPage() {
     refreshLatestNews,
     setChartPeriod,
   } = useStockDetail(ticker);
+
+  const {
+    data: fundamentals,
+    isLoading: fundamentalsLoading,
+    error: fundamentalsError,
+    refreshSection,
+    sectionRefreshing,
+  } = useStockFundamentals(detail ? ticker : null);
 
   if (isLoading) return <PageSkeleton />;
 
@@ -103,6 +112,13 @@ export default function StockDetailPage() {
             onPeriodChange={setChartPeriod}
           />
           <StockQuotePanel quote={quote} />
+          <FundamentalsPanel
+            data={fundamentals}
+            isLoading={fundamentalsLoading}
+            error={fundamentalsError}
+            sectionRefreshing={sectionRefreshing}
+            onRefreshSection={refreshSection}
+          />
         </div>
 
         {/* Right: News + AI Report */}

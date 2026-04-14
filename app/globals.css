@@ -253,3 +253,13 @@
   animation-delay: var(--delay, 0s);
   will-change: transform;
 }
+
+/* Hide scrollbar but allow scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
