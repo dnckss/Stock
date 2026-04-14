@@ -38,6 +38,17 @@ import type {
   ApiHeatmapResponse,
   HeatmapData,
   HeatmapSector,
+  ApiFundamentalsResponse,
+  FundamentalsData,
+  FundamentalsProfile,
+  FundamentalsIndicators,
+  FundamentalsEarnings,
+  ProfitabilityQuarter,
+  GrowthQuarter,
+  StabilityQuarter,
+  FundamentalsSectionKey,
+  ApiPricePerformanceResponse,
+  PricePerformanceItem,
 } from '@/types/dashboard';
 import { ECON_CALENDAR_DEFAULT_LIMIT } from '@/lib/constants';
 
@@ -114,6 +125,21 @@ export function formatTimestamp(iso: string): string {
   const h = d.getHours().toString().padStart(2, '0');
   const m = d.getMinutes().toString().padStart(2, '0');
   return `${month}월 ${day}일 ${h}:${m}`;
+}
+
+export function formatDDay(dateStr: string): string {
+  const target = new Date(dateStr);
+  if (Number.isNaN(target.getTime())) return dateStr;
+  const diff = Math.ceil((target.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return `D+${Math.abs(diff)}`;
+  if (diff === 0) return 'D-Day';
+  return `D-${diff}`;
+}
+
+export function formatDateKR(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
 // ── Data Transforms ──
@@ -825,4 +851,236 @@ export function parsePortfolioFullResult(
       : null,
     totalElapsedSec: raw?.total_elapsed_sec ?? null,
   };
+}
+
+// ── Stock Fundamentals ──
+
+export async function fetchFundamentals(
+  ticker: string,
+): Promise<ApiFundamentalsResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/fundamentals`,
+  );
+  if (!res.ok) {
+    throw new ApiError(res.status, '펀더멘털 데이터를 불러올 수 없습니다');
+  }
+  return res.json();
+}
+
+export async function fetchFundamentalsSection(
+  ticker: string,
+  section: FundamentalsSectionKey,
+): Promise<ApiFundamentalsResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/fundamentals/${encodeURIComponent(section)}`,
+  );
+  if (res.status === 400) {
+    try {
+      const body = (await res.json()) as { detail?: string };
+      throw new ApiError(400, body.detail ?? '유효하지 않은 섹션입니다');
+    } catch (e) {
+      if (e instanceof ApiError) throw e;
+      throw new ApiError(400, '유효하지 않은 섹션입니다');
+    }
+  }
+  if (!res.ok) {
+    throw new ApiError(res.status, '펀더멘털 섹션을 불러올 수 없습니다');
+  }
+  return res.json();
+}
+
+function toQuarterLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  const q = Math.ceil((d.getMonth() + 1) / 3);
+  const yr = String(d.getFullYear()).slice(-2);
+  return `Q${q} '${yr}`;
+}
+
+export function parseFundamentals(
+  raw: ApiFundamentalsResponse | null | undefined,
+): FundamentalsData | null {
+  if (!raw || typeof raw.ticker !== 'string') return null;
+
+  // Profile
+  const rp = raw.profile;
+  const profile: FundamentalsProfile | null = rp
+    ? {
+        name: String(rp.name ?? '').trim(),
+        sector: String(rp.sector ?? '').trim(),
+        industry: String(rp.industry ?? '').trim(),
+        description: String(rp.description ?? '').trim(),
+        website: String(rp.website ?? '').trim(),
+        employees: typeof rp.employees === 'number' ? rp.employees : null,
+        officers: Array.isArray(rp.officers)
+          ? rp.officers.map((o) => ({
+              name: String(o.name ?? '').trim(),
+              title: String(o.title ?? '').trim(),
+            }))
+          : [],
+        marketCap: typeof rp.market_cap === 'number' ? rp.market_cap : null,
+        marketCapDisplay: String(rp.market_cap_display ?? '').trim(),
+        sharesOutstanding:
+          typeof rp.shares_outstanding === 'number' ? rp.shares_outstanding : null,
+        country: String(rp.country ?? '').trim(),
+        headquarters: String(rp.headquarters ?? '').trim(),
+      }
+    : null;
+
+  // Indicators
+  const ri = raw.indicators;
+  const indicators: FundamentalsIndicators | null = ri
+    ? {
+        valuation: {
+          per: ri.valuation?.per ?? null,
+          forwardPer: ri.valuation?.forward_per ?? null,
+          psr: ri.valuation?.psr ?? null,
+          pbr: ri.valuation?.pbr ?? null,
+        },
+        perShare: {
+          eps: ri.per_share?.eps ?? null,
+          bps: ri.per_share?.bps ?? null,
+          roe: ri.per_share?.roe ?? null,
+        },
+        dividends: {
+          dividendYield: ri.dividends?.dividend_yield ?? null,
+          dividendRate: ri.dividends?.dividend_rate ?? null,
+          payoutRatio: ri.dividends?.payout_ratio ?? null,
+          exDividendDate:
+            typeof ri.dividends?.ex_dividend_date === 'string'
+              ? ri.dividends.ex_dividend_date.trim()
+              : null,
+        },
+        financialHealth: {
+          debtRatio: ri.financial_health?.debt_ratio ?? null,
+          currentRatio: ri.financial_health?.current_ratio ?? null,
+          interestCoverageRatio: ri.financial_health?.interest_coverage_ratio ?? null,
+        },
+      }
+    : null;
+
+  // Profitability
+  const profitability: ProfitabilityQuarter[] = Array.isArray(
+    raw.profitability?.quarters,
+  )
+    ? raw.profitability.quarters
+        .filter((q) => q && typeof q.date === 'string')
+        .map((q) => ({
+          date: q.date,
+          label: toQuarterLabel(q.date),
+          revenue: typeof q.revenue === 'number' ? q.revenue : null,
+          netIncome: typeof q.net_income === 'number' ? q.net_income : null,
+          netMargin: typeof q.net_margin === 'number' ? q.net_margin : null,
+          netIncomeYoy: typeof q.net_income_yoy === 'number' ? q.net_income_yoy : null,
+        }))
+    : [];
+
+  // Growth
+  const growth: GrowthQuarter[] = Array.isArray(raw.growth?.quarters)
+    ? raw.growth.quarters
+        .filter((q) => q && typeof q.date === 'string')
+        .map((q) => ({
+          date: q.date,
+          label: toQuarterLabel(q.date),
+          operatingIncome:
+            typeof q.operating_income === 'number' ? q.operating_income : null,
+          operatingMargin:
+            typeof q.operating_margin === 'number' ? q.operating_margin : null,
+          operatingIncomeYoy:
+            typeof q.operating_income_yoy === 'number' ? q.operating_income_yoy : null,
+        }))
+    : [];
+
+  // Stability
+  const stability: StabilityQuarter[] = Array.isArray(raw.stability?.quarters)
+    ? raw.stability.quarters
+        .filter((q) => q && typeof q.date === 'string')
+        .map((q) => ({
+          date: q.date,
+          label: toQuarterLabel(q.date),
+          totalEquity:
+            typeof q.total_equity === 'number' ? q.total_equity : null,
+          totalDebt: typeof q.total_debt === 'number' ? q.total_debt : null,
+          debtRatio: typeof q.debt_ratio === 'number' ? q.debt_ratio : null,
+        }))
+    : [];
+
+  // Earnings
+  const re = raw.earnings;
+  const earnings: FundamentalsEarnings | null = re
+    ? {
+        nextEarningsDate:
+          typeof re.next_earnings_date === 'string'
+            ? re.next_earnings_date.trim()
+            : null,
+        history: Array.isArray(re.history)
+          ? re.history
+              .filter((h) => h && typeof h.date === 'string')
+              .map((h) => ({
+                date: h.date,
+                label: toQuarterLabel(h.date),
+                epsActual: typeof h.eps_actual === 'number' ? h.eps_actual : null,
+                epsEstimate:
+                  typeof h.eps_estimate === 'number' ? h.eps_estimate : null,
+                surprisePct:
+                  typeof h.surprise_pct === 'number' ? h.surprise_pct : null,
+              }))
+          : [],
+        analystCount:
+          typeof re.analyst_count === 'number' ? re.analyst_count : null,
+        targetMeanPrice:
+          typeof re.target_mean_price === 'number' ? re.target_mean_price : null,
+        targetHighPrice:
+          typeof re.target_high_price === 'number' ? re.target_high_price : null,
+        targetLowPrice:
+          typeof re.target_low_price === 'number' ? re.target_low_price : null,
+        recommendation:
+          typeof re.recommendation === 'string'
+            ? re.recommendation.trim().toLowerCase()
+            : null,
+      }
+    : null;
+
+  return {
+    ticker: raw.ticker,
+    profile,
+    indicators,
+    profitability,
+    growth,
+    stability,
+    earnings,
+  };
+}
+
+// ── Price Performance ──
+
+export async function fetchPricePerformance(
+  ticker: string,
+): Promise<ApiPricePerformanceResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/fundamentals/price_performance`,
+  );
+  if (!res.ok) {
+    throw new ApiError(res.status, '가격 성과 데이터를 불러올 수 없습니다');
+  }
+  return res.json();
+}
+
+export function parsePricePerformance(
+  raw: ApiPricePerformanceResponse | null | undefined,
+): Map<string, PricePerformanceItem> {
+  const map = new Map<string, PricePerformanceItem>();
+  if (!raw || !Array.isArray(raw.price_performance)) return map;
+
+  for (const item of raw.price_performance) {
+    if (!item || typeof item.period !== 'string') continue;
+    map.set(item.period.toUpperCase(), {
+      period: item.period.toUpperCase(),
+      changePct: typeof item.change_pct === 'number' ? item.change_pct : 0,
+      volume: typeof item.volume === 'number' ? item.volume : 0,
+      tradingValue: typeof item.trading_value === 'number' ? item.trading_value : 0,
+    });
+  }
+
+  return map;
 }

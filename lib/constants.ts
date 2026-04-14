@@ -47,6 +47,74 @@ export const CHART_UPPER_LABELS: Record<string, string> = {
 };
 export const CHART_DEFAULT_PERIOD = 'day';
 export const QUOTE_POLL_INTERVAL_MS = 8_000; // 8초
+
+// ── Stock Fundamentals ──
+export const FUNDAMENTALS_SECTIONS = [
+  'profile', 'indicators', 'profitability', 'growth', 'stability', 'earnings',
+] as const;
+
+export interface FundamentalsTab {
+  key: (typeof FUNDAMENTALS_SECTIONS)[number];
+  label: string;
+}
+
+export const FUNDAMENTALS_TABS: FundamentalsTab[] = [
+  { key: 'profile', label: '기업 개요' },
+  { key: 'indicators', label: '투자 지표' },
+  { key: 'profitability', label: '수익성' },
+  { key: 'growth', label: '성장성' },
+  { key: 'stability', label: '안정성' },
+  { key: 'earnings', label: '실적' },
+];
+
+export const FUNDAMENTALS_DEFAULT_TAB = 'profile';
+
+export const INDICATOR_GROUP_LABELS: Record<string, string> = {
+  valuation: '가치평가',
+  perShare: '주당 수익',
+  dividends: '배당',
+  financialHealth: '재무건전성',
+};
+
+export const INDICATOR_LABELS: Record<string, { label: string; unit: string }> = {
+  per: { label: 'PER', unit: '배' },
+  forwardPer: { label: 'Forward PER', unit: '배' },
+  psr: { label: 'PSR', unit: '배' },
+  pbr: { label: 'PBR', unit: '배' },
+  eps: { label: 'EPS', unit: 'USD' },
+  bps: { label: 'BPS', unit: 'USD' },
+  roe: { label: 'ROE', unit: '%' },
+  dividendYield: { label: '배당수익률', unit: '%' },
+  dividendRate: { label: '주당 배당금', unit: 'USD' },
+  payoutRatio: { label: '배당성향', unit: '%' },
+  exDividendDate: { label: '배당 기준일', unit: '' },
+  debtRatio: { label: '부채비율', unit: '%' },
+  currentRatio: { label: '유동비율', unit: '배' },
+  interestCoverageRatio: { label: '이자보상비율', unit: '배' },
+};
+
+export const FUNDAMENTALS_CHART_COLORS = {
+  revenue: '#3b82f6',
+  netIncome: '#22c55e',
+  operatingIncome: '#f59e0b',
+  totalEquity: '#3b82f6',
+  totalDebt: '#ef4444',
+  margin: '#a855f7',
+  yoy: '#06b6d4',
+  epsActual: '#22c55e',
+  epsEstimate: '#6b7280',
+} as const;
+
+export const EARNINGS_RECOMMENDATION_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  buy: { label: '매수', color: 'text-green-400', bg: 'bg-green-500/10' },
+  strong_buy: { label: '적극 매수', color: 'text-green-400', bg: 'bg-green-500/10' },
+  outperform: { label: '시장 상회', color: 'text-green-400', bg: 'bg-green-500/10' },
+  hold: { label: '중립', color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+  sell: { label: '매도', color: 'text-red-400', bg: 'bg-red-500/10' },
+  strong_sell: { label: '적극 매도', color: 'text-red-400', bg: 'bg-red-500/10' },
+  underperform: { label: '시장 하회', color: 'text-red-400', bg: 'bg-red-500/10' },
+};
+
 // ── Portfolio builder ──
 export const PORTFOLIO_STYLES = [
   { key: 'aggressive', label: '공격적' },
@@ -76,14 +144,24 @@ export const ECON_CALENDAR_DEFAULT_SOURCE = 'forex_factory';
 export const ECON_CALENDAR_AUTO_REFRESH_MIN_MS = 5 * 60 * 1000; // 5분
 export const ECON_CALENDAR_AUTO_REFRESH_MAX_MS = 10 * 60 * 1000; // 10분
 
+export type RadarPeriod = '1D' | '5D' | '1W' | '1M' | '1Y';
+
+export const RADAR_PERIODS: { key: RadarPeriod; label: string }[] = [
+  { key: '1D', label: '1일' },
+  { key: '5D', label: '5일' },
+  { key: '1W', label: '1주' },
+  { key: '1M', label: '1개월' },
+  { key: '1Y', label: '1년' },
+];
+
+export const RADAR_DEFAULT_PERIOD: RadarPeriod = '1D';
+
 export type RadarSortKey =
-  | 'volatility'
+  | 'tradingValue'
+  | 'volume'
   | 'gainers'
   | 'losers'
-  | 'volume'
-  | 'divergence'
-  | 'buy'
-  | 'sell';
+  | 'divergence';
 
 export interface RadarTab {
   key: RadarSortKey;
@@ -92,13 +170,11 @@ export interface RadarTab {
 }
 
 export const RADAR_TABS: RadarTab[] = [
-  { key: 'divergence', label: 'AI 괴리율', shortLabel: '괴리율' },
-  { key: 'buy', label: 'AI BUY', shortLabel: 'BUY' },
-  { key: 'sell', label: 'AI SELL', shortLabel: 'SELL' },
-  { key: 'volatility', label: '변동 상위', shortLabel: '변동' },
-  { key: 'gainers', label: '상승 상위', shortLabel: '상승' },
-  { key: 'losers', label: '하락 상위', shortLabel: '하락' },
+  { key: 'tradingValue', label: '거래대금', shortLabel: '거래대금' },
   { key: 'volume', label: '거래량', shortLabel: '거래량' },
+  { key: 'gainers', label: '급상승', shortLabel: '급상승' },
+  { key: 'losers', label: '급하락', shortLabel: '급하락' },
+  { key: 'divergence', label: '괴리율', shortLabel: '괴리율' },
 ];
 
 function generateTimeSeries(): TimeSeriesPoint[] {

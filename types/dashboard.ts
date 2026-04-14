@@ -1050,3 +1050,250 @@ export interface StrategyData {
   riskWarnings: RiskWarning[];
   generatedAt: string | null;
 }
+
+// ── Stock Fundamentals API Types (snake_case, backend) ──
+
+export type FundamentalsSectionKey = 'profile' | 'indicators' | 'profitability' | 'growth' | 'stability' | 'earnings';
+
+export interface ApiFundamentalsOfficer {
+  name: string;
+  title: string | null;
+}
+
+export interface ApiFundamentalsProfile {
+  name: string | null;
+  sector: string | null;
+  industry: string | null;
+  description: string | null;
+  website: string | null;
+  employees: number | null;
+  officers: ApiFundamentalsOfficer[];
+  market_cap: number | null;
+  market_cap_display: string | null;
+  shares_outstanding: number | null;
+  country: string | null;
+  headquarters: string | null;
+}
+
+export interface ApiFundamentalsValuation {
+  per: number | null;
+  forward_per: number | null;
+  psr: number | null;
+  pbr: number | null;
+}
+
+export interface ApiFundamentalsPerShare {
+  eps: number | null;
+  bps: number | null;
+  roe: number | null;
+}
+
+export interface ApiFundamentalsDividends {
+  dividend_yield: number | null;
+  dividend_rate: number | null;
+  payout_ratio: number | null;
+  ex_dividend_date: string | null;
+}
+
+export interface ApiFundamentalsFinancialHealth {
+  debt_ratio: number | null;
+  current_ratio: number | null;
+  interest_coverage_ratio: number | null;
+}
+
+export interface ApiFundamentalsIndicators {
+  valuation: ApiFundamentalsValuation | null;
+  per_share: ApiFundamentalsPerShare | null;
+  dividends: ApiFundamentalsDividends | null;
+  financial_health: ApiFundamentalsFinancialHealth | null;
+}
+
+export interface ApiFundamentalsProfitabilityQuarter {
+  date: string;
+  revenue: number | null;
+  net_income: number | null;
+  net_margin: number | null;
+  net_income_yoy: number | null;
+}
+
+export interface ApiFundamentalsProfitability {
+  quarters: ApiFundamentalsProfitabilityQuarter[];
+}
+
+export interface ApiFundamentalsGrowthQuarter {
+  date: string;
+  operating_income: number | null;
+  operating_margin: number | null;
+  operating_income_yoy: number | null;
+}
+
+export interface ApiFundamentalsGrowth {
+  quarters: ApiFundamentalsGrowthQuarter[];
+}
+
+export interface ApiFundamentalsStabilityQuarter {
+  date: string;
+  total_equity: number | null;
+  total_debt: number | null;
+  debt_ratio: number | null;
+}
+
+export interface ApiFundamentalsStability {
+  quarters: ApiFundamentalsStabilityQuarter[];
+}
+
+export interface ApiFundamentalsEarningsHistoryItem {
+  date: string;
+  eps_actual: number | null;
+  eps_estimate: number | null;
+  surprise_pct: number | null;
+}
+
+export interface ApiFundamentalsEarnings {
+  next_earnings_date: string | null;
+  history: ApiFundamentalsEarningsHistoryItem[];
+  analyst_count: number | null;
+  target_mean_price: number | null;
+  target_high_price: number | null;
+  target_low_price: number | null;
+  recommendation: string | null;
+}
+
+export interface ApiFundamentalsResponse {
+  ticker: string;
+  profile: ApiFundamentalsProfile | null;
+  indicators: ApiFundamentalsIndicators | null;
+  profitability: ApiFundamentalsProfitability | null;
+  growth: ApiFundamentalsGrowth | null;
+  stability: ApiFundamentalsStability | null;
+  earnings: ApiFundamentalsEarnings | null;
+}
+
+// ── Fundamentals Display Types (camelCase, UI) ──
+
+export interface FundamentalsOfficer {
+  name: string;
+  title: string;
+}
+
+export interface FundamentalsProfile {
+  name: string;
+  sector: string;
+  industry: string;
+  description: string;
+  website: string;
+  employees: number | null;
+  officers: FundamentalsOfficer[];
+  marketCap: number | null;
+  marketCapDisplay: string;
+  sharesOutstanding: number | null;
+  country: string;
+  headquarters: string;
+}
+
+export interface FundamentalsValuation {
+  per: number | null;
+  forwardPer: number | null;
+  psr: number | null;
+  pbr: number | null;
+}
+
+export interface FundamentalsPerShare {
+  eps: number | null;
+  bps: number | null;
+  roe: number | null;
+}
+
+export interface FundamentalsDividends {
+  dividendYield: number | null;
+  dividendRate: number | null;
+  payoutRatio: number | null;
+  exDividendDate: string | null;
+}
+
+export interface FundamentalsFinancialHealth {
+  debtRatio: number | null;
+  currentRatio: number | null;
+  interestCoverageRatio: number | null;
+}
+
+export interface FundamentalsIndicators {
+  valuation: FundamentalsValuation;
+  perShare: FundamentalsPerShare;
+  dividends: FundamentalsDividends;
+  financialHealth: FundamentalsFinancialHealth;
+}
+
+export interface ProfitabilityQuarter {
+  date: string;
+  label: string;
+  revenue: number | null;
+  netIncome: number | null;
+  netMargin: number | null;
+  netIncomeYoy: number | null;
+}
+
+export interface GrowthQuarter {
+  date: string;
+  label: string;
+  operatingIncome: number | null;
+  operatingMargin: number | null;
+  operatingIncomeYoy: number | null;
+}
+
+export interface StabilityQuarter {
+  date: string;
+  label: string;
+  totalEquity: number | null;
+  totalDebt: number | null;
+  debtRatio: number | null;
+}
+
+export interface EarningsHistoryItem {
+  date: string;
+  label: string;
+  epsActual: number | null;
+  epsEstimate: number | null;
+  surprisePct: number | null;
+}
+
+export interface FundamentalsEarnings {
+  nextEarningsDate: string | null;
+  history: EarningsHistoryItem[];
+  analystCount: number | null;
+  targetMeanPrice: number | null;
+  targetHighPrice: number | null;
+  targetLowPrice: number | null;
+  recommendation: string | null;
+}
+
+export interface FundamentalsData {
+  ticker: string;
+  profile: FundamentalsProfile | null;
+  indicators: FundamentalsIndicators | null;
+  profitability: ProfitabilityQuarter[];
+  growth: GrowthQuarter[];
+  stability: StabilityQuarter[];
+  earnings: FundamentalsEarnings | null;
+}
+
+// ── Price Performance API Types ──
+
+export interface ApiPricePerformanceItem {
+  period: string;
+  change_pct: number | null;
+  volume: number | null;
+  trading_value: number | null;
+}
+
+export interface ApiPricePerformanceResponse {
+  ticker: string;
+  price_performance: ApiPricePerformanceItem[];
+}
+
+export interface PricePerformanceItem {
+  period: string;
+  changePct: number;
+  volume: number;
+  tradingValue: number;
+}
