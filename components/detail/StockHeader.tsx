@@ -1,6 +1,7 @@
 'use client';
 
 import { SIGNAL_CONFIG } from '@/lib/constants';
+import StockLogo from '@/components/common/StockLogo';
 import type { StockDetailState } from '@/hooks/useStockDetail';
 import type { StockQuote } from '@/types/dashboard';
 
@@ -21,11 +22,7 @@ export default function StockHeader({
     <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between gap-4">
       {/* Left: ticker + name + price */}
       <div className="flex items-center gap-4 min-w-0">
-        <div className="shrink-0 w-10 h-10 rounded-lg bg-zinc-800 border border-zinc-700/50 flex items-center justify-center">
-          <span className="text-xs font-bold text-zinc-300 font-mono">
-            {detail.ticker.slice(0, 2)}
-          </span>
-        </div>
+        <StockLogo ticker={detail.ticker} size={40} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-base font-bold text-zinc-100 font-mono tracking-wider">

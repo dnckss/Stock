@@ -1,5 +1,6 @@
 import { SIGNAL_CONFIG } from '@/lib/constants';
 import { formatReturn, formatSentiment, formatDivergence } from '@/lib/api';
+import StockLogo from '@/components/common/StockLogo';
 import type { StockDetailState } from '@/hooks/useStockDetail';
 
 interface StockHeroProps {
@@ -26,11 +27,7 @@ export default function StockHero({ data }: StockHeroProps) {
         {/* Left: Stock Information */}
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-11 h-11 rounded-lg bg-zinc-800 border border-zinc-700/50 flex items-center justify-center">
-              <span className="text-sm font-bold text-zinc-300">
-                {data.ticker.slice(0, 2)}
-              </span>
-            </div>
+            <StockLogo ticker={data.ticker} size={44} />
             <div>
               <h1 className="text-xl font-bold text-zinc-100">
                 {data.name === data.ticker

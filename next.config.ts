@@ -18,6 +18,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: appRoot,
   },
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'assets.parqet.com' },
+    ],
+  },
 };
 
 export default nextConfig;
