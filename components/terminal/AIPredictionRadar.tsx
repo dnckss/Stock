@@ -1,9 +1,16 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
-import { SIGNAL_CONFIG, RADAR_TABS, type RadarSortKey } from '@/lib/constants';
+import {
+  SIGNAL_CONFIG,
+  RADAR_TABS,
+  RADAR_PERIODS,
+  RADAR_DEFAULT_PERIOD,
+  type RadarSortKey,
+  type RadarPeriod,
+} from '@/lib/constants';
 import {
   formatReturn,
   formatSentiment,
@@ -12,6 +19,8 @@ import {
   formatVolume,
   formatTimestamp,
 } from '@/lib/api';
+import { useRadarPerformance, type PerfMap } from '@/hooks/useRadarPerformance';
+import StockLogo from '@/components/common/StockLogo';
 import type { RadarStock } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 import SP500Heatmap from './SP500Heatmap';
@@ -28,32 +37,53 @@ interface AIPredictionRadarProps {
 function sortAndFilter(
   stocks: RadarStock[],
   key: RadarSortKey,
+  period: RadarPeriod,
+  perfMap: PerfMap,
 ): RadarStock[] {
   const list = [...stocks];
+  const usePeriodData = period !== '1D' && perfMap.size > 0;
 
   switch (key) {
-    case 'volatility':
-      return list.sort(
-        (a, b) => Math.abs(b.priceReturn) - Math.abs(a.priceReturn),
-      );
-    case 'gainers':
-      return list.sort((a, b) => b.priceReturn - a.priceReturn);
-    case 'losers':
-      return list.sort((a, b) => a.priceReturn - b.priceReturn);
+    case 'tradingValue':
+      return list.sort((a, b) => {
+        if (usePeriodData) {
+          const pa = perfMap.get(a.ticker)?.tradingValue ?? 0;
+          const pb = perfMap.get(b.ticker)?.tradingValue ?? 0;
+          return pb - pa;
+        }
+        return (b.price * b.volume) - (a.price * a.volume);
+      });
     case 'volume':
-      return list.sort((a, b) => b.volume - a.volume);
+      return list.sort((a, b) => {
+        if (usePeriodData) {
+          const pa = perfMap.get(a.ticker)?.volume ?? 0;
+          const pb = perfMap.get(b.ticker)?.volume ?? 0;
+          return pb - pa;
+        }
+        return b.volume - a.volume;
+      });
+    case 'gainers':
+      return list.sort((a, b) => {
+        if (usePeriodData) {
+          const pa = perfMap.get(a.ticker)?.changePct ?? -Infinity;
+          const pb = perfMap.get(b.ticker)?.changePct ?? -Infinity;
+          return pb - pa;
+        }
+        return b.priceReturn - a.priceReturn;
+      });
+    case 'losers':
+      return list.sort((a, b) => {
+        if (usePeriodData) {
+          const pa = perfMap.get(a.ticker)?.changePct ?? Infinity;
+          const pb = perfMap.get(b.ticker)?.changePct ?? Infinity;
+          return pa - pb;
+        }
+        return a.priceReturn - b.priceReturn;
+      });
     case 'divergence':
       return list.sort(
         (a, b) => Math.abs(b.divergence) - Math.abs(a.divergence),
       );
-    case 'buy':
-      return list
-        .filter((s) => s.signal === 'BUY')
-        .sort((a, b) => Math.abs(b.divergence) - Math.abs(a.divergence));
-    case 'sell':
-      return list
-        .filter((s) => s.signal === 'SELL')
-        .sort((a, b) => Math.abs(b.divergence) - Math.abs(a.divergence));
     default:
       return list;
   }
@@ -126,11 +156,7 @@ function PredictionRow({
     >
       <td className="py-2.5 px-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded bg-zinc-800 flex items-center justify-center shrink-0">
-            <span className="text-[8px] font-bold text-zinc-400 tracking-tight">
-              {stock.ticker.slice(0, 2)}
-            </span>
-          </div>
+          <StockLogo ticker={stock.ticker} size={28} />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-zinc-100">
@@ -253,21 +279,27 @@ export default function AIPredictionRadar({
   updatedAt,
 }: AIPredictionRadarProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<RadarSortKey>('divergence');
+  const [activeTab, setActiveTab] = useState<RadarSortKey>('tradingValue');
+  const [activePeriod, setActivePeriod] = useState<RadarPeriod>(RADAR_DEFAULT_PERIOD);
   const [showHeatmap, setShowHeatmap] = useState(false);
 
+  const tickers = useMemo(() => stocks.map((s) => s.ticker), [stocks]);
+  const { perfMap, isLoading: perfLoading } = useRadarPerformance(tickers, activePeriod);
+
   const sorted = useMemo(
-    () => sortAndFilter(stocks, activeTab),
-    [stocks, activeTab],
+    () => sortAndFilter(stocks, activeTab, activePeriod, perfMap),
+    [stocks, activeTab, activePeriod, perfMap],
   );
 
-  const handleTabChange = useCallback((key: RadarSortKey) => {
-    setActiveTab(key);
-  }, []);
-
-  const buyCount = stocks.filter((s) => s.signal === 'BUY').length;
-  const sellCount = stocks.filter((s) => s.signal === 'SELL').length;
-  const holdCount = stocks.filter((s) => s.signal === 'HOLD').length;
+  const { buyCount, sellCount, holdCount } = useMemo(() => {
+    let buy = 0, sell = 0, hold = 0;
+    for (const s of stocks) {
+      if (s.signal === 'BUY') buy++;
+      else if (s.signal === 'SELL') sell++;
+      else hold++;
+    }
+    return { buyCount: buy, sellCount: sell, holdCount: hold };
+  }, [stocks]);
 
   const activeTabConfig = RADAR_TABS.find((t) => t.key === activeTab);
 
@@ -313,16 +345,12 @@ export default function AIPredictionRadar({
             key={tab.key}
             onClick={() => {
               setShowHeatmap(false);
-              handleTabChange(tab.key);
+              setActiveTab(tab.key);
             }}
             className={cn(
               'px-2.5 py-1 rounded text-[10px] font-medium whitespace-nowrap transition-all duration-150',
               !showHeatmap && activeTab === tab.key
-                ? tab.key === 'buy'
-                  ? 'bg-green-500/15 text-green-400 ring-1 ring-green-500/30'
-                  : tab.key === 'sell'
-                    ? 'bg-red-500/15 text-red-400 ring-1 ring-red-500/30'
-                    : 'bg-zinc-700/50 text-zinc-200 ring-1 ring-zinc-600/50'
+                ? 'bg-zinc-700/50 text-zinc-200 ring-1 ring-zinc-600/50'
                 : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50',
             )}
           >
@@ -342,6 +370,29 @@ export default function AIPredictionRadar({
           S&P 히트맵
         </button>
       </div>
+
+      {/* Period sub-tabs (hidden for 괴리율 and heatmap) */}
+      {!showHeatmap && activeTab !== 'divergence' && (
+        <div className="px-3 py-1 border-b border-zinc-800/40 flex items-center gap-0.5 shrink-0">
+          {RADAR_PERIODS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setActivePeriod(p.key)}
+              className={cn(
+                'px-2 py-0.5 rounded text-[10px] font-mono transition-all duration-150',
+                activePeriod === p.key
+                  ? 'bg-zinc-700/60 text-zinc-100'
+                  : 'text-zinc-500 hover:text-zinc-300',
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+          {perfLoading && (
+            <span className="ml-1.5 text-[9px] text-zinc-600 animate-pulse">로딩...</span>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       {showHeatmap ? (
