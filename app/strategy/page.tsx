@@ -385,7 +385,7 @@ export default function StrategyPage() {
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="relative w-full max-w-xl mx-4 max-h-[90vh] rounded-2xl border border-zinc-700/50 bg-zinc-900 shadow-2xl flex flex-col overflow-hidden"
+                    className="relative w-full max-w-2xl mx-4 max-h-[90vh] rounded-2xl border border-zinc-700/50 bg-zinc-900 shadow-2xl flex flex-col overflow-hidden"
                   >
                     <div className="px-6 py-4 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-2.5">
