@@ -263,6 +263,15 @@ export default function StrategyPage() {
                 {formatGeneratedAt(data.generatedAt)}
               </span>
             )}
+            <button
+              type="button"
+              onClick={retry}
+              disabled={isLoading}
+              className="text-zinc-500 hover:text-zinc-300 disabled:opacity-40 transition-colors"
+              title="새로고침"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
