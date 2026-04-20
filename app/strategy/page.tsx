@@ -273,7 +273,7 @@ export default function StrategyPage() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="h-[calc(100vh-56px)]">
+        <div className="h-[calc(100vh-56px)] flex flex-col">
           <StrategyLoadingCanvas />
         </div>
       ) : error ? (
