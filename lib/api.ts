@@ -768,6 +768,11 @@ export function buildPortfolioStreamUrl(options: {
   style: PortfolioStyle;
   period: PortfolioPeriod;
   exclude?: string;
+  include?: string;
+  preferred_sectors?: string;
+  max_weight?: number;
+  target_return?: number;
+  dividend_preference?: boolean;
 }): string {
   const qs = new URLSearchParams({
     budget: String(options.budget),
@@ -775,6 +780,11 @@ export function buildPortfolioStreamUrl(options: {
     period: options.period,
   });
   if (options.exclude) qs.set('exclude', options.exclude);
+  if (options.include) qs.set('include', options.include);
+  if (options.preferred_sectors) qs.set('preferred_sectors', options.preferred_sectors);
+  if (options.max_weight != null) qs.set('max_weight', String(options.max_weight));
+  if (options.target_return != null) qs.set('target_return', String(options.target_return));
+  if (options.dividend_preference) qs.set('dividend_preference', 'true');
   return `${API_BASE}/api/portfolio/stream?${qs.toString()}`;
 }
 

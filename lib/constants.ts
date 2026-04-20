@@ -117,15 +117,24 @@ export const EARNINGS_RECOMMENDATION_CONFIG: Record<string, { label: string; col
 
 // ── Portfolio builder ──
 export const PORTFOLIO_STYLES = [
-  { key: 'aggressive', label: '공격적' },
-  { key: 'balanced', label: '균형' },
-  { key: 'conservative', label: '안정적' },
+  { key: 'aggressive', label: '공격적', description: '높은 수익을 추구하며 변동성을 감수합니다' },
+  { key: 'balanced', label: '균형', description: '수익과 안정의 균형을 추구합니다' },
+  { key: 'conservative', label: '안정적', description: '원금 보전 중심의 안정적 운용입니다' },
 ] as const;
 export const PORTFOLIO_PERIODS = [
-  { key: 'short', label: '단기 (1개월 이내)' },
-  { key: 'medium', label: '중기 (1~3개월)' },
-  { key: 'long', label: '장기 (3개월+)' },
+  { key: 'short', label: '단기', description: '1개월 이내' },
+  { key: 'medium', label: '중기', description: '1~3개월' },
+  { key: 'long', label: '장기', description: '3개월 이상' },
 ] as const;
+
+export const PORTFOLIO_BUDGET_PRESETS = [1000, 5000, 10000, 50000] as const;
+
+export const PORTFOLIO_SECTORS = [
+  'Technology', 'Healthcare', 'Finance', 'Energy', 'Consumer',
+  'Industrial', 'Real Estate', 'Utilities', 'Communication', 'Materials',
+] as const;
+
+export const PORTFOLIO_MAX_WEIGHT_DEFAULT = 30;
 
 // ── Portfolio streaming ──
 export const PORTFOLIO_STREAM_TOTAL_STEPS = 5;

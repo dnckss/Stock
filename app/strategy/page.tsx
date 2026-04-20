@@ -21,6 +21,7 @@ import {
   STRATEGY_DIRECTION_CONFIG,
   STRATEGY_CONFIDENCE_CONFIG,
 } from '@/lib/strategyConstants';
+import { PORTFOLIO_MAX_WEIGHT_DEFAULT } from '@/lib/constants';
 import type { StrategyRecommendation, StrategyNewsTheme } from '@/types/dashboard';
 
 /* ── Helpers ── */
@@ -214,6 +215,11 @@ export default function StrategyPage() {
       style: values.style,
       period: values.period,
       exclude: values.exclude || undefined,
+      include: values.include || undefined,
+      preferred_sectors: values.preferredSectors.length > 0 ? values.preferredSectors.join(',') : undefined,
+      max_weight: values.maxWeight !== PORTFOLIO_MAX_WEIGHT_DEFAULT ? values.maxWeight : undefined,
+      target_return: values.targetReturn ? Number(values.targetReturn) : undefined,
+      dividend_preference: values.dividendPreference || undefined,
     });
   };
 
@@ -379,9 +385,9 @@ export default function StrategyPage() {
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="relative w-full max-w-[480px] mx-4 rounded-2xl border border-zinc-700/50 bg-zinc-900 shadow-2xl"
+                    className="relative w-full max-w-xl mx-4 max-h-[90vh] rounded-2xl border border-zinc-700/50 bg-zinc-900 shadow-2xl flex flex-col overflow-hidden"
                   >
-                    <div className="px-6 py-4 border-b border-zinc-800/50 flex items-center justify-between">
+                    <div className="px-6 py-4 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-2.5">
                         <Sparkles className="w-4 h-4 text-violet-400" />
                         <span className="text-sm font-semibold text-zinc-200">AI 포트폴리오 빌더</span>
@@ -394,7 +400,7 @@ export default function StrategyPage() {
                         ✕
                       </button>
                     </div>
-                    <div className="p-6">
+                    <div className="p-6 overflow-y-auto flex-1">
                       <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={false} />
                     </div>
                   </motion.div>

@@ -22,6 +22,11 @@ export interface PortfolioStreamOptions {
   style: PortfolioStyle;
   period: PortfolioPeriod;
   exclude?: string;
+  include?: string;
+  preferred_sectors?: string;
+  max_weight?: number;
+  target_return?: number;
+  dividend_preference?: boolean;
 }
 
 export interface UsePortfolioStreamReturn {
