@@ -28,9 +28,9 @@ function PriceTooltip({
   const p = payload[0];
   if (!p?.payload) return null;
   return (
-    <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/95 px-3 py-1.5 shadow-lg backdrop-blur-xl">
+    <div className="rounded-xl border border-zinc-700/60 bg-zinc-900/95 px-3 py-2 shadow-xl backdrop-blur-lg">
       <p className="text-[10px] font-mono text-zinc-400">{p.payload.date}</p>
-      <p className="text-[11px] font-mono font-bold text-zinc-100 tabular-nums">
+      <p className="text-sm font-mono font-bold text-zinc-100 tabular-nums">
         ${typeof p.value === 'number' ? p.value.toFixed(2) : '-'}
       </p>
     </div>
@@ -50,8 +50,8 @@ export default function RecommendationPriceChart({
 }) {
   if (priceHistory.length === 0) {
     return (
-      <div className="h-[160px] flex items-center justify-center rounded-lg bg-zinc-800/20 border border-zinc-800/40">
-        <span className="text-[10px] font-mono text-zinc-600">NO PRICE DATA</span>
+      <div className="h-[180px] flex items-center justify-center rounded-xl bg-zinc-800/20 border border-zinc-800/40">
+        <span className="text-xs font-mono text-zinc-600">NO PRICE DATA</span>
       </div>
     );
   }
@@ -64,23 +64,23 @@ export default function RecommendationPriceChart({
   const padding = (dataMax - dataMin) * 0.08 || 1;
 
   return (
-    <div className="h-[160px] w-full">
+    <div className="h-[180px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={priceHistory} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#1c1c22" />
           <XAxis
             dataKey="date"
-            tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }}
+            tick={{ fill: '#3f3f46', fontSize: 10, fontFamily: 'monospace' }}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
           />
           <YAxis
             domain={[dataMin - padding, dataMax + padding]}
-            tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }}
+            tick={{ fill: '#3f3f46', fontSize: 10, fontFamily: 'monospace' }}
             tickLine={false}
             axisLine={false}
-            width={50}
+            width={55}
             tickFormatter={(v: number) => `$${v.toFixed(0)}`}
           />
           <Tooltip content={<PriceTooltip />} />
@@ -91,7 +91,7 @@ export default function RecommendationPriceChart({
             stroke="#71717a"
             strokeWidth={1.5}
             dot={false}
-            activeDot={{ r: 3, fill: '#a1a1aa' }}
+            activeDot={{ r: 4, fill: '#a1a1aa', strokeWidth: 0 }}
           />
 
           {entryPrice !== null && (
@@ -102,7 +102,7 @@ export default function RecommendationPriceChart({
               label={{
                 value: `Entry $${entryPrice.toFixed(1)}`,
                 fill: PRICE_ENTRY_COLOR,
-                fontSize: 9,
+                fontSize: 10,
                 position: 'right',
               }}
             />
@@ -115,7 +115,7 @@ export default function RecommendationPriceChart({
               label={{
                 value: `S/L $${stopLoss.toFixed(1)}`,
                 fill: PRICE_STOPLOSS_COLOR,
-                fontSize: 9,
+                fontSize: 10,
                 position: 'left',
               }}
             />
@@ -128,7 +128,7 @@ export default function RecommendationPriceChart({
               label={{
                 value: `Target $${targetPrice.toFixed(1)}`,
                 fill: PRICE_TARGET_COLOR,
-                fontSize: 9,
+                fontSize: 10,
                 position: 'right',
               }}
             />

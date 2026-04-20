@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, RefreshCw, ChevronDown } from 'lucide-react';
+import { ArrowLeft, RefreshCw, ChevronDown, Sparkles, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStrategyData } from '@/hooks/useStrategy';
 import { usePortfolioStream } from '@/hooks/usePortfolioStream';
@@ -23,19 +23,28 @@ import {
 } from '@/lib/strategyConstants';
 import type { StrategyRecommendation, StrategyNewsTheme } from '@/types/dashboard';
 
+/* ── Helpers ── */
+
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-xs text-red-400 font-mono mb-2">STRATEGY_LOAD_FAILED</p>
-        <p className="text-[10px] text-zinc-500 max-w-[400px] mx-auto mb-4">{message}</p>
+    <div className="flex-1 flex items-center justify-center min-h-[60vh]">
+      <div className="text-center space-y-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20">
+          <RefreshCw className="w-6 h-6 text-red-400" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-red-400 mb-1">전략 데이터를 불러올 수 없습니다</p>
+          <p className="text-xs text-zinc-500 max-w-sm mx-auto">{message}</p>
+        </div>
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center gap-1.5 text-[10px] font-mono text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded px-3 py-1.5 hover:border-zinc-600 transition-colors"
+          className="inline-flex items-center gap-2 text-sm font-medium text-zinc-300 hover:text-white
+                     bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600
+                     rounded-xl px-5 py-2.5 transition-all duration-200"
         >
-          <RefreshCw className="w-3 h-3" />
-          RETRY
+          <RefreshCw className="w-4 h-4" />
+          다시 시도
         </button>
       </div>
     </div>
@@ -51,95 +60,144 @@ function formatGeneratedAt(iso: string | null): string {
   } catch { return iso; }
 }
 
-/* ── Recommendation table row ── */
+/* ── Animation variants ── */
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08 } },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const },
+  },
+};
+
+/* ── Recommendation card ── */
+
 function RecommendationRow({
   rec,
   isOpen,
   onToggle,
   newsThemes,
+  index,
 }: {
   rec: StrategyRecommendation;
   isOpen: boolean;
   onToggle: () => void;
   newsThemes: StrategyNewsTheme[];
+  index: number;
 }) {
   const dir = STRATEGY_DIRECTION_CONFIG[rec.direction];
   const conf = STRATEGY_CONFIDENCE_CONFIG[rec.confidence];
 
   return (
-    <div className="border-b border-zinc-800/50 last:border-b-0">
-      {/* Collapsed row */}
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full text-left px-3 py-2 flex items-center gap-3 hover:bg-zinc-800/30 transition-colors group"
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.1 + index * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
+    >
+      <div
+        className={`bg-zinc-900/40 border rounded-xl overflow-hidden transition-all duration-300
+          ${isOpen ? 'border-zinc-700/60 shadow-lg shadow-black/20' : 'border-zinc-800/50 hover:border-zinc-700/50'}`}
       >
-        {/* Direction badge */}
-        <span className={`shrink-0 w-[52px] text-center text-[10px] font-mono font-black py-0.5 rounded ${dir.bg} ${dir.text} border ${dir.border}`}>
-          {dir.label}
-        </span>
-
-        {/* Ticker */}
-        <span className="shrink-0 w-[60px] font-mono text-xs font-bold text-zinc-100 tracking-wider">
-          {rec.ticker}
-        </span>
-
-        {/* Name */}
-        <span className="hidden md:block shrink-0 w-[120px] text-[10px] text-zinc-500 truncate">
-          {rec.name || '-'}
-        </span>
-
-        {/* Rationale preview */}
-        <span className="flex-1 min-w-0 text-[10px] text-zinc-400 truncate">
-          {rec.rationale}
-        </span>
-
-        {/* Price levels */}
-        <span className="hidden lg:flex items-center gap-2 shrink-0 text-[9px] font-mono">
-          {rec.entryPrice !== null && <span className="text-blue-400">E {rec.entryPrice.toFixed(1)}</span>}
-          {rec.targetPrice !== null && <span className="text-green-400">T {rec.targetPrice.toFixed(1)}</span>}
-          {rec.stopLoss !== null && <span className="text-red-400">SL {rec.stopLoss.toFixed(1)}</span>}
-        </span>
-
-        {/* Confidence mini-bar */}
-        <div className="shrink-0 w-[50px] hidden sm:block">
-          <div className="h-1 rounded-full bg-zinc-800 overflow-hidden">
-            <div className={`h-full rounded-full ${conf.color} ${conf.width}`} />
-          </div>
-        </div>
-
-        {/* R:R */}
-        {rec.riskRewardRatio !== null && (
-          <span className="shrink-0 w-[40px] text-[9px] font-mono text-zinc-500 text-right tabular-nums">
-            1:{rec.riskRewardRatio.toFixed(1)}
-          </span>
-        )}
-
-        {/* Expand icon */}
-        <ChevronDown
-          className={`shrink-0 w-3.5 h-3.5 text-zinc-600 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-        />
-      </button>
-
-      {/* Expanded detail */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+        {/* Collapsed header */}
+        <button
+          type="button"
+          onClick={onToggle}
+          className="w-full text-left px-5 py-3.5 flex items-center gap-4 hover:bg-white/[0.02] transition-colors"
+        >
+          {/* Direction badge */}
+          <span
+            className={`shrink-0 w-14 text-center text-[11px] font-mono font-black py-1.5 rounded-lg
+              ${dir.bg} ${dir.text} border ${dir.border}`}
           >
-            <div className="border-t border-zinc-800/30 bg-zinc-900/60">
-              <StrategyRecommendationCard rec={rec} newsThemes={newsThemes} />
+            {dir.label}
+          </span>
+
+          {/* Ticker + Name */}
+          <div className="shrink-0 min-w-[80px]">
+            <span className="font-mono text-sm font-bold text-zinc-100 tracking-wide block">
+              {rec.ticker}
+            </span>
+            {rec.name && (
+              <span className="hidden md:block text-[11px] text-zinc-500 truncate max-w-[120px]">
+                {rec.name}
+              </span>
+            )}
+          </div>
+
+          {/* Rationale preview */}
+          <span className="flex-1 min-w-0 text-xs text-zinc-400 truncate">
+            {rec.rationale}
+          </span>
+
+          {/* Price levels */}
+          <div className="hidden lg:flex items-center gap-2 shrink-0">
+            {rec.entryPrice !== null && (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                E {rec.entryPrice.toFixed(1)}
+              </span>
+            )}
+            {rec.targetPrice !== null && (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                T {rec.targetPrice.toFixed(1)}
+              </span>
+            )}
+            {rec.stopLoss !== null && (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-red-500/10 text-red-400 border border-red-500/20">
+                SL {rec.stopLoss.toFixed(1)}
+              </span>
+            )}
+          </div>
+
+          {/* Confidence */}
+          <div className="shrink-0 hidden sm:flex items-center gap-2">
+            <div className="w-14 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+              <div className={`h-full rounded-full ${conf.color} ${conf.width} transition-all`} />
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+            <span className={`text-[10px] font-mono ${conf.text}`}>{conf.label}</span>
+          </div>
+
+          {/* R:R */}
+          {rec.riskRewardRatio !== null && (
+            <span className="shrink-0 text-[11px] font-mono text-zinc-500 tabular-nums">
+              1:{rec.riskRewardRatio.toFixed(1)}
+            </span>
+          )}
+
+          {/* Expand icon */}
+          <ChevronDown
+            className={`shrink-0 w-4 h-4 text-zinc-600 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
+
+        {/* Expanded detail */}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="overflow-hidden"
+            >
+              <div className="border-t border-zinc-800/50 bg-black/20">
+                <StrategyRecommendationCard rec={rec} newsThemes={newsThemes} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
 }
+
+/* ── Main page ── */
 
 export default function StrategyPage() {
   const { data, isLoading, error, retry } = useStrategyData();
@@ -169,263 +227,227 @@ export default function StrategyPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
+    <div className="min-h-screen bg-[#09090b]">
+      {/* Ambient background glow */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[400px] -right-[300px] w-[800px] h-[800px] rounded-full bg-emerald-500/[0.03] blur-[120px]" />
+        <div className="absolute top-[50%] -left-[300px] w-[600px] h-[600px] rounded-full bg-blue-500/[0.03] blur-[120px]" />
+        <div className="absolute -bottom-[200px] right-[30%] w-[500px] h-[500px] rounded-full bg-violet-500/[0.02] blur-[120px]" />
+      </div>
+
       {/* Nav */}
-      <nav className="shrink-0 border-b border-zinc-800 bg-[#0a0a0a]">
-        <div className="px-3 py-1.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors">
-              <ArrowLeft className="w-3 h-3" />
-              <span className="font-mono text-[9px] uppercase tracking-widest">Terminal</span>
+      <nav className="sticky top-0 z-50 bg-[#09090b]/80 backdrop-blur-xl border-b border-zinc-800/50">
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-xs font-medium hidden sm:block">Terminal</span>
             </Link>
-            <span className="text-zinc-800">|</span>
-            <span className="font-mono text-[11px] font-bold text-zinc-100 tracking-wider">
-              Quant<span className="text-green-500">ix</span>
-            </span>
-            <span className="text-[9px] text-zinc-600 font-mono">STRATEGY</span>
+            <div className="h-4 w-px bg-zinc-800" />
+            <div className="flex items-center gap-2.5">
+              <span className="text-base font-bold text-zinc-100 tracking-tight">
+                Quant<span className="text-emerald-400">ix</span>
+              </span>
+              <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Strategy</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {data?.generatedAt && (
-              <span className="text-[9px] font-mono text-zinc-600">
+              <span className="text-xs font-mono text-zinc-600 hidden sm:block">
                 {formatGeneratedAt(data.generatedAt)}
               </span>
             )}
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
             </span>
           </div>
         </div>
       </nav>
 
+      {/* Content */}
       {isLoading ? (
-        <StrategyLoadingCanvas />
+        <div className="h-[calc(100vh-56px)]">
+          <StrategyLoadingCanvas />
+        </div>
       ) : error ? (
         <ErrorState message={error} onRetry={retry} />
       ) : data ? (
-        <motion.div
-          className="flex-1 flex flex-col overflow-hidden"
+        <motion.main
+          className="relative max-w-7xl mx-auto px-6 py-8"
           initial="hidden"
           animate="visible"
-          variants={{ visible: { transition: { staggerChildren: 0.15 } } }}
+          variants={containerVariants}
         >
-          {/* Risk banner */}
+          {/* Risk warnings */}
           {data.riskWarnings.length > 0 && (
-            <motion.div
-              className="shrink-0 px-3 py-1"
-              variants={{ hidden: { opacity: 0, y: -10 }, visible: { opacity: 1, y: 0 } }}
-              transition={{ duration: 0.4 }}
-            >
+            <motion.div className="mb-6" variants={cardVariants}>
               <StrategyRiskWarnings warnings={data.riskWarnings} />
             </motion.div>
           )}
 
-          {/* Dashboard grid */}
-          <div className="flex-1 flex overflow-hidden min-h-0">
-            {/* Left column: Market + News + Econ */}
-            <motion.div
-              className="w-[340px] shrink-0 border-r border-zinc-800 flex flex-col overflow-y-auto terminal-scroll"
-              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.18 } } }}
-            >
-              <motion.div
-                variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
-                transition={{ duration: 0.45 }}
-              >
-                <StrategyMarketSituation
-                  summary={data.marketSummary}
-                  regime={data.marketRegime}
-                  fearGreed={data.fearGreed}
-                />
-              </motion.div>
-              <motion.div
-                variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
-                transition={{ duration: 0.45 }}
-              >
-                <StrategyNewsThemes themes={data.newsThemes} />
-              </motion.div>
-              <motion.div
-                variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
-                transition={{ duration: 0.45 }}
-              >
-                <StrategyEconPanel data={data.econAnalysis} />
-              </motion.div>
+          {/* Market Overview */}
+          <motion.div className="mb-6" variants={cardVariants}>
+            <StrategyMarketSituation
+              summary={data.marketSummary}
+              regime={data.marketRegime}
+              fearGreed={data.fearGreed}
+            />
+          </motion.div>
+
+          {/* Sector Divergence */}
+          {data.sectors.length > 0 && (
+            <motion.div className="mb-6" variants={cardVariants}>
+              <StrategySectorHeatmap data={data} />
             </motion.div>
+          )}
 
-            {/* Right column: Sector + Recommendations */}
-            <motion.div
-              className="flex-1 flex flex-col overflow-hidden min-w-0"
-              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.12, delayChildren: 0.2 } } }}
-            >
-              {/* Sector chart - compact */}
-              {data.sectors.length > 0 && (
-                <motion.div
-                  className="shrink-0 border-b border-zinc-800"
-                  variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
-                  transition={{ duration: 0.45 }}
-                >
-                  <StrategySectorHeatmap data={data} />
-                </motion.div>
-              )}
-
-              {/* Recommendations table */}
-              <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                <motion.div
-                  className="shrink-0 px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center justify-between"
-                  variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-mono font-bold text-zinc-400 uppercase tracking-widest">
-                      Recommendations
-                    </span>
-                  </div>
-                  <span className="text-[9px] font-mono text-zinc-600">
-                    {data.recommendations.length} PICKS
-                  </span>
-                </motion.div>
-
-                {/* Table header */}
-                <motion.div
-                  className="shrink-0 px-3 py-1 bg-zinc-900/80 border-b border-zinc-800/40 flex items-center gap-3 text-[8px] font-mono text-zinc-600 uppercase tracking-wider"
-                  variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <span className="w-[52px]">Signal</span>
-                  <span className="w-[60px]">Ticker</span>
-                  <span className="hidden md:block w-[120px]">Name</span>
-                  <span className="flex-1">Rationale</span>
-                  <span className="hidden lg:block w-[180px] text-right">Levels</span>
-                  <span className="hidden sm:block w-[50px]">Conf.</span>
-                  <span className="w-[40px] text-right">R:R</span>
-                  <span className="w-3.5" />
-                </motion.div>
-
-                {/* Scrollable rows + portfolio */}
-                <div className="flex-1 overflow-y-auto terminal-scroll">
-                  {data.recommendations.length === 0 ? (
-                    <div className="flex items-center justify-center py-8">
-                      <span className="text-[10px] font-mono text-zinc-600">NO RECOMMENDATIONS</span>
-                    </div>
-                  ) : (
-                    data.recommendations.map((rec, i) => (
-                      <motion.div
-                        key={rec.ticker}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.35, delay: 0.5 + i * 0.1 }}
-                      >
-                        <RecommendationRow
-                          rec={rec}
-                          isOpen={openTicker === rec.ticker}
-                          onToggle={() =>
-                            setOpenTicker((prev) => (prev === rec.ticker ? null : rec.ticker))
-                          }
-                          newsThemes={data.newsThemes}
-                        />
-                      </motion.div>
-                    ))
-                  )}
-
-                  {/* Portfolio Builder */}
-                  <div className="border-t border-zinc-800">
-                    {/* Idle: show trigger button */}
-                    {stream.status === 'idle' && !showPortfolioForm && (
-                      <div className="flex justify-center py-4">
-                        <button
-                          type="button"
-                          onClick={() => setShowPortfolioForm(true)}
-                          className="inline-flex items-center gap-2 text-[11px] font-mono px-4 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 transition-colors"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
-                          AI 포트폴리오 생성
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Form modal */}
-                    {showPortfolioForm && (
-                      <div className="fixed inset-0 z-50 flex items-center justify-center">
-                        <div
-                          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                          onClick={() => setShowPortfolioForm(false)}
-                        />
-                        <div className="relative w-full max-w-[480px] mx-4 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
-                          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
-                              <span className="text-[11px] font-mono font-bold text-zinc-300 uppercase tracking-widest">
-                                AI 포트폴리오 빌더
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setShowPortfolioForm(false)}
-                              className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                          <div className="p-5">
-                            <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={false} />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Streaming progress */}
-                    {(isStreaming || stream.status === 'error') && !stream.result && (
-                      <PortfolioStreamView
-                        status={stream.status}
-                        currentStep={stream.currentStep}
-                        totalSteps={stream.totalSteps}
-                        currentAgent={stream.currentAgent}
-                        thinkingLog={stream.thinkingLog}
-                        error={stream.error}
-                        onCancel={handleStreamCancel}
-                        strategyData={data}
-                      />
-                    )}
-
-                    {/* Complete: show result */}
-                    {stream.result && (
-                      <div>
-                        <div className="px-3 py-1.5 bg-zinc-800/30 border-b border-zinc-800 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
-                            <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-                              AI 포트폴리오
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleRegenerate}
-                            className="text-[9px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
-                          >
-                            다시 생성
-                          </button>
-                        </div>
-                        <div className="px-4 py-4">
-                          <PortfolioResultView data={stream.result} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+          {/* News + Econ grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <motion.div variants={cardVariants}>
+              <StrategyNewsThemes themes={data.newsThemes} />
+            </motion.div>
+            <motion.div variants={cardVariants}>
+              <StrategyEconPanel data={data.econAnalysis} />
             </motion.div>
           </div>
 
-          {/* Status bar */}
+          {/* Recommendations */}
+          <motion.div variants={cardVariants}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <Target className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-zinc-100">AI Recommendations</h2>
+                  <p className="text-xs text-zinc-500">{data.recommendations.length} picks selected</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {data.recommendations.length === 0 ? (
+                <div className="flex items-center justify-center py-12 bg-zinc-900/40 border border-zinc-800/50 rounded-xl">
+                  <span className="text-sm text-zinc-600">추천 종목이 없습니다</span>
+                </div>
+              ) : (
+                data.recommendations.map((rec, i) => (
+                  <RecommendationRow
+                    key={rec.ticker}
+                    rec={rec}
+                    isOpen={openTicker === rec.ticker}
+                    onToggle={() =>
+                      setOpenTicker((prev) => (prev === rec.ticker ? null : rec.ticker))
+                    }
+                    newsThemes={data.newsThemes}
+                    index={i}
+                  />
+                ))
+              )}
+            </div>
+          </motion.div>
+
+          {/* Portfolio Builder */}
+          <motion.div className="mt-8" variants={cardVariants}>
+            {/* Idle: trigger button */}
+            {stream.status === 'idle' && !showPortfolioForm && (
+              <div className="flex justify-center py-6">
+                <button
+                  type="button"
+                  onClick={() => setShowPortfolioForm(true)}
+                  className="group inline-flex items-center gap-3 text-sm font-medium px-6 py-3 rounded-xl
+                             border border-violet-500/30 bg-violet-500/10 text-violet-400
+                             hover:bg-violet-500/20 hover:border-violet-500/50 transition-all duration-300
+                             shadow-lg shadow-violet-500/5 hover:shadow-violet-500/10"
+                >
+                  <Sparkles className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  AI 포트폴리오 생성
+                </button>
+              </div>
+            )}
+
+            {/* Form modal */}
+            <AnimatePresence>
+              {showPortfolioForm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                  <div
+                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                    onClick={() => setShowPortfolioForm(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    className="relative w-full max-w-[480px] mx-4 rounded-2xl border border-zinc-700/50 bg-zinc-900 shadow-2xl"
+                  >
+                    <div className="px-6 py-4 border-b border-zinc-800/50 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Sparkles className="w-4 h-4 text-violet-400" />
+                        <span className="text-sm font-semibold text-zinc-200">AI 포트폴리오 빌더</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowPortfolioForm(false)}
+                        className="text-zinc-500 hover:text-zinc-300 transition-colors text-lg leading-none"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="p-6">
+                      <PortfolioForm onSubmit={handlePortfolioSubmit} isLoading={false} />
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* Streaming progress */}
+            {(isStreaming || stream.status === 'error') && !stream.result && (
+              <PortfolioStreamView
+                status={stream.status}
+                currentStep={stream.currentStep}
+                totalSteps={stream.totalSteps}
+                currentAgent={stream.currentAgent}
+                thinkingLog={stream.thinkingLog}
+                error={stream.error}
+                onCancel={handleStreamCancel}
+                strategyData={data}
+              />
+            )}
+
+            {/* Complete: result */}
+            {stream.result && (
+              <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-zinc-800/50 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="w-4 h-4 text-violet-400" />
+                    <span className="text-sm font-semibold text-zinc-200">AI 포트폴리오</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRegenerate}
+                    className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    다시 생성
+                  </button>
+                </div>
+                <div className="p-5">
+                  <PortfolioResultView data={stream.result} />
+                </div>
+              </div>
+            )}
+          </motion.div>
+
+          {/* Footer */}
           <motion.div
-            className="shrink-0 px-3 py-1 border-t border-zinc-800 flex items-center justify-between text-[8px] font-mono text-zinc-700"
-            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
-            transition={{ duration: 0.4, delay: 0.8 }}
+            className="mt-12 pb-6 flex items-center justify-between text-xs font-mono text-zinc-700"
+            variants={cardVariants}
           >
             <span>QUANTIX STRATEGY ENGINE</span>
             <span>&copy; 2025 Quantix</span>
           </motion.div>
-        </motion.div>
+        </motion.main>
       ) : null}
     </div>
   );

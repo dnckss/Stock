@@ -29,46 +29,64 @@ export default function StrategyMarketSituation({
   const fgStyle = fearGreed !== null ? getFgStyle(fearGreed) : null;
 
   return (
-    <div className="border-b border-zinc-800">
+    <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="px-3 py-1.5 bg-zinc-800/30 flex items-center justify-between">
-        <span className="text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-          Market Overview
-        </span>
+      <div className="px-5 py-3.5 border-b border-zinc-800/50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+            Market Overview
+          </span>
+        </div>
         {regimeCfg && (
-          <span className={`text-[9px] font-mono font-bold px-1.5 py-px rounded ${regimeCfg.bg} ${regimeCfg.text}`}>
+          <span
+            className={`text-xs font-mono font-bold px-3 py-1 rounded-lg
+              ${regimeCfg.bg} ${regimeCfg.text} border ${regimeCfg.border}`}
+          >
             {regimeCfg.label}
           </span>
         )}
       </div>
 
-      {/* Fear & Greed */}
-      {fearGreed !== null && fgStyle && (
-        <div className="px-3 py-2 border-b border-zinc-800/40">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[8px] font-mono text-zinc-600 uppercase">Fear &amp; Greed</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-mono font-bold text-zinc-100 tabular-nums">{fearGreed}</span>
-              <span className={`text-[9px] font-mono ${fgStyle.color}`}>{fgStyle.label}</span>
+      <div className="p-5">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Fear & Greed */}
+          {fearGreed !== null && fgStyle && (
+            <div className="lg:w-[200px] shrink-0">
+              <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider block mb-3">
+                Fear &amp; Greed Index
+              </span>
+              <div className="flex items-baseline gap-2 mb-3">
+                <span className="text-3xl font-bold text-zinc-100 tabular-nums font-mono">
+                  {fearGreed}
+                </span>
+                <span className={`text-sm font-medium ${fgStyle.color}`}>
+                  {fgStyle.label}
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-1000 ease-out"
+                  style={{
+                    width: `${fearGreed}%`,
+                    background: 'linear-gradient(90deg, #ef4444 0%, #f97316 25%, #eab308 50%, #22c55e 80%, #10b981 100%)',
+                  }}
+                />
+              </div>
+              <div className="flex justify-between mt-1.5">
+                <span className="text-[9px] text-zinc-600">Fear</span>
+                <span className="text-[9px] text-zinc-600">Greed</span>
+              </div>
             </div>
-          </div>
-          <div className="h-1 rounded-full bg-zinc-800 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width: `${fearGreed}%`,
-                background: 'linear-gradient(90deg, #ef4444 0%, #f97316 30%, #eab308 50%, #22c55e 100%)',
-              }}
-            />
+          )}
+
+          {/* Summary */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-line">
+              {summary}
+            </p>
           </div>
         </div>
-      )}
-
-      {/* Briefing */}
-      <div className="px-3 py-2">
-        <p className="text-[11px] text-zinc-300 leading-relaxed whitespace-pre-line">
-          {summary}
-        </p>
       </div>
     </div>
   );

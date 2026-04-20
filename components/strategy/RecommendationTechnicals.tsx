@@ -4,10 +4,13 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { RSI_OVERSOLD, RSI_OVERBOUGHT } from '@/lib/strategyConstants';
 import type { StrategyTechnicalIndicators, MacdSignal } from '@/types/dashboard';
 
-const MACD_CONFIG: Record<MacdSignal, { icon: typeof TrendingUp; text: string; bg: string; label: string }> = {
-  bullish: { icon: TrendingUp, text: 'text-green-400', bg: 'bg-green-500/10', label: 'BULLISH' },
-  bearish: { icon: TrendingDown, text: 'text-red-400', bg: 'bg-red-500/10', label: 'BEARISH' },
-  neutral: { icon: Minus, text: 'text-zinc-400', bg: 'bg-zinc-700/20', label: 'NEUTRAL' },
+const MACD_CONFIG: Record<
+  MacdSignal,
+  { icon: typeof TrendingUp; text: string; bg: string; border: string; label: string }
+> = {
+  bullish: { icon: TrendingUp, text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', label: 'BULLISH' },
+  bearish: { icon: TrendingDown, text: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', label: 'BEARISH' },
+  neutral: { icon: Minus, text: 'text-zinc-400', bg: 'bg-zinc-700/20', border: 'border-zinc-700/30', label: 'NEUTRAL' },
 };
 
 function GaugeBar({
@@ -27,31 +30,31 @@ function GaugeBar({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[9px] font-mono text-zinc-500 uppercase">{label}</span>
-        <span className="text-[10px] font-mono font-bold text-zinc-200 tabular-nums">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-mono font-bold text-zinc-200 tabular-nums">
           {formatValue ? formatValue(value) : value.toFixed(1)}
         </span>
       </div>
-      <div className="relative h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+      <div className="relative h-2 rounded-full bg-zinc-800 overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${color}`}
+          className={`h-full rounded-full transition-all duration-700 ease-out ${color}`}
           style={{ width: `${pct}%` }}
         />
         {zones?.map((z) => (
           <div
             key={z.position}
-            className="absolute top-0 h-full w-px bg-zinc-600"
+            className="absolute top-0 h-full w-px bg-zinc-600/80"
             style={{ left: `${z.position}%` }}
           />
         ))}
       </div>
       {zones && zones.length > 0 && (
-        <div className="relative h-3">
+        <div className="relative h-3.5 mt-0.5">
           {zones.map((z) => (
             <span
               key={z.position}
-              className="absolute text-[7px] font-mono text-zinc-600 -translate-x-1/2"
+              className="absolute text-[8px] font-mono text-zinc-600 -translate-x-1/2"
               style={{ left: `${z.position}%` }}
             >
               {z.label}
@@ -77,9 +80,9 @@ export default function RecommendationTechnicals({
   if (!hasAny) return null;
 
   return (
-    <div className="space-y-3">
-      <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider">
-        Technicals
+    <div className="space-y-4">
+      <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block">
+        Technical Indicators
       </span>
 
       {rsi !== null && (
@@ -106,20 +109,20 @@ export default function RecommendationTechnicals({
         />
       )}
 
-      {/* MACD badge */}
+      {/* MACD */}
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[9px] font-mono text-zinc-500 uppercase">MACD</span>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">MACD</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <span
-            className={`inline-flex items-center gap-1 text-[9px] font-mono font-bold px-2 py-0.5 rounded border border-zinc-700/50 ${macdCfg.bg} ${macdCfg.text}`}
+            className={`inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg border ${macdCfg.bg} ${macdCfg.text} ${macdCfg.border}`}
           >
             <MacdIcon className="w-3 h-3" />
             {macdCfg.label}
           </span>
           {macdHistogram !== null && (
-            <span className={`text-[10px] font-mono tabular-nums ${macdHistogram >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <span className={`text-xs font-mono tabular-nums ${macdHistogram >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {macdHistogram >= 0 ? '+' : ''}{macdHistogram.toFixed(3)}
             </span>
           )}
