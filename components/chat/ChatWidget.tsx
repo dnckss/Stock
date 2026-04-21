@@ -26,7 +26,7 @@ function MessageBubble({
       <div
         className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
           isUser
-            ? 'bg-violet-600/20 border border-violet-500/20 text-zinc-200'
+            ? 'bg-zinc-800/60 border border-zinc-600/20 text-zinc-200'
             : 'bg-zinc-800/60 border border-zinc-700/30 text-zinc-300'
         }`}
       >
@@ -52,7 +52,7 @@ function MessageBubble({
                       {children}
                     </code>
                   ) : (
-                    <code className="text-[12px] bg-zinc-800 rounded px-1 py-0.5 text-violet-400 font-mono">
+                    <code className="text-[12px] bg-zinc-800 rounded px-1 py-0.5 text-emerald-400 font-mono">
                       {children}
                     </code>
                   );
@@ -61,7 +61,7 @@ function MessageBubble({
                 h2: ({ children }) => <h2 className="text-sm font-bold text-zinc-100 mt-2.5 mb-1">{children}</h2>,
                 h3: ({ children }) => <h3 className="text-[13px] font-semibold text-zinc-200 mt-2 mb-1">{children}</h3>,
                 blockquote: ({ children }) => (
-                  <blockquote className="border-l-2 border-violet-500/30 pl-3 my-1.5 text-zinc-400">{children}</blockquote>
+                  <blockquote className="border-l-2 border-zinc-700/30 pl-3 my-1.5 text-zinc-400">{children}</blockquote>
                 ),
                 hr: () => <hr className="border-zinc-800 my-2" />,
               }}
@@ -69,13 +69,13 @@ function MessageBubble({
               {msg.content || '\u200B'}
             </ReactMarkdown>
             {isStreaming && isLast && msg.content.length > 0 && (
-              <span className="inline-block w-0.5 h-3.5 bg-violet-400 animate-pulse ml-0.5 align-middle" />
+              <span className="inline-block w-0.5 h-3.5 bg-emerald-400 animate-pulse ml-0.5 align-middle" />
             )}
             {isStreaming && isLast && msg.content.length === 0 && (
               <div className="flex items-center gap-1 py-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-400/60 animate-pulse" />
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-400/40 animate-pulse [animation-delay:150ms]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-400/20 animate-pulse [animation-delay:300ms]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/60 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40 animate-pulse [animation-delay:150ms]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/20 animate-pulse [animation-delay:300ms]" />
               </div>
             )}
           </div>
@@ -131,8 +131,9 @@ export default function ChatWidget() {
             transition={{ duration: 0.2 }}
             onClick={() => setIsOpen(true)}
             className="fixed bottom-6 right-6 z-50 w-13 h-13 rounded-full
-                       bg-violet-600 hover:bg-violet-500 text-white
-                       shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40
+                       bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100
+                       border border-zinc-700/50 hover:border-zinc-600
+                       shadow-lg shadow-black/40
                        flex items-center justify-center transition-all duration-200"
           >
             <MessageSquare className="w-5 h-5" />
@@ -157,7 +158,7 @@ export default function ChatWidget() {
             {/* Header */}
             <div className="px-4 py-3 border-b border-zinc-800/50 flex items-center justify-between shrink-0 bg-zinc-900/50">
               <div className="flex items-center gap-2.5">
-                <div className="h-2 w-2 rounded-full bg-violet-500 animate-pulse" />
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-sm font-semibold text-zinc-200">Quantix AI</span>
                 <span className="text-[9px] font-mono text-zinc-600 bg-zinc-800/50 px-1.5 py-0.5 rounded">BETA</span>
               </div>
@@ -214,7 +215,7 @@ export default function ChatWidget() {
                   disabled={isStreaming}
                   className="flex-1 text-[13px] bg-zinc-800/50 border border-zinc-700/30 rounded-xl px-3.5 py-2.5
                              text-zinc-200 placeholder:text-zinc-600
-                             focus:outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/15
+                             focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-500/15
                              disabled:opacity-50 transition-colors"
                 />
                 {isStreaming ? (
@@ -233,7 +234,7 @@ export default function ChatWidget() {
                     onClick={handleSend}
                     disabled={!input.trim()}
                     className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl
-                               bg-violet-600 hover:bg-violet-500 text-white
+                               bg-zinc-700 hover:bg-zinc-600 text-zinc-200
                                disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                   >
                     <Send className="w-3.5 h-3.5" />
