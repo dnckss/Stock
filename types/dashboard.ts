@@ -840,6 +840,13 @@ export interface PortfolioThinkingEntry {
   content: string;
 }
 
+// ── Chat ──
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 // ── Strategy (AI Strategy Room) ──
 
 // -- API types (snake_case, backend response) --

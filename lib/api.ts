@@ -49,6 +49,7 @@ import type {
   FundamentalsSectionKey,
   ApiPricePerformanceData,
   PricePerformanceItem,
+  ChatMessage,
 } from '@/types/dashboard';
 import { ECON_CALENDAR_DEFAULT_LIMIT } from '@/lib/constants';
 
@@ -1094,4 +1095,36 @@ export function parsePricePerformance(
   }
 
   return map;
+}
+
+// ── Chat ──
+
+export async function chatStreamFetch(
+  messages: ChatMessage[],
+  tickers?: string[],
+  signal?: AbortSignal,
+): Promise<Response> {
+  const res = await fetch(`${API_BASE}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, tickers }),
+    signal,
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status, 'AI 응답을 받을 수 없습니다');
+  }
+  return res;
+}
+
+export async function extractTickers(query: string): Promise<string[]> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/chat/extract-tickers?q=${encodeURIComponent(query)}`,
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.tickers) ? data.tickers : [];
+  } catch {
+    return [];
+  }
 }

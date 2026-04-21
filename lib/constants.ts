@@ -139,6 +139,11 @@ export const PORTFOLIO_MAX_WEIGHT_DEFAULT = 30;
 // ── Portfolio streaming ──
 export const PORTFOLIO_STREAM_TOTAL_STEPS = 5;
 
+// ── Chat ──
+export const CHAT_MAX_MESSAGES = 50;
+export const CHAT_WELCOME_MESSAGE =
+  '안녕하세요! Quantix AI입니다. 종목 분석, 시장 전망, 투자 전략에 대해 자유롭게 질문해주세요.';
+
 // ── S&P 500 Heatmap ──
 export const HEATMAP_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2분
 export const HEATMAP_COLOR_RANGE_PCT = 3; // ±3% 에서 최대 색상 채도
