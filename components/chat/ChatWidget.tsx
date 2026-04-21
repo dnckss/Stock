@@ -20,6 +20,20 @@ function MessageBubble({
   isStreaming: boolean;
 }) {
   const isUser = msg.role === 'user';
+  const isWaiting = isStreaming && isLast && !isUser && msg.content.length === 0;
+
+  // Waiting state: just dots, no bubble
+  if (isWaiting) {
+    return (
+      <div className="flex justify-start">
+        <div className="flex items-center gap-1.5 px-1 py-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:0ms]" />
+          <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:150ms]" />
+          <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-bounce [animation-delay:300ms]" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -66,17 +80,10 @@ function MessageBubble({
                 hr: () => <hr className="border-zinc-800 my-2" />,
               }}
             >
-              {msg.content || '\u200B'}
+              {msg.content}
             </ReactMarkdown>
-            {isStreaming && isLast && msg.content.length > 0 && (
+            {isStreaming && isLast && (
               <span className="inline-block w-0.5 h-3.5 bg-emerald-400 animate-pulse ml-0.5 align-middle" />
-            )}
-            {isStreaming && isLast && msg.content.length === 0 && (
-              <div className="flex items-center gap-1 py-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/60 animate-pulse" />
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/40 animate-pulse [animation-delay:150ms]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/20 animate-pulse [animation-delay:300ms]" />
-              </div>
             )}
           </div>
         )}
