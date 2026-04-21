@@ -12,6 +12,7 @@ export interface UseChatReturn {
   send: (content: string) => void;
   stop: () => void;
   clear: () => void;
+  load: (msgs: ChatMessage[]) => void;
 }
 
 const WELCOME: ChatMessage = { role: 'assistant', content: CHAT_WELCOME_MESSAGE };
@@ -150,5 +151,13 @@ export function useChat(): UseChatReturn {
     setError(null);
   }, []);
 
-  return { messages, isStreaming, error, send, stop, clear };
+  const load = useCallback((msgs: ChatMessage[]) => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setMessages(msgs.length > 0 ? msgs : [WELCOME]);
+    setIsStreaming(false);
+    setError(null);
+  }, []);
+
+  return { messages, isStreaming, error, send, stop, clear, load };
 }

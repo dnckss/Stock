@@ -1,15 +1,24 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, type KeyboardEvent, type ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  MessageSquare, Minus, ArrowUp, Square, RotateCcw, AlertCircle,
-  TrendingUp, BarChart3, Lightbulb, Briefcase,
+  MessageSquare, Minus, ArrowUp, Square, AlertCircle, ChevronDown, Clock,
+  TrendingUp, BarChart3, Lightbulb, Briefcase, Paperclip, X,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useChat } from '@/hooks/useChat';
 import type { ChatMessage } from '@/types/dashboard';
+
+/* ── Types ── */
+
+interface ChatSession {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: number;
+}
 
 /* ── Quick action suggestions ── */
 
@@ -20,7 +29,7 @@ const QUICK_ACTIONS = [
   { icon: Briefcase, label: '포트폴리오 리뷰하기', prompt: '포트폴리오를 리뷰하고 개선점을 알려주세요' },
 ];
 
-/* ── Markdown components (shared) ── */
+/* ── Markdown components ── */
 
 const MD_COMPONENTS = {
   p: ({ children }: { children?: React.ReactNode }) => (
@@ -64,6 +73,20 @@ const MD_COMPONENTS = {
   hr: () => <hr className="border-zinc-800 my-3" />,
 };
 
+/* ── Helpers ── */
+
+function formatSessionTime(ts: number): string {
+  return new Date(ts).toLocaleString('ko-KR', {
+    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+}
+
+function getSessionTitle(messages: ChatMessage[]): string {
+  const first = messages.find((m) => m.role === 'user');
+  if (!first) return '새 대화';
+  return first.content.length > 28 ? `${first.content.slice(0, 28)}...` : first.content;
+}
+
 /* ── Welcome screen ── */
 
 function WelcomeScreen({ onAction }: { onAction: (prompt: string) => void }) {
@@ -89,6 +112,63 @@ function WelcomeScreen({ onAction }: { onAction: (prompt: string) => void }) {
         ))}
       </div>
     </div>
+  );
+}
+
+/* ── History dropdown ── */
+
+function HistoryDropdown({
+  sessions,
+  onSelect,
+  onNewChat,
+}: {
+  sessions: ChatSession[];
+  onSelect: (session: ChatSession) => void;
+  onNewChat: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      transition={{ duration: 0.15 }}
+      className="absolute left-3 top-[46px] z-20 w-[260px]
+                 bg-zinc-800 border border-zinc-700/50 rounded-xl shadow-xl shadow-black/40
+                 overflow-hidden"
+    >
+      <div className="px-3 py-2 border-b border-zinc-700/30">
+        <button
+          type="button"
+          onClick={onNewChat}
+          className="w-full text-left text-[13px] text-zinc-200 hover:text-white py-1.5 px-2 rounded-lg hover:bg-zinc-700/50 transition-colors"
+        >
+          + 새 대화 시작
+        </button>
+      </div>
+      <div className="px-2 py-2">
+        <span className="text-[11px] text-zinc-600 px-2">이전 채팅</span>
+      </div>
+      {sessions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-zinc-600">
+          <Clock className="w-5 h-5 mb-2" />
+          <span className="text-[12px]">이전 채팅이 없습니다</span>
+        </div>
+      ) : (
+        <div className="max-h-[240px] overflow-y-auto pb-2">
+          {sessions.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => onSelect(s)}
+              className="w-full text-left px-3 py-2 hover:bg-zinc-700/40 transition-colors"
+            >
+              <p className="text-[13px] text-zinc-300 truncate">{s.title}</p>
+              <p className="text-[10px] text-zinc-600 mt-0.5">{formatSessionTime(s.createdAt)}</p>
+            </button>
+          ))}
+        </div>
+      )}
+    </motion.div>
   );
 }
 
@@ -133,10 +213,16 @@ function AssistantMessage({ msg, isLast, isStreaming }: { msg: ChatMessage; isLa
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
-  const { messages, isStreaming, error, send, stop, clear } = useChat();
+  const { messages, isStreaming, error, send, stop, clear, load } = useChat();
   const [input, setInput] = useState('');
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasConversation = messages.length > 1;
 
@@ -151,7 +237,14 @@ export default function ChatWidget() {
     if (isOpen) setTimeout(() => textareaRef.current?.focus(), 100);
   }, [isOpen]);
 
-  // Auto-resize textarea
+  // Close history on outside events
+  useEffect(() => {
+    if (!showHistory) return;
+    const close = () => setShowHistory(false);
+    const timer = setTimeout(() => document.addEventListener('click', close, { once: true }), 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close); };
+  }, [showHistory]);
+
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -159,11 +252,46 @@ export default function ChatWidget() {
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }, []);
 
+  // ── Session management ──
+
+  const saveCurrentSession = useCallback(() => {
+    if (messages.length <= 1) return null;
+    const session: ChatSession = {
+      id: activeSessionId || `s-${Date.now()}`,
+      title: getSessionTitle(messages),
+      messages: [...messages],
+      createdAt: Date.now(),
+    };
+    setSessions((prev) => {
+      const filtered = prev.filter((s) => s.id !== session.id);
+      return [session, ...filtered];
+    });
+    return session.id;
+  }, [messages, activeSessionId]);
+
+  const handleNewChat = useCallback(() => {
+    saveCurrentSession();
+    clear();
+    setActiveSessionId(null);
+    setShowHistory(false);
+    setAttachedFile(null);
+  }, [saveCurrentSession, clear]);
+
+  const handleLoadSession = useCallback((session: ChatSession) => {
+    saveCurrentSession();
+    load(session.messages);
+    setActiveSessionId(session.id);
+    setShowHistory(false);
+  }, [saveCurrentSession, load]);
+
+  // ── Input handlers ──
+
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || isStreaming) return;
     send(trimmed);
     setInput('');
+    setAttachedFile(null);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
@@ -176,6 +304,12 @@ export default function ChatWidget() {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setAttachedFile(file);
+    if (e.target) e.target.value = '';
   };
 
   return (
@@ -215,27 +349,34 @@ export default function ChatWidget() {
                        shadow-2xl shadow-black/60 overflow-hidden"
           >
             {/* Header */}
-            <div className="px-4 py-2.5 flex items-center justify-between shrink-0 border-b border-zinc-800/40">
-              <span className="text-sm font-medium text-zinc-200 bg-zinc-800/60 px-3 py-1 rounded-lg">
-                Quantix AI
-              </span>
-              <div className="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  onClick={clear}
-                  className="p-1.5 text-zinc-600 hover:text-zinc-400 transition-colors rounded-lg hover:bg-zinc-800/50"
-                  title="새 대화"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="p-1.5 text-zinc-600 hover:text-zinc-400 transition-colors rounded-lg hover:bg-zinc-800/50"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-              </div>
+            <div className="px-3 py-2.5 flex items-center justify-between shrink-0 border-b border-zinc-800/40 relative">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setShowHistory((p) => !p); }}
+                className="flex items-center gap-1.5 text-sm font-medium text-zinc-200 bg-zinc-800/60 hover:bg-zinc-700/60 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                새 AI 채팅
+                <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="p-1.5 text-zinc-600 hover:text-zinc-400 transition-colors rounded-lg hover:bg-zinc-800/50"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+
+              {/* History dropdown */}
+              <AnimatePresence>
+                {showHistory && (
+                  <HistoryDropdown
+                    sessions={sessions}
+                    onSelect={handleLoadSession}
+                    onNewChat={handleNewChat}
+                  />
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Content area */}
@@ -267,6 +408,19 @@ export default function ChatWidget() {
 
             {/* Input area */}
             <div className="shrink-0 px-3 pb-3 pt-1">
+              {/* Attached file indicator */}
+              {attachedFile && (
+                <div className="flex items-center gap-2 mb-1.5 px-1">
+                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 bg-zinc-800/60 border border-zinc-700/30 rounded-lg px-2.5 py-1">
+                    <Paperclip className="w-3 h-3" />
+                    <span className="truncate max-w-[200px]">{attachedFile.name}</span>
+                    <button type="button" onClick={() => setAttachedFile(null)} className="text-zinc-600 hover:text-zinc-300 transition-colors">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl overflow-hidden">
                 <textarea
                   ref={textareaRef}
@@ -282,13 +436,27 @@ export default function ChatWidget() {
                              resize-none overflow-hidden"
                 />
                 <div className="flex items-center justify-between px-2 pb-2">
-                  <button
-                    type="button"
-                    onClick={() => { clear(); if (textareaRef.current) textareaRef.current.style.height = 'auto'; }}
-                    className="text-[11px] text-zinc-600 hover:text-zinc-400 px-2 py-1 rounded-lg transition-colors"
-                  >
-                    새 대화
-                  </button>
+                  {/* File attach */}
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      accept=".txt,.csv,.pdf,.png,.jpg,.jpeg,.json"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isStreaming}
+                      className="p-1.5 text-zinc-600 hover:text-zinc-400 disabled:opacity-40 transition-colors rounded-lg hover:bg-zinc-700/30"
+                      title="파일 첨부"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Send / Stop */}
                   {isStreaming ? (
                     <button
                       type="button"
@@ -303,7 +471,7 @@ export default function ChatWidget() {
                     <button
                       type="button"
                       onClick={handleSend}
-                      disabled={!input.trim()}
+                      disabled={!input.trim() && !attachedFile}
                       className="w-7 h-7 flex items-center justify-center rounded-full
                                  bg-zinc-600 hover:bg-zinc-500 text-white
                                  disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
@@ -317,6 +485,8 @@ export default function ChatWidget() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Hidden file input */}
     </>
   );
 }
