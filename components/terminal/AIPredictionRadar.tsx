@@ -24,6 +24,7 @@ import StockLogo from '@/components/common/StockLogo';
 import type { RadarStock, PricePerformanceItem } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 import SP500Heatmap from './SP500Heatmap';
+import BacktestDashboard from './BacktestDashboard';
 
 const DIVERGENCE_MAX = 0.5;
 
@@ -300,6 +301,8 @@ export default function AIPredictionRadar({
   const [activeTab, setActiveTab] = useState<RadarSortKey>('tradingValue');
   const [activePeriod, setActivePeriod] = useState<RadarPeriod>(RADAR_DEFAULT_PERIOD);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showBacktest, setShowBacktest] = useState(false);
+  const showSpecial = showHeatmap || showBacktest;
 
   const tickers = useMemo(() => stocks.map((s) => s.ticker), [stocks]);
   const { perfMap, isLoading: perfLoading } = useRadarPerformance(tickers, activePeriod);
@@ -363,11 +366,12 @@ export default function AIPredictionRadar({
             key={tab.key}
             onClick={() => {
               setShowHeatmap(false);
+              setShowBacktest(false);
               setActiveTab(tab.key);
             }}
             className={cn(
               'px-2.5 py-1 rounded text-[10px] font-medium whitespace-nowrap transition-all duration-150',
-              !showHeatmap && activeTab === tab.key
+              !showSpecial && activeTab === tab.key
                 ? 'bg-zinc-700/50 text-zinc-200 ring-1 ring-zinc-600/50'
                 : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50',
             )}
@@ -377,7 +381,7 @@ export default function AIPredictionRadar({
         ))}
         <div className="w-px h-4 bg-zinc-700/40 mx-0.5 shrink-0" />
         <button
-          onClick={() => setShowHeatmap(true)}
+          onClick={() => { setShowHeatmap(true); setShowBacktest(false); }}
           className={cn(
             'px-2.5 py-1 rounded text-[10px] font-medium whitespace-nowrap transition-all duration-150',
             showHeatmap
@@ -387,10 +391,21 @@ export default function AIPredictionRadar({
         >
           S&P 히트맵
         </button>
+        <button
+          onClick={() => { setShowBacktest(true); setShowHeatmap(false); }}
+          className={cn(
+            'px-2.5 py-1 rounded text-[10px] font-medium whitespace-nowrap transition-all duration-150',
+            showBacktest
+              ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50',
+          )}
+        >
+          백테스팅
+        </button>
       </div>
 
-      {/* Period sub-tabs (hidden for 괴리율 and heatmap) */}
-      {!showHeatmap && activeTab !== 'divergence' && (
+      {/* Period sub-tabs (hidden for 괴리율 and special views) */}
+      {!showSpecial && activeTab !== 'divergence' && (
         <div className="px-3 py-1 border-b border-zinc-800/40 flex items-center gap-0.5 shrink-0">
           {RADAR_PERIODS.map((p) => (
             <button
@@ -413,7 +428,9 @@ export default function AIPredictionRadar({
       )}
 
       {/* Content */}
-      {showHeatmap ? (
+      {showBacktest ? (
+        <BacktestDashboard />
+      ) : showHeatmap ? (
         <SP500Heatmap />
       ) : isLoading ? (
         <TableSkeleton />

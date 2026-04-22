@@ -50,6 +50,7 @@ import type {
   ApiPricePerformanceData,
   PricePerformanceItem,
   ChatMessage,
+  BacktestResponse,
   ApiChatSession,
   ApiChatSessionDetail,
   ApiChatSessionsResponse,
@@ -1099,6 +1100,47 @@ export function parsePricePerformance(
   }
 
   return map;
+}
+
+// ── Backtest ──
+
+export async function fetchBacktestSummary(
+  lookbackDays = 90,
+  horizons = [1, 5, 20],
+): Promise<BacktestResponse> {
+  const qs = new URLSearchParams({
+    lookback_days: String(lookbackDays),
+    horizons: horizons.join(','),
+  });
+  const res = await fetch(`${API_BASE}/api/backtest/summary?${qs}`);
+  if (!res.ok) throw new ApiError(res.status, '백테스트 요약을 불러올 수 없습니다');
+  return res.json();
+}
+
+export async function fetchBacktestSignals(
+  lookbackDays = 90,
+  horizons = [1, 5, 20],
+): Promise<BacktestResponse> {
+  const qs = new URLSearchParams({
+    lookback_days: String(lookbackDays),
+    horizons: horizons.join(','),
+  });
+  const res = await fetch(`${API_BASE}/api/backtest/signals?${qs}`);
+  if (!res.ok) throw new ApiError(res.status, '시그널 백테스트를 불러올 수 없습니다');
+  return res.json();
+}
+
+export async function fetchBacktestStrategist(
+  lookbackDays = 90,
+  horizons = [5, 20],
+): Promise<BacktestResponse> {
+  const qs = new URLSearchParams({
+    lookback_days: String(lookbackDays),
+    horizons: horizons.join(','),
+  });
+  const res = await fetch(`${API_BASE}/api/backtest/strategist?${qs}`);
+  if (!res.ok) throw new ApiError(res.status, '전략 백테스트를 불러올 수 없습니다');
+  return res.json();
 }
 
 // ── Chat ──

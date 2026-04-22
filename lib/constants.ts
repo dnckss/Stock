@@ -139,6 +139,11 @@ export const PORTFOLIO_MAX_WEIGHT_DEFAULT = 30;
 // ── Portfolio streaming ──
 export const PORTFOLIO_STREAM_TOTAL_STEPS = 5;
 
+// ── Backtest ──
+export const BACKTEST_DEFAULT_LOOKBACK = 90;
+export const BACKTEST_HORIZONS = [1, 5, 20] as const;
+export const BACKTEST_HORIZON_LABELS: Record<number, string> = { 1: '1일', 5: '5일', 20: '20일' };
+
 // ── Chat ──
 export const CHAT_MAX_MESSAGES = 50;
 export const CHAT_WELCOME_MESSAGE =

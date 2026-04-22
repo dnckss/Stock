@@ -873,6 +873,61 @@ export interface ApiChatFileResponse {
   created_at: string;
 }
 
+// ── Backtest ──
+
+export interface BacktestOverall {
+  total_signals: number;
+  win_rate: number;
+  avg_return: number;
+  median_return: number;
+  profit_factor: number;
+}
+
+export interface BacktestDirectionRow {
+  direction: string;
+  count: number;
+  win_rate: number;
+  avg_return: number;
+}
+
+export interface BacktestBucketRow {
+  bucket: string;
+  count: number;
+  win_rate: number;
+  avg_return: number;
+}
+
+export interface BacktestTickerRow {
+  ticker: string;
+  count: number;
+  win_rate: number;
+  avg_return: number;
+}
+
+export interface BacktestEquity {
+  curve: Array<{ date: string; cumulative_return: number }>;
+  sharpe_ratio: number;
+  max_drawdown_pct: number;
+  total_return_pct: number;
+}
+
+export interface BacktestHorizonResult {
+  overall: BacktestOverall;
+  by_direction: BacktestDirectionRow[];
+  by_divergence?: BacktestBucketRow[];
+  by_confidence?: BacktestBucketRow[];
+  by_market_regime?: BacktestBucketRow[];
+  by_strategy_type?: BacktestBucketRow[];
+  top_tickers: BacktestTickerRow[];
+  equity: BacktestEquity;
+}
+
+export interface BacktestResponse {
+  lookback_days: number;
+  horizons: number[];
+  results: Record<string, BacktestHorizonResult>;
+}
+
 // ── Strategy (AI Strategy Room) ──
 
 // -- API types (snake_case, backend response) --
