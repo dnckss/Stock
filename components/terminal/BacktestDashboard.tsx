@@ -247,7 +247,7 @@ export default function BacktestDashboard() {
   const [activeHorizon, setActiveHorizon] = useState<number | null>(null);
 
   const selectedHorizon = activeHorizon ?? horizons[0] ?? null;
-  const result = selectedHorizon != null ? data?.results[String(selectedHorizon)] : null;
+  const result = selectedHorizon != null ? data?.results?.[String(selectedHorizon)] ?? null : null;
 
   if (isLoading) {
     return (
