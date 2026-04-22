@@ -50,6 +50,10 @@ import type {
   ApiPricePerformanceData,
   PricePerformanceItem,
   ChatMessage,
+  ApiChatSession,
+  ApiChatSessionDetail,
+  ApiChatSessionsResponse,
+  ApiChatFileResponse,
 } from '@/types/dashboard';
 import { ECON_CALENDAR_DEFAULT_LIMIT } from '@/lib/constants';
 
@@ -1101,13 +1105,22 @@ export function parsePricePerformance(
 
 export async function chatStreamFetch(
   messages: ChatMessage[],
-  tickers?: string[],
+  options?: {
+    tickers?: string[];
+    session_id?: string;
+    attachments?: string[];
+  },
   signal?: AbortSignal,
 ): Promise<Response> {
+  const body: Record<string, unknown> = { messages };
+  if (options?.tickers) body.tickers = options.tickers;
+  if (options?.session_id) body.session_id = options.session_id;
+  if (options?.attachments?.length) body.attachments = options.attachments;
+
   const res = await fetch(`${API_BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, tickers }),
+    body: JSON.stringify(body),
     signal,
   });
   if (!res.ok) {
@@ -1127,4 +1140,53 @@ export async function extractTickers(query: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+// ── Chat Sessions ──
+
+export async function fetchChatSessions(
+  limit = 20,
+  offset = 0,
+): Promise<ApiChatSessionsResponse> {
+  const res = await fetch(`${API_BASE}/api/chat/sessions?limit=${limit}&offset=${offset}`);
+  if (!res.ok) throw new ApiError(res.status, '채팅 목록을 불러올 수 없습니다');
+  return res.json();
+}
+
+export async function createChatSession(title?: string): Promise<ApiChatSession> {
+  const res = await fetch(`${API_BASE}/api/chat/sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new ApiError(res.status, '채팅 세션을 생성할 수 없습니다');
+  return res.json();
+}
+
+export async function fetchChatSessionDetail(
+  sessionId: string,
+  messageLimit?: number,
+): Promise<ApiChatSessionDetail> {
+  const qs = messageLimit != null ? `?message_limit=${messageLimit}` : '';
+  const res = await fetch(`${API_BASE}/api/chat/sessions/${sessionId}${qs}`);
+  if (!res.ok) throw new ApiError(res.status, '채팅 내용을 불러올 수 없습니다');
+  return res.json();
+}
+
+export async function deleteChatSession(sessionId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/chat/sessions/${sessionId}`, { method: 'DELETE' });
+  if (!res.ok) throw new ApiError(res.status, '채팅을 삭제할 수 없습니다');
+}
+
+// ── Chat Files ──
+
+export async function uploadChatFile(file: File): Promise<ApiChatFileResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${API_BASE}/api/chat/files`, {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok) throw new ApiError(res.status, '파일을 업로드할 수 없습니다');
+  return res.json();
 }

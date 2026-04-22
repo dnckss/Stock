@@ -847,6 +847,32 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface ApiChatSession {
+  session_id: string;
+  title: string;
+  last_message?: string;
+  message_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiChatSessionDetail extends ApiChatSession {
+  messages: Array<{ role: 'user' | 'assistant'; content: string; created_at: string }>;
+}
+
+export interface ApiChatSessionsResponse {
+  sessions: ApiChatSession[];
+  total: number;
+}
+
+export interface ApiChatFileResponse {
+  file_id: string;
+  filename: string;
+  size: number;
+  content_type: string;
+  created_at: string;
+}
+
 // ── Strategy (AI Strategy Room) ──
 
 // -- API types (snake_case, backend response) --

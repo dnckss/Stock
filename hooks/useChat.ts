@@ -5,11 +5,16 @@ import { chatStreamFetch } from '@/lib/api';
 import { CHAT_MAX_MESSAGES, CHAT_WELCOME_MESSAGE } from '@/lib/constants';
 import type { ChatMessage } from '@/types/dashboard';
 
+export interface ChatSendOptions {
+  sessionId?: string;
+  attachments?: string[];
+}
+
 export interface UseChatReturn {
   messages: ChatMessage[];
   isStreaming: boolean;
   error: string | null;
-  send: (content: string) => void;
+  send: (content: string, options?: ChatSendOptions) => void;
   stop: () => void;
   clear: () => void;
   load: (msgs: ChatMessage[]) => void;
@@ -39,7 +44,7 @@ export function useChat(): UseChatReturn {
     };
   }, []);
 
-  const send = useCallback(async (content: string) => {
+  const send = useCallback(async (content: string, options?: ChatSendOptions) => {
     const trimmed = content.trim();
     if (!trimmed || streamingRef.current) return;
 
@@ -65,7 +70,14 @@ export function useChat(): UseChatReturn {
     abortRef.current = controller;
 
     try {
-      const response = await chatStreamFetch(apiMessages, undefined, controller.signal);
+      const response = await chatStreamFetch(
+        apiMessages,
+        {
+          session_id: options?.sessionId,
+          attachments: options?.attachments,
+        },
+        controller.signal,
+      );
 
       if (!response.body) throw new Error('Streaming이 지원되지 않습니다');
 
