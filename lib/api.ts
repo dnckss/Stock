@@ -51,6 +51,7 @@ import type {
   PricePerformanceItem,
   ChatMessage,
   BacktestResponse,
+  BacktestLiveResponse,
   ApiChatSession,
   ApiChatSessionDetail,
   ApiChatSessionsResponse,
@@ -1140,6 +1141,19 @@ export async function fetchBacktestStrategist(
   });
   const res = await fetch(`${API_BASE}/api/backtest/strategist?${qs}`);
   if (!res.ok) throw new ApiError(res.status, '전략 백테스트를 불러올 수 없습니다');
+  return res.json();
+}
+
+export async function fetchBacktestLive(
+  lookbackDays = 40,
+  horizons = [1, 5, 20],
+): Promise<BacktestLiveResponse> {
+  const qs = new URLSearchParams({
+    lookback_days: String(lookbackDays),
+    horizons: horizons.join(','),
+  });
+  const res = await fetch(`${API_BASE}/api/backtest/signals?${qs}`);
+  if (!res.ok) throw new ApiError(res.status, '실시간 시그널을 불러올 수 없습니다');
   return res.json();
 }
 

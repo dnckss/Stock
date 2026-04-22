@@ -928,6 +928,55 @@ export interface BacktestResponse {
   results: Record<string, BacktestHorizonResult>;
 }
 
+// ── Backtest Live ──
+
+export interface BacktestLivePosition {
+  ticker: string;
+  direction: string;
+  entry_date: string;
+  entry_price: number;
+  current_price: number;
+  current_date: string;
+  unrealized_raw_pct: number;
+  unrealized_adjusted_pct: number;
+  horizon: number;
+  elapsed_trading_days: number;
+  remaining_trading_days: number;
+  progress_pct: number;
+  signal_source?: string;
+  divergence?: number;
+  confidence?: string;
+  strategy_type?: string;
+  market_regime?: string;
+  stop_loss?: number;
+  risk_reward_ratio?: number;
+}
+
+export interface BacktestLiveOverall {
+  count: number;
+  hit_rate_so_far_pct: number;
+  avg_unrealized_pct: number;
+  best_pct: number;
+  worst_pct: number;
+}
+
+export interface BacktestLiveHorizonResult {
+  horizon: number;
+  open_count: number;
+  returned_count: number;
+  overall: BacktestLiveOverall;
+  by_direction: Array<{ direction: string; count: number; hit_rate_pct: number; avg_unrealized_pct: number }>;
+  positions: BacktestLivePosition[];
+}
+
+export interface BacktestLiveResponse {
+  lookback_days: number;
+  horizons: number[];
+  total_open: number;
+  results: Record<string, BacktestLiveHorizonResult>;
+  strategist_live?: Record<string, BacktestLiveHorizonResult>;
+}
+
 // ── Strategy (AI Strategy Room) ──
 
 // -- API types (snake_case, backend response) --
