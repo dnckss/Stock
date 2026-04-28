@@ -223,7 +223,7 @@ function PositionRow({ pos }: { pos: BacktestLivePosition }) {
 }
 
 function LiveHorizonView({ result }: { result: BacktestLiveHorizonResult }) {
-  const { overall, by_direction, positions } = result;
+  const { overall, by_direction = [], positions = [] } = result;
 
   return (
     <div className="space-y-3">
