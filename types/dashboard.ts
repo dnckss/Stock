@@ -928,6 +928,62 @@ export interface BacktestResponse {
   results: Record<string, BacktestHorizonResult>;
 }
 
+// ── Backtest Trades ──
+
+export type BacktestSource = 'signals' | 'strategist';
+
+export interface BacktestTradeLeg {
+  ticker: string;
+  direction: string;
+  entry_price: number;
+  exit_price: number | null;
+  current_price: number | null;
+  return_pct: number;
+  weight_pct: number;
+  exit_status: 'closed' | 'open';
+  elapsed_trading_days?: number;
+  remaining_trading_days?: number;
+  horizon?: number;
+  signal_source?: string;
+  divergence?: number;
+  confidence?: string;
+  rationale?: string;
+  stop_loss?: number;
+  target1?: number;
+  target2?: number;
+}
+
+export interface BacktestTrade {
+  trade_id?: string;
+  entry_date: string;
+  exit_date: string | null;
+  status: 'closed' | 'open';
+  portfolio_return_pct: number;
+  winners_count: number;
+  losers_count: number;
+  risk_label?: string;
+  legs: BacktestTradeLeg[];
+}
+
+export interface BacktestTradeSummary {
+  total_trades: number;
+  closed_trades: number;
+  open_trades: number;
+  win_rate_pct: number;
+  avg_return_pct: number;
+  total_return_pct: number;
+  best_trade: number;
+  worst_trade: number;
+}
+
+export interface BacktestTradeResponse {
+  source: string;
+  horizon: number;
+  lookback_days: number;
+  summary: BacktestTradeSummary;
+  trades: BacktestTrade[];
+}
+
 // ── Backtest Live ──
 
 export interface BacktestLivePosition {

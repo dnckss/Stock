@@ -1,42 +1,37 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchBacktestSummary, fetchBacktestLive } from '@/lib/api';
-import { BACKTEST_DEFAULT_LOOKBACK, BACKTEST_HORIZONS } from '@/lib/constants';
-import type { BacktestResponse, BacktestLiveResponse } from '@/types/dashboard';
+import { fetchBacktestTrades } from '@/lib/api';
+import type { BacktestTradeResponse, BacktestSource } from '@/types/dashboard';
 
 export interface UseBacktestReturn {
-  summary: BacktestResponse | null;
-  live: BacktestLiveResponse | null;
+  data: BacktestTradeResponse | null;
   isLoading: boolean;
   error: string | null;
-  retry: () => void;
+  source: BacktestSource;
+  setSource: (s: BacktestSource) => void;
+  refresh: () => void;
 }
 
 export function useBacktest(): UseBacktestReturn {
-  const [summary, setSummary] = useState<BacktestResponse | null>(null);
-  const [live, setLive] = useState<BacktestLiveResponse | null>(null);
+  const [data, setData] = useState<BacktestTradeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [source, setSourceState] = useState<BacktestSource>('strategist');
   const mountedRef = useRef(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (src: BacktestSource, isRefresh = false) => {
     setIsLoading(true);
     setError(null);
     try {
-      const [summaryRes, liveRes] = await Promise.allSettled([
-        fetchBacktestSummary(BACKTEST_DEFAULT_LOOKBACK, [...BACKTEST_HORIZONS]),
-        fetchBacktestLive(40, [...BACKTEST_HORIZONS]),
-      ]);
-
-      if (!mountedRef.current) return;
-
-      if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
-      if (liveRes.status === 'fulfilled') setLive(liveRes.value);
-
-      if (summaryRes.status === 'rejected' && liveRes.status === 'rejected') {
-        setError('백테스트 데이터를 불러올 수 없습니다');
-      }
+      const res = await fetchBacktestTrades({
+        source: src,
+        horizon: 5,
+        lookback_days: 90,
+        include_open: true,
+        refresh: isRefresh,
+      });
+      if (mountedRef.current) setData(res);
     } catch (err: unknown) {
       if (mountedRef.current) {
         setError(err instanceof Error ? err.message : '백테스트 데이터를 불러올 수 없습니다');
@@ -48,9 +43,17 @@ export function useBacktest(): UseBacktestReturn {
 
   useEffect(() => {
     mountedRef.current = true;
-    load();
+    load(source);
     return () => { mountedRef.current = false; };
-  }, [load]);
+  }, [load, source]);
 
-  return { summary, live, isLoading, error, retry: load };
+  const setSource = useCallback((s: BacktestSource) => {
+    setSourceState(s);
+  }, []);
+
+  const refresh = useCallback(() => {
+    load(source, true);
+  }, [load, source]);
+
+  return { data, isLoading, error, source, setSource, refresh };
 }
