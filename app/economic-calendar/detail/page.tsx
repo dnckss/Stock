@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2, RefreshCw, TrendingUp, TrendingDown, Clock, BarChart3, BookOpen, AlertTriangle } from 'lucide-react';
@@ -17,6 +17,18 @@ function SectionHeader({ icon: Icon, children }: { icon: typeof TrendingUp; chil
 }
 
 export default function EconEventDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
+      </div>
+    }>
+      <EconEventDetailContent />
+    </Suspense>
+  );
+}
+
+function EconEventDetailContent() {
   const searchParams = useSearchParams();
   const event = searchParams.get('event') ?? '';
   const country = searchParams.get('country') ?? undefined;
