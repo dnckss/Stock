@@ -229,9 +229,9 @@ function LiveHorizonView({ result }: { result: BacktestLiveHorizonResult }) {
     <div className="space-y-3">
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
-        <StatCard label="진행 중" value={overall.count.toLocaleString()} />
-        <StatCard label="적중률" value={`${overall.hit_rate_so_far_pct.toFixed(1)}%`} positive={overall.hit_rate_so_far_pct > 50} />
-        <StatCard label="평균 미실현" value={pctDirect(overall.avg_unrealized_pct)} positive={overall.avg_unrealized_pct > 0} />
+        <StatCard label="진행 중" value={String(overall.count ?? 0)} />
+        <StatCard label="적중률" value={`${(overall.hit_rate_so_far_pct ?? 0).toFixed(1)}%`} positive={(overall.hit_rate_so_far_pct ?? 0) > 50} />
+        <StatCard label="평균 미실현" value={pctDirect(overall.avg_unrealized_pct ?? 0)} positive={(overall.avg_unrealized_pct ?? 0) > 0} />
       </div>
 
       {/* Direction breakdown */}
@@ -273,10 +273,12 @@ function LiveHorizonView({ result }: { result: BacktestLiveHorizonResult }) {
       )}
 
       {/* Best / Worst */}
-      <div className="grid grid-cols-2 gap-2">
-        <StatCard label="최고 수익" value={pctDirect(overall.best_pct)} positive />
-        <StatCard label="최저 수익" value={pctDirect(overall.worst_pct)} positive={overall.worst_pct >= 0} />
-      </div>
+      {(overall.best_pct != null || overall.worst_pct != null) && (
+        <div className="grid grid-cols-2 gap-2">
+          <StatCard label="최고 수익" value={pctDirect(overall.best_pct ?? 0)} positive />
+          <StatCard label="최저 수익" value={pctDirect(overall.worst_pct ?? 0)} positive={(overall.worst_pct ?? 0) >= 0} />
+        </div>
+      )}
     </div>
   );
 }
