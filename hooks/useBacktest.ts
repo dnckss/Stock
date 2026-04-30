@@ -4,12 +4,16 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchBacktestTrades } from '@/lib/api';
 import type { BacktestTradeResponse, BacktestSource } from '@/types/dashboard';
 
+export type GroupBy = 'day' | 'hour' | 'minute';
+
 export interface UseBacktestReturn {
   data: BacktestTradeResponse | null;
   isLoading: boolean;
   error: string | null;
   source: BacktestSource;
+  groupBy: GroupBy;
   setSource: (s: BacktestSource) => void;
+  setGroupBy: (g: GroupBy) => void;
   refresh: () => void;
 }
 
@@ -18,9 +22,10 @@ export function useBacktest(): UseBacktestReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [source, setSourceState] = useState<BacktestSource>('strategist');
+  const [groupBy, setGroupByState] = useState<GroupBy>('day');
   const mountedRef = useRef(true);
 
-  const load = useCallback(async (src: BacktestSource, isRefresh = false) => {
+  const load = useCallback(async (src: BacktestSource, grp: GroupBy, isRefresh = false) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -30,6 +35,7 @@ export function useBacktest(): UseBacktestReturn {
         lookback_days: 90,
         include_open: true,
         refresh: isRefresh,
+        group_by: grp,
       });
       if (mountedRef.current) setData(res);
     } catch (err: unknown) {
@@ -43,17 +49,13 @@ export function useBacktest(): UseBacktestReturn {
 
   useEffect(() => {
     mountedRef.current = true;
-    load(source);
+    load(source, groupBy);
     return () => { mountedRef.current = false; };
-  }, [load, source]);
+  }, [load, source, groupBy]);
 
-  const setSource = useCallback((s: BacktestSource) => {
-    setSourceState(s);
-  }, []);
+  const setSource = useCallback((s: BacktestSource) => { setSourceState(s); }, []);
+  const setGroupBy = useCallback((g: GroupBy) => { setGroupByState(g); }, []);
+  const refresh = useCallback(() => { load(source, groupBy, true); }, [load, source, groupBy]);
 
-  const refresh = useCallback(() => {
-    load(source, true);
-  }, [load, source]);
-
-  return { data, isLoading, error, source, setSource, refresh };
+  return { data, isLoading, error, source, groupBy, setSource, setGroupBy, refresh };
 }
