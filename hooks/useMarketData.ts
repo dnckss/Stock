@@ -94,10 +94,18 @@ export function useMarketData(): MarketDataState {
       macroPayload?: ApiMacroData,
       newsFeedPayload?: ApiNewsFeedItem[],
     ) => {
-      const merged = [
+      const all = [
         ...topPicks.map((s) => apiStockToRadar(s, true)),
         ...radar.map((s) => apiStockToRadar(s, false)),
       ];
+      // 동일 기업 중복 제거 (GOOG/GOOGL 등 — GOOGL 우선)
+      const seen = new Set<string>();
+      const merged = all.filter((s) => {
+        const key = s.ticker === 'GOOG' ? 'GOOGL' : s.ticker;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
       setStocks(merged);
       setUpdatedAt(timestamp);
       setError(null);
