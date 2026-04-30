@@ -22,14 +22,16 @@ function fmtDate(iso: string | null): string {
   } catch { return iso; }
 }
 
-function fmtPct(v: number | null | undefined): string {
-  if (v == null) return '-';
-  return v >= 0 ? `+${v.toFixed(2)}%` : `${v.toFixed(2)}%`;
+function fmtPct(v: unknown): string {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '-';
+  return n >= 0 ? `+${n.toFixed(2)}%` : `${n.toFixed(2)}%`;
 }
 
-function fmtPrice(v: number | null | undefined): string {
-  if (v == null) return '-';
-  return `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function fmtPrice(v: unknown): string {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '-';
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /* ── Stat card ── */
