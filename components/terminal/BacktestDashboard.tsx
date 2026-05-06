@@ -248,7 +248,7 @@ function SummarySection({ summary }: { summary: BacktestTradeSummary }) {
         if (bestVal == null && worstVal == null) return null;
         return (
           <div className="grid grid-cols-2 gap-2">
-            <StatCard label="최고 트레이드" value={formatPctDirect(bestVal)} positive />
+            <StatCard label="최고 트레이드" value={formatPctDirect(bestVal)} positive={(Number(bestVal) || 0) >= 0} />
             <StatCard label="최저 트레이드" value={formatPctDirect(worstVal)} positive={(Number(worstVal) || 0) >= 0} />
           </div>
         );
