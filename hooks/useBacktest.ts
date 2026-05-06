@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchBacktestTrades } from '@/lib/api';
+import { BACKTEST_DEFAULT_LOOKBACK } from '@/lib/constants';
 import type { BacktestTradeResponse, BacktestSource } from '@/types/dashboard';
 
 export interface UseBacktestReturn {
@@ -19,19 +20,34 @@ export function useBacktest(): UseBacktestReturn {
   const [error, setError] = useState<string | null>(null);
   const [source, setSourceState] = useState<BacktestSource>('strategist');
   const mountedRef = useRef(true);
+  const cacheRef = useRef<Map<BacktestSource, BacktestTradeResponse>>(new Map());
 
   const load = useCallback(async (src: BacktestSource, isRefresh = false) => {
+    // 캐시 히트 시 네트워크 요청 없이 즉시 반환
+    if (!isRefresh) {
+      const cached = cacheRef.current.get(src);
+      if (cached) {
+        setData(cached);
+        setIsLoading(false);
+        setError(null);
+        return;
+      }
+    }
+
     setIsLoading(true);
     setError(null);
     try {
       const res = await fetchBacktestTrades({
         source: src,
         horizon: 5,
-        lookback_days: 90,
+        lookback_days: BACKTEST_DEFAULT_LOOKBACK,
         include_open: true,
         refresh: isRefresh,
       });
-      if (mountedRef.current) setData(res);
+      if (mountedRef.current) {
+        cacheRef.current.set(src, res);
+        setData(res);
+      }
     } catch (err: unknown) {
       if (mountedRef.current) {
         setError(err instanceof Error ? err.message : '백테스트 데이터를 불러올 수 없습니다');
@@ -48,7 +64,10 @@ export function useBacktest(): UseBacktestReturn {
   }, [load, source]);
 
   const setSource = useCallback((s: BacktestSource) => { setSourceState(s); }, []);
-  const refresh = useCallback(() => { load(source, true); }, [load, source]);
+  const refresh = useCallback(() => {
+    cacheRef.current.delete(source);
+    load(source, true);
+  }, [load, source]);
 
   return { data, isLoading, error, source, setSource, refresh };
 }

@@ -59,7 +59,7 @@ import type {
   ApiChatSessionsResponse,
   ApiChatFileResponse,
 } from '@/types/dashboard';
-import { ECON_CALENDAR_DEFAULT_LIMIT } from '@/lib/constants';
+import { ECON_CALENDAR_DEFAULT_LIMIT, DAYS_KO } from '@/lib/constants';
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -149,6 +149,29 @@ export function formatDateKR(dateStr: string): string {
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+/** $1,234.56 형식 (달러 접두사 포함) */
+export function formatUsd(value: unknown): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '-';
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** 이미 퍼센트 단위인 값을 부호 포함하여 포맷 (5.25 → "+5.25%") */
+export function formatPctDirect(value: unknown): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '-';
+  return n >= 0 ? `+${n.toFixed(2)}%` : `${n.toFixed(2)}%`;
+}
+
+/** M/D (요일) 형식 — "4/22 (수)" */
+export function formatDateWithDay(iso: string | null): string {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return `${d.getMonth() + 1}/${d.getDate()} (${DAYS_KO[d.getDay()]})`;
+  } catch { return iso; }
 }
 
 // ── Data Transforms ──

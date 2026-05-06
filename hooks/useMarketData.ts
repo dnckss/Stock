@@ -24,6 +24,7 @@ import {
   ECON_CALENDAR_DEFAULT_SOURCE,
   ECON_CALENDAR_AUTO_REFRESH_MIN_MS,
   ECON_CALENDAR_AUTO_REFRESH_MAX_MS,
+  TICKER_ALIASES,
 } from '@/lib/constants';
 
 const WS_RECONNECT_DELAY = 3000;
@@ -98,12 +99,12 @@ export function useMarketData(): MarketDataState {
         ...topPicks.map((s) => apiStockToRadar(s, true)),
         ...radar.map((s) => apiStockToRadar(s, false)),
       ];
-      // 동일 기업 중복 제거 (GOOG/GOOGL 등 — GOOGL 우선)
+      // 동일 기업 중복 제거 (GOOG/GOOGL 등 — canonical 티커 우선)
       const seen = new Set<string>();
       const merged = all.filter((s) => {
-        const key = s.ticker === 'GOOG' ? 'GOOGL' : s.ticker;
-        if (seen.has(key)) return false;
-        seen.add(key);
+        const canonical = TICKER_ALIASES[s.ticker] ?? s.ticker;
+        if (seen.has(canonical)) return false;
+        seen.add(canonical);
         return true;
       });
       setStocks(merged);

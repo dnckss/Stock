@@ -7,34 +7,11 @@ import {
   Clock, AlertTriangle, Info, Loader2,
 } from 'lucide-react';
 import { useBacktest } from '@/hooks/useBacktest';
+import { formatUsd, formatPctDirect, formatDateWithDay } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { BacktestTrade, BacktestTradeLeg, BacktestTradeSummary, BacktestSource } from '@/types/dashboard';
 
 const LEGS_PREVIEW_COUNT = 10;
-
-/* ── Helpers ── */
-
-const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'] as const;
-
-function fmtDate(iso: string | null): string {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}/${d.getDate()} (${DAYS_KO[d.getDay()]})`;
-  } catch { return iso; }
-}
-
-function fmtPct(v: unknown): string {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '-';
-  return n >= 0 ? `+${n.toFixed(2)}%` : `${n.toFixed(2)}%`;
-}
-
-function fmtPrice(v: unknown): string {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '-';
-  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 /* ── Stat card ── */
 
@@ -72,17 +49,17 @@ function LegRow({ leg, source }: { leg: BacktestTradeLeg; source: BacktestSource
       <span className="w-[44px] text-[11px] font-mono font-bold text-zinc-100 shrink-0">{leg.ticker}</span>
 
       {/* Prices */}
-      <span className="text-[10px] font-mono text-zinc-500 tabular-nums shrink-0">{fmtPrice(leg.entry_price)}</span>
+      <span className="text-[10px] font-mono text-zinc-500 tabular-nums shrink-0">{formatUsd(leg.entry_price)}</span>
       <span className="text-[9px] text-zinc-700 shrink-0">→</span>
       <span className={cn('text-[10px] font-mono tabular-nums shrink-0', isOpen ? 'text-zinc-400' : 'text-zinc-300')}>
-        {fmtPrice(displayPrice)}
+        {formatUsd(displayPrice)}
       </span>
 
       {/* Return */}
       <div className="flex items-center gap-0.5 ml-auto shrink-0">
         {positive ? <ArrowUpRight className="w-3 h-3 text-emerald-400" /> : <ArrowDownRight className="w-3 h-3 text-red-400" />}
         <span className={cn('text-[10px] font-mono font-bold tabular-nums', positive ? 'text-emerald-400' : 'text-red-400')}>
-          {fmtPct(leg.return_pct)}
+          {formatPctDirect(leg.return_pct)}
         </span>
       </div>
 
@@ -144,7 +121,7 @@ function TradeCard({ trade, source, isOpen, onToggle }: {
       >
         {/* Date range */}
         <div className="flex items-center gap-1 text-[10px] font-mono text-zinc-400 shrink-0 min-w-0">
-          <span>{fmtDate(trade.entry_date)}</span>
+          <span>{formatDateWithDay(trade.entry_date)}</span>
           <span className="text-zinc-700">→</span>
           {isLive ? (
             <span className="flex items-center gap-1 text-zinc-500">
@@ -152,13 +129,13 @@ function TradeCard({ trade, source, isOpen, onToggle }: {
               진행 중
             </span>
           ) : (
-            <span>{fmtDate(trade.exit_date)}</span>
+            <span>{formatDateWithDay(trade.exit_date)}</span>
           )}
         </div>
 
         {/* Return */}
         <span className={cn('text-[11px] font-mono font-bold tabular-nums shrink-0', positive ? 'text-emerald-400' : 'text-red-400')}>
-          {fmtPct(trade.portfolio_return_pct)}
+          {formatPctDirect(trade.portfolio_return_pct)}
         </span>
 
         {/* Status badge */}
@@ -221,13 +198,13 @@ function TradeCard({ trade, source, isOpen, onToggle }: {
             {source === 'strategist' && trade.legs?.some(l => l.stop_loss != null || l.target1 != null) && (
               <div className="px-3 py-2 border-t border-zinc-800/30 flex items-center gap-3 text-[9px] font-mono">
                 {trade.legs.filter(l => l.stop_loss != null).slice(0, 1).map(l => (
-                  <span key="sl" className="text-red-400">SL {fmtPrice(l.stop_loss)}</span>
+                  <span key="sl" className="text-red-400">SL {formatUsd(l.stop_loss)}</span>
                 ))}
                 {trade.legs.filter(l => l.target1 != null).slice(0, 1).map(l => (
-                  <span key="t1" className="text-emerald-400">T1 {fmtPrice(l.target1)}</span>
+                  <span key="t1" className="text-emerald-400">T1 {formatUsd(l.target1)}</span>
                 ))}
                 {trade.legs.filter(l => l.target2 != null).slice(0, 1).map(l => (
-                  <span key="t2" className="text-emerald-400/60">T2 {fmtPrice(l.target2)}</span>
+                  <span key="t2" className="text-emerald-400/60">T2 {formatUsd(l.target2)}</span>
                 ))}
               </div>
             )}
@@ -252,18 +229,18 @@ function SummarySection({ summary }: { summary: BacktestTradeSummary }) {
         />
         <StatCard
           label="평균 수익률"
-          value={fmtPct(summary.avg_return_pct)}
+          value={formatPctDirect(summary.avg_return_pct)}
           positive={(summary.avg_return_pct ?? 0) > 0}
         />
         <StatCard
           label="누적 수익률"
-          value={fmtPct(summary.total_return_pct)}
+          value={formatPctDirect(summary.total_return_pct)}
           positive={(summary.total_return_pct ?? 0) > 0}
         />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <StatCard label="최고 트레이드" value={fmtPct(summary.best_trade)} positive />
-        <StatCard label="최저 트레이드" value={fmtPct(summary.worst_trade)} positive={(summary.worst_trade ?? 0) >= 0} />
+        <StatCard label="최고 트레이드" value={formatPctDirect(summary.best_trade)} positive />
+        <StatCard label="최저 트레이드" value={formatPctDirect(summary.worst_trade)} positive={(summary.worst_trade ?? 0) >= 0} />
       </div>
     </div>
   );

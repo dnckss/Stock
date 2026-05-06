@@ -139,6 +139,10 @@ export const PORTFOLIO_MAX_WEIGHT_DEFAULT = 30;
 // ── Portfolio streaming ──
 export const PORTFOLIO_STREAM_TOTAL_STEPS = 5;
 
+// ── Shared ──
+export const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'] as const;
+export const TICKER_ALIASES: Record<string, string> = { GOOG: 'GOOGL' };
+
 // ── Backtest ──
 export const BACKTEST_DEFAULT_LOOKBACK = 90;
 export const BACKTEST_HORIZONS = [1, 5, 20] as const;
