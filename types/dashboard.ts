@@ -972,10 +972,8 @@ export interface BacktestTradeSummary {
   win_rate_pct: number;
   avg_return_pct: number;
   total_return_pct: number;
-  best_trade?: number;
-  worst_trade?: number;
-  best_return_pct?: number;
-  worst_return_pct?: number;
+  best_trade?: BacktestTrade | number;
+  worst_trade?: BacktestTrade | number;
 }
 
 export interface BacktestTradeResponse {

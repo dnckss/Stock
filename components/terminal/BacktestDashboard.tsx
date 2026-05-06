@@ -239,13 +239,17 @@ function SummarySection({ summary }: { summary: BacktestTradeSummary }) {
         />
       </div>
       {(() => {
-        const best = summary.best_trade ?? summary.best_return_pct;
-        const worst = summary.worst_trade ?? summary.worst_return_pct;
-        if (best == null && worst == null) return null;
+        const bestVal = typeof summary.best_trade === 'object' && summary.best_trade
+          ? summary.best_trade.portfolio_return_pct
+          : summary.best_trade;
+        const worstVal = typeof summary.worst_trade === 'object' && summary.worst_trade
+          ? summary.worst_trade.portfolio_return_pct
+          : summary.worst_trade;
+        if (bestVal == null && worstVal == null) return null;
         return (
           <div className="grid grid-cols-2 gap-2">
-            <StatCard label="최고 트레이드" value={formatPctDirect(best)} positive />
-            <StatCard label="최저 트레이드" value={formatPctDirect(worst)} positive={(Number(worst) || 0) >= 0} />
+            <StatCard label="최고 트레이드" value={formatPctDirect(bestVal)} positive />
+            <StatCard label="최저 트레이드" value={formatPctDirect(worstVal)} positive={(Number(worstVal) || 0) >= 0} />
           </div>
         );
       })()}
