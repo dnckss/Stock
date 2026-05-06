@@ -1152,7 +1152,6 @@ export async function fetchBacktestTrades(options: {
   lookback_days?: number;
   include_open?: boolean;
   refresh?: boolean;
-  group_by?: string;
 }): Promise<BacktestTradeResponse> {
   const qs = new URLSearchParams();
   if (options.source) qs.set('source', options.source);
@@ -1160,7 +1159,6 @@ export async function fetchBacktestTrades(options: {
   if (options.lookback_days != null) qs.set('lookback_days', String(options.lookback_days));
   if (options.include_open) qs.set('include_open', '1');
   if (options.refresh) qs.set('refresh', '1');
-  if (options.group_by) qs.set('group_by', options.group_by);
   const res = await fetch(`${API_BASE}/api/backtest/trades?${qs}`);
   if (!res.ok) throw new ApiError(res.status, '백테스트 데이터를 불러올 수 없습니다');
   return res.json();

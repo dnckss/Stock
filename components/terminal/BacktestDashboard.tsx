@@ -6,16 +6,11 @@ import {
   RefreshCw, ChevronDown, ArrowUpRight, ArrowDownRight,
   Clock, AlertTriangle, Info, Loader2,
 } from 'lucide-react';
-import { useBacktest, type GroupBy } from '@/hooks/useBacktest';
+import { useBacktest } from '@/hooks/useBacktest';
 import { cn } from '@/lib/utils';
 import type { BacktestTrade, BacktestTradeLeg, BacktestTradeSummary, BacktestSource } from '@/types/dashboard';
 
 const LEGS_PREVIEW_COUNT = 10;
-const GROUP_BY_OPTIONS: { key: GroupBy; label: string }[] = [
-  { key: 'day', label: '일별' },
-  { key: 'hour', label: '시간별' },
-  { key: 'minute', label: '분별' },
-];
 
 /* ── Helpers ── */
 
@@ -302,7 +297,7 @@ function EmptyState({ closedTrades, openTrades }: { closedTrades: number; openTr
 /* ── Main ── */
 
 export default function BacktestDashboard() {
-  const { data, isLoading, error, source, groupBy, setSource, setGroupBy, refresh } = useBacktest();
+  const { data, isLoading, error, source, setSource, refresh } = useBacktest();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   /* Loading */
@@ -361,19 +356,6 @@ export default function BacktestDashboard() {
         >
           시그널
         </button>
-        <div className="w-px h-4 bg-zinc-700/40 mx-0.5 shrink-0" />
-        {GROUP_BY_OPTIONS.map((g) => (
-          <button
-            key={g.key}
-            onClick={() => setGroupBy(g.key)}
-            className={cn(
-              'px-2 py-1 rounded text-[10px] font-medium transition-all',
-              groupBy === g.key ? 'bg-zinc-700/50 text-zinc-200' : 'text-zinc-600 hover:text-zinc-400',
-            )}
-          >
-            {g.label}
-          </button>
-        ))}
         <div className="flex-1" />
         <button
           onClick={refresh}
