@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Moon, Sun } from 'lucide-react';
 import { useMarketData } from '@/hooks/useMarketData';
+import { useTheme } from '@/hooks/useTheme';
 import { formatTimestamp } from '@/lib/api';
 import GlobalMarketTicker from '@/components/terminal/GlobalMarketTicker';
 import MacroIndicators from '@/components/terminal/MacroIndicators';
@@ -65,6 +67,7 @@ export default function TerminalPage() {
     error,
     wsConnected,
   } = useMarketData();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const toTickerItems = (items: MacroIndicator[] | null | undefined) => {
     if (!items) return [];
@@ -149,6 +152,18 @@ export default function TerminalPage() {
             <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
             AI 전략실
           </Link>
+          <Link
+            href="/watchlist"
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-zinc-800/50 bg-zinc-800/20 hover:bg-zinc-800/60 hover:border-zinc-700 transition-colors text-[10px] text-zinc-300 font-mono"
+          >
+            관심 종목
+          </Link>
+          <Link
+            href="/compare"
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-zinc-800/50 bg-zinc-800/20 hover:bg-zinc-800/60 hover:border-zinc-700 transition-colors text-[10px] text-zinc-300 font-mono"
+          >
+            종목 비교
+          </Link>
         </div>
       </div>
 
@@ -199,6 +214,9 @@ export default function TerminalPage() {
           </span>
         </div>
         <div className="flex items-center gap-3 text-[9px] font-mono">
+          <button onClick={toggleTheme} className="text-zinc-600 hover:text-zinc-400 transition-colors" title={theme === 'dark' ? 'Soft 모드' : 'Dark 모드'}>
+            {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
+          </button>
           <span className="text-zinc-500">© 2025 Quantix Terminal</span>
         </div>
       </div>

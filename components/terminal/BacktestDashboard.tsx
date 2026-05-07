@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   RefreshCw, ChevronDown, ArrowUpRight, ArrowDownRight,
-  Clock, AlertTriangle, Info, Loader2,
+  Clock, AlertTriangle, Info, Loader2, TrendingUp,
 } from 'lucide-react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip,
+} from 'recharts';
 import { useBacktest } from '@/hooks/useBacktest';
 import { formatUsd, formatPctDirect, formatDateWithDay } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -215,6 +218,60 @@ function TradeCard({ trade, source, isOpen, onToggle }: {
   );
 }
 
+/* ── Equity curve (derived from trades) ── */
+
+type CurvePayload = { payload?: { date: string; cumRet: number }; value?: number };
+
+function CurveTooltip({ active, payload }: { active?: boolean; payload?: CurvePayload[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  if (!d) return null;
+  return (
+    <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/95 px-3 py-2 shadow-xl backdrop-blur-lg text-xs font-mono">
+      <p className="text-zinc-400">{d.date}</p>
+      <p className={d.cumRet >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+        {d.cumRet >= 0 ? '+' : ''}{d.cumRet.toFixed(2)}%
+      </p>
+    </div>
+  );
+}
+
+function EquityCurve({ trades }: { trades: BacktestTrade[] }) {
+  const curveData = useMemo(() => {
+    const closed = trades
+      .filter((t) => t.status === 'closed' && t.exit_date)
+      .sort((a, b) => (a.exit_date ?? '').localeCompare(b.exit_date ?? ''));
+    if (closed.length < 2) return [];
+    let cum = 0;
+    return closed.map((t) => {
+      cum += Number(t.portfolio_return_pct) || 0;
+      return { date: formatDateWithDay(t.exit_date), cumRet: cum };
+    });
+  }, [trades]);
+
+  if (curveData.length < 2) return null;
+
+  return (
+    <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl overflow-hidden">
+      <div className="px-3 py-2 border-b border-zinc-800/40 flex items-center gap-2">
+        <TrendingUp className="w-3.5 h-3.5 text-zinc-500" />
+        <span className="text-[10px] font-mono text-zinc-500 uppercase">Equity Curve</span>
+      </div>
+      <div className="px-2 py-2 h-[160px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={curveData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1c1c22" />
+            <XAxis dataKey="date" tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+            <YAxis tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }} tickLine={false} axisLine={false} width={45} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
+            <Tooltip content={<CurveTooltip />} />
+            <Line type="monotone" dataKey="cumRet" stroke="#10b981" strokeWidth={1.5} dot={false} activeDot={{ r: 3, fill: '#10b981', strokeWidth: 0 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
 /* ── Summary section ── */
 
 function SummarySection({ summary }: { summary: BacktestTradeSummary }) {
@@ -362,6 +419,9 @@ export default function BacktestDashboard() {
       <div className="flex-1 overflow-y-auto px-3 py-3 terminal-scroll space-y-3">
         {/* Summary */}
         {summary && totalTrades > 0 && <SummarySection summary={summary} />}
+
+        {/* Equity curve */}
+        {trades.length >= 2 && <EquityCurve trades={trades} />}
 
         {/* Counts */}
         {summary && totalTrades > 0 && (

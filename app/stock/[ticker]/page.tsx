@@ -1,9 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Loader2, ExternalLink, Star, StickyNote, Bell } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
+import { useWatchlist } from '@/hooks/useWatchlist';
+import { useStockMemo } from '@/hooks/useStockMemo';
+import { useAlerts } from '@/hooks/useAlerts';
 import { useStockDetail } from '@/hooks/useStockDetail';
 import { useStockFundamentals } from '@/hooks/useStockFundamentals';
 import StockHeader from '@/components/detail/StockHeader';
@@ -52,6 +56,12 @@ export default function StockDetailPage() {
     refreshSection,
     sectionRefreshing,
   } = useStockFundamentals(detail ? ticker : null);
+  const watchlist = useWatchlist();
+  const { memo, setMemo } = useStockMemo(ticker);
+  const { add: addAlert, requestPermission } = useAlerts();
+  const [showAlertForm, setShowAlertForm] = useState(false);
+  const [alertPrice, setAlertPrice] = useState('');
+  const [alertDir, setAlertDir] = useState<'above' | 'below'>('above');
 
   if (isLoading) return <PageSkeleton />;
 
@@ -77,7 +87,59 @@ export default function StockDetailPage() {
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
-      <PageHeader title={detail.ticker} />
+      <PageHeader title={detail.ticker}>
+        <button
+          type="button"
+          onClick={() => watchlist.toggle(detail.ticker)}
+          className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-yellow-400 transition-colors"
+          title={watchlist.has(detail.ticker) ? '관심 종목 해제' : '관심 종목 추가'}
+        >
+          <Star className={`w-4 h-4 ${watchlist.has(detail.ticker) ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+          <span className="hidden sm:block">{watchlist.has(detail.ticker) ? '관심 종목' : '관심 추가'}</span>
+        </button>
+        <button
+          type="button"
+          onClick={async () => { await requestPermission(); setShowAlertForm((p) => !p); }}
+          className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          title="가격 알림"
+        >
+          <Bell className="w-4 h-4" />
+        </button>
+      </PageHeader>
+
+      {/* Alert form */}
+      {showAlertForm && (
+        <div className="shrink-0 px-4 py-2 border-b border-zinc-800/40 bg-zinc-900/50 flex items-center gap-2">
+          <select
+            value={alertDir}
+            onChange={(e) => setAlertDir(e.target.value as 'above' | 'below')}
+            className="text-xs bg-zinc-800 border border-zinc-700/50 rounded px-2 py-1.5 text-zinc-300"
+          >
+            <option value="above">이상 도달</option>
+            <option value="below">이하 도달</option>
+          </select>
+          <input
+            type="number"
+            value={alertPrice}
+            onChange={(e) => setAlertPrice(e.target.value)}
+            placeholder="목표가"
+            className="text-xs font-mono bg-zinc-800 border border-zinc-700/50 rounded px-2 py-1.5 text-zinc-200 w-[100px] placeholder:text-zinc-600"
+          />
+          <button
+            onClick={() => {
+              const price = Number(alertPrice);
+              if (price > 0) { addAlert(detail.ticker, price, alertDir); setAlertPrice(''); setShowAlertForm(false); }
+            }}
+            disabled={!Number(alertPrice)}
+            className="text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 border border-zinc-700/50 rounded px-3 py-1.5 disabled:opacity-30 transition-colors"
+          >
+            설정
+          </button>
+          <button onClick={() => setShowAlertForm(false)} className="text-xs text-zinc-600 hover:text-zinc-400 ml-auto transition-colors">
+            취소
+          </button>
+        </div>
+      )}
 
       {/* Stock Header */}
       <div className="shrink-0">
@@ -102,6 +164,23 @@ export default function StockDetailPage() {
             sectionRefreshing={sectionRefreshing}
             onRefreshSection={refreshSection}
           />
+          {/* 투자 메모 */}
+          <div className="px-4 py-3 border-t border-zinc-800/40">
+            <div className="flex items-center gap-1.5 mb-2">
+              <StickyNote className="w-3.5 h-3.5 text-zinc-600" />
+              <span className="text-[10px] font-mono text-zinc-600 uppercase">메모</span>
+            </div>
+            <textarea
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder="이 종목에 대한 메모를 남겨보세요..."
+              rows={3}
+              className="w-full text-xs bg-zinc-900/50 border border-zinc-800/50 rounded-lg px-3 py-2
+                         text-zinc-300 placeholder:text-zinc-700 resize-none
+                         focus:outline-none focus:border-zinc-700 transition-colors"
+            />
+          </div>
+
           {/* 토스증권 바로가기 */}
           <div className="px-4 py-4">
             <a
