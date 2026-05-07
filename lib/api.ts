@@ -1130,6 +1130,34 @@ export function parsePricePerformance(
 
 // ── Backtest ──
 
+// ── News List ──
+
+export interface NewsListResponse {
+  items: ApiStockNewsItem[];
+  count: number;
+  limit: number;
+  offset: number;
+  total?: number;
+}
+
+export async function fetchNewsList(options: {
+  limit?: number;
+  offset?: number;
+  ticker?: string;
+  with_count?: boolean;
+}): Promise<NewsListResponse> {
+  const qs = new URLSearchParams();
+  if (options.limit != null) qs.set('limit', String(options.limit));
+  if (options.offset != null) qs.set('offset', String(options.offset));
+  if (options.ticker) qs.set('ticker', options.ticker);
+  if (options.with_count) qs.set('with_count', '1');
+  const res = await fetch(`${API_BASE}/api/news/list?${qs}`);
+  if (!res.ok) throw new ApiError(res.status, '뉴스 목록을 불러올 수 없습니다');
+  return res.json();
+}
+
+// ── Backtest ──
+
 export async function fetchBacktestSummary(
   lookbackDays = 90,
   horizons = [1, 5, 20],

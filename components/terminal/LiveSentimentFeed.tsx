@@ -1,7 +1,8 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { NewsFeedItem, SentimentLabel } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
@@ -251,9 +252,13 @@ export default function LiveSentimentFeed({
             <span className="text-[9px] text-zinc-500 font-mono">{neutralCount}</span>
           </div>
         </div>
-        <span className="text-[9px] text-zinc-600 font-mono">
-          {items.length} articles
-        </span>
+        <Link
+          href="/news/list"
+          className="flex items-center gap-0.5 text-[9px] text-zinc-500 hover:text-zinc-300 font-mono transition-colors"
+        >
+          더보기
+          <ChevronRight className="w-3 h-3" />
+        </Link>
       </div>
     </div>
   );
