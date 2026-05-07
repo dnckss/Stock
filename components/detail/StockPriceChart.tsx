@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Loader2, ChevronDown } from 'lucide-react';
+import { Loader2, ChevronDown, TrendingUp, Minus, Pencil, Trash2, MousePointer } from 'lucide-react';
 import { createChart, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 import type { IChartApi, UTCTimestamp } from 'lightweight-charts';
 import {
@@ -10,33 +10,41 @@ import {
   CHART_MINUTE_LABELS,
   CHART_UPPER_LABELS,
 } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import type { ChartBar, ChartPeriod } from '@/types/dashboard';
 
 const UP_COLOR = '#ef4444';
 const DOWN_COLOR = '#3b82f6';
+const DRAW_COLOR = '#facc15';
+const DRAW_WIDTH = 1.5;
 
 function isIntraday(period: ChartPeriod): boolean {
   return period.endsWith('min');
 }
 
-/**
- * ISO 8601 UTC → UTCTimestamp (초)
- * "2026-04-01T14:30:00Z" → 1775001600
- */
 function toUtc(ts: string): UTCTimestamp {
   const ms = new Date(ts).getTime();
   if (Number.isNaN(ms)) return 0 as UTCTimestamp;
   return Math.floor(ms / 1000) as UTCTimestamp;
 }
 
-/** 중복 제거 + 오름차순 정렬 */
 function dedupSort<T extends { time: UTCTimestamp }>(data: T[]): T[] {
   const map = new Map<number, T>();
   for (const d of data) map.set(d.time, d);
   return Array.from(map.values()).sort((a, b) => a.time - b.time);
 }
 
+/* ── Drawing types ── */
+
+type DrawingTool = 'none' | 'trendline' | 'hline' | 'freehand';
+
+interface Drawing {
+  type: 'trendline' | 'hline' | 'freehand';
+  points: { x: number; y: number }[];
+}
+
 /* ── Period selector ── */
+
 function PeriodSelector({
   current,
   onChange,
@@ -108,7 +116,54 @@ function PeriodSelector({
   );
 }
 
+/* ── Drawing toolbar ── */
+
+const TOOLS: { key: DrawingTool; icon: typeof Pencil; label: string }[] = [
+  { key: 'none', icon: MousePointer, label: '선택' },
+  { key: 'trendline', icon: TrendingUp, label: '추세선' },
+  { key: 'hline', icon: Minus, label: '수평선' },
+  { key: 'freehand', icon: Pencil, label: '자유 그리기' },
+];
+
+/* ── Canvas drawing helpers ── */
+
+function renderDrawings(
+  ctx: CanvasRenderingContext2D,
+  drawings: Drawing[],
+  width: number,
+) {
+  ctx.strokeStyle = DRAW_COLOR;
+  ctx.lineWidth = DRAW_WIDTH;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  for (const d of drawings) {
+    if (d.points.length === 0) continue;
+    ctx.beginPath();
+
+    if (d.type === 'hline') {
+      const y = d.points[0].y;
+      ctx.setLineDash([6, 4]);
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else if (d.type === 'trendline' && d.points.length === 2) {
+      ctx.moveTo(d.points[0].x, d.points[0].y);
+      ctx.lineTo(d.points[1].x, d.points[1].y);
+      ctx.stroke();
+    } else if (d.type === 'freehand') {
+      ctx.moveTo(d.points[0].x, d.points[0].y);
+      for (let i = 1; i < d.points.length; i++) {
+        ctx.lineTo(d.points[i].x, d.points[i].y);
+      }
+      ctx.stroke();
+    }
+  }
+}
+
 /* ── Main ── */
+
 export default function StockPriceChart({
   bars,
   period,
@@ -123,15 +178,146 @@ export default function StockPriceChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
-  /**
-   * 차트 생성/재생성 함수
-   * period가 바뀌면(분봉↔일봉) timeVisible이 달라져야 하므로
-   * 차트를 완전히 재생성한다.
-   */
+  // Drawing state
+  const [activeTool, setActiveTool] = useState<DrawingTool>('none');
+  const drawCanvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingsRef = useRef<Drawing[]>([]);
+  const pendingRef = useRef<{ x: number; y: number }[]>([]);
+  const isDrawingRef = useRef(false);
+
+  const isDrawMode = activeTool !== 'none';
+
+  // ── Redraw canvas ──
+  const redraw = useCallback(() => {
+    const canvas = drawCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    renderDrawings(ctx, drawingsRef.current, canvas.width);
+
+    // Preview in-progress drawing
+    const pts = pendingRef.current;
+    if (pts.length > 0) {
+      ctx.strokeStyle = DRAW_COLOR;
+      ctx.lineWidth = DRAW_WIDTH;
+      ctx.globalAlpha = 0.5;
+      ctx.setLineDash([]);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+
+      if (activeTool === 'hline') {
+        ctx.setLineDash([6, 4]);
+        ctx.moveTo(0, pts[0].y);
+        ctx.lineTo(canvas.width, pts[0].y);
+      } else if (activeTool === 'trendline' && pts.length === 2) {
+        ctx.moveTo(pts[0].x, pts[0].y);
+        ctx.lineTo(pts[1].x, pts[1].y);
+      } else if (activeTool === 'freehand' && pts.length > 1) {
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      }
+
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([]);
+    }
+  }, [activeTool]);
+
+  // ── Sync canvas size ──
+  const syncCanvasSize = useCallback(() => {
+    const canvas = drawCanvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    const rect = container.getBoundingClientRect();
+    if (canvas.width !== rect.width || canvas.height !== rect.height) {
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      redraw();
+    }
+  }, [redraw]);
+
+  // ── Toggle chart interaction ──
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.applyOptions({
+        handleScroll: !isDrawMode,
+        handleScale: !isDrawMode,
+      });
+    }
+  }, [isDrawMode]);
+
+  // ── Mouse handlers ──
+  const getPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = drawCanvasRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawMode) return;
+    const pos = getPos(e);
+
+    if (activeTool === 'hline') {
+      drawingsRef.current.push({ type: 'hline', points: [pos] });
+      redraw();
+      return;
+    }
+
+    if (activeTool === 'trendline') {
+      if (pendingRef.current.length === 0) {
+        pendingRef.current = [pos];
+      } else {
+        drawingsRef.current.push({ type: 'trendline', points: [pendingRef.current[0], pos] });
+        pendingRef.current = [];
+        redraw();
+      }
+      return;
+    }
+
+    if (activeTool === 'freehand') {
+      isDrawingRef.current = true;
+      pendingRef.current = [pos];
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawMode) return;
+    const pos = getPos(e);
+
+    if (activeTool === 'trendline' && pendingRef.current.length === 1) {
+      pendingRef.current = [pendingRef.current[0], pos];
+      redraw();
+      return;
+    }
+
+    if (activeTool === 'freehand' && isDrawingRef.current) {
+      pendingRef.current.push(pos);
+      redraw();
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (activeTool === 'freehand' && isDrawingRef.current) {
+      isDrawingRef.current = false;
+      if (pendingRef.current.length > 1) {
+        drawingsRef.current.push({ type: 'freehand', points: [...pendingRef.current] });
+      }
+      pendingRef.current = [];
+      redraw();
+    }
+  };
+
+  const handleClear = () => {
+    drawingsRef.current = [];
+    pendingRef.current = [];
+    redraw();
+  };
+
+  // ── Build chart ──
   const buildChart = useCallback(() => {
     if (!containerRef.current || bars.length === 0) return;
 
-    // 기존 차트 제거
     if (chartRef.current) {
       chartRef.current.remove();
       chartRef.current = null;
@@ -165,11 +351,10 @@ export default function StockPriceChart({
         timeVisible: intra,
         secondsVisible: false,
       },
-      handleScroll: true,
-      handleScale: true,
+      handleScroll: !isDrawMode,
+      handleScale: !isDrawMode,
     });
 
-    // Candlestick
     const candles = chart.addSeries(CandlestickSeries, {
       upColor: UP_COLOR,
       downColor: DOWN_COLOR,
@@ -190,7 +375,6 @@ export default function StockPriceChart({
     );
     candles.setData(candleData);
 
-    // Volume
     const volume = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
@@ -210,31 +394,28 @@ export default function StockPriceChart({
 
     chart.timeScale().fitContent();
     chartRef.current = chart;
-  }, [bars, period]);
 
-  // bars 또는 period 변경 시 차트 재생성
-  useEffect(() => {
-    buildChart();
-  }, [buildChart]);
+    // sync canvas after chart created
+    syncCanvasSize();
+  }, [bars, period, isDrawMode, syncCanvasSize]);
 
-  // 리사이즈 대응
+  useEffect(() => { buildChart(); }, [buildChart]);
+
+  // Resize
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
     const ro = new ResizeObserver(() => {
       if (chartRef.current && el) {
-        chartRef.current.applyOptions({
-          width: el.clientWidth,
-          height: el.clientHeight,
-        });
+        chartRef.current.applyOptions({ width: el.clientWidth, height: el.clientHeight });
       }
+      syncCanvasSize();
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [syncCanvasSize]);
 
-  // cleanup
+  // Cleanup
   useEffect(() => {
     return () => {
       if (chartRef.current) {
@@ -246,17 +427,63 @@ export default function StockPriceChart({
 
   return (
     <div className="border-b border-zinc-800">
+      {/* Toolbar */}
       <div className="px-3 py-1.5 flex items-center gap-2 border-b border-zinc-800/40">
         <PeriodSelector current={period} onChange={onPeriodChange} disabled={isLoading} />
         {isLoading && <Loader2 className="w-3 h-3 text-zinc-600 animate-spin" />}
+
+        <div className="w-px h-4 bg-zinc-800 mx-1" />
+
+        {/* Drawing tools */}
+        {TOOLS.map(({ key, icon: Icon, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => { setActiveTool(key); pendingRef.current = []; }}
+            className={cn(
+              'p-1 rounded transition-colors',
+              activeTool === key
+                ? 'bg-yellow-500/15 text-yellow-400'
+                : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/50',
+            )}
+            title={label}
+          >
+            <Icon className="w-3.5 h-3.5" />
+          </button>
+        ))}
+
+        {drawingsRef.current.length > 0 && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 transition-colors"
+            title="모두 지우기"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
+      {/* Chart + Drawing overlay */}
       {bars.length === 0 && !isLoading ? (
         <div className="h-[420px] flex items-center justify-center bg-[#0a0a0a]">
           <span className="text-[10px] font-mono text-zinc-600">NO CHART DATA</span>
         </div>
       ) : (
-        <div ref={containerRef} className="h-[420px] w-full bg-[#0a0a0a]" />
+        <div className="relative h-[420px] w-full bg-[#0a0a0a]">
+          <div ref={containerRef} className="absolute inset-0" />
+          <canvas
+            ref={drawCanvasRef}
+            className={cn(
+              'absolute inset-0',
+              isDrawMode ? 'cursor-crosshair z-10' : 'pointer-events-none',
+            )}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+          />
+        </div>
       )}
     </div>
   );
