@@ -213,9 +213,38 @@ export default function ChatWidget() {
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // Drag
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Drag handlers ──
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    // 버튼 클릭 무시 (드래그만 처리)
+    if ((e.target as HTMLElement).closest('button')) return;
+    const current = pos ?? { x: window.innerWidth - 420 - 24, y: window.innerHeight - 620 - 24 };
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: current.x, origY: current.y };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const dx = ev.clientX - dragRef.current.startX;
+      const dy = ev.clientY - dragRef.current.startY;
+      setPos({
+        x: Math.max(0, Math.min(window.innerWidth - 420, dragRef.current.origX + dx)),
+        y: Math.max(0, Math.min(window.innerHeight - 200, dragRef.current.origY + dy)),
+      });
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [pos]);
 
   const hasConversation = messages.length > 1;
 
@@ -374,14 +403,18 @@ export default function ChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] as const }}
-            className="fixed bottom-6 right-6 z-50
+            className="fixed z-50
                        w-[calc(100vw-48px)] sm:w-[420px] h-[min(620px,80vh)]
                        flex flex-col
                        bg-[#191919] border border-zinc-700/40 rounded-2xl
                        shadow-2xl shadow-black/60 overflow-hidden"
+            style={pos ? { left: pos.x, top: pos.y } : { bottom: 24, right: 24 }}
           >
-            {/* Header */}
-            <div className="px-3 py-2.5 flex items-center justify-between shrink-0 border-b border-zinc-800/40 relative">
+            {/* Header (drag handle) */}
+            <div
+              className="px-3 py-2.5 flex items-center justify-between shrink-0 border-b border-zinc-800/40 relative cursor-grab active:cursor-grabbing select-none"
+              onMouseDown={handleDragStart}
+            >
               <button
                 type="button"
                 onClick={handleToggleHistory}
