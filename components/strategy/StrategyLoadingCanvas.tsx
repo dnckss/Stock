@@ -326,24 +326,35 @@ const CARD_RENDERERS: Record<CardKind, React.ComponentType<{ card: FloatingCard 
 function FloatingCardWrapper({ card }: { card: FloatingCard }) {
   const Renderer = CARD_RENDERERS[card.kind];
 
+  // 카드가 이동할 도착 지점 (생성 위치에서 떨어진 랜덤 위치)
+  const destX = card.x + card.dx * 3;
+  const destY = card.y + card.dy * 3;
+
   return (
     <motion.div
       className="absolute pointer-events-none"
-      style={{ left: `${card.x}%`, top: `${card.y}%`, translate: '-50% -50%' }}
-      initial={{ opacity: 0, scale: 0.6, filter: 'blur(6px)' }}
-      animate={{ opacity: [0, 0.85, 0.85, 0.6], scale: [0.6, 1, 1, 0.9], filter: ['blur(6px)', 'blur(0px)', 'blur(0px)', 'blur(3px)'] }}
-      exit={{ opacity: 0, scale: 0.4, filter: 'blur(8px)' }}
-      transition={{ duration: card.duration * 0.9, ease: 'easeInOut' }}
+      style={{ translate: '-50% -50%' }}
+      initial={{
+        left: `${card.x}%`,
+        top: `${card.y}%`,
+        opacity: 0,
+        scale: 0.5,
+        filter: 'blur(6px)',
+      }}
+      animate={{
+        left: [`${card.x}%`, `${(card.x + destX) / 2}%`, `${destX}%`],
+        top: [`${card.y}%`, `${(card.y + destY) / 2 + card.dy}%`, `${destY}%`],
+        opacity: [0, 0.85, 0],
+        scale: [0.5, 1, 0.85],
+        filter: ['blur(6px)', 'blur(0px)', 'blur(4px)'],
+      }}
+      transition={{
+        duration: card.duration,
+        ease: 'easeInOut',
+        times: [0, 0.4, 1],
+      }}
     >
-      <motion.div
-        animate={{
-          x: [0, card.dx, -card.dx * 0.5, card.dx * 0.3, 0],
-          y: [0, card.dy, -card.dy * 0.3, card.dy * 0.5, 0],
-        }}
-        transition={{ duration: card.duration, delay: card.delay, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <Renderer card={card} />
-      </motion.div>
+      <Renderer card={card} />
     </motion.div>
   );
 }
