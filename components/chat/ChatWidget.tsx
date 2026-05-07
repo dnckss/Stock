@@ -213,23 +213,24 @@ export default function ChatWidget() {
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  // Drag
+  // Drag (panel + button 공유)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [btnPos, setBtnPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number; moved: boolean } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Drag handlers ──
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    // 버튼 클릭 무시 (드래그만 처리)
+  const handlePanelDragStart = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
     const current = pos ?? { x: window.innerWidth - 420 - 24, y: window.innerHeight - 620 - 24 };
-    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: current.x, origY: current.y };
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: current.x, origY: current.y, moved: false };
 
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
+      dragRef.current.moved = true;
       const dx = ev.clientX - dragRef.current.startX;
       const dy = ev.clientY - dragRef.current.startY;
       setPos({
@@ -245,6 +246,31 @@ export default function ChatWidget() {
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   }, [pos]);
+
+  const handleBtnDragStart = useCallback((e: React.MouseEvent) => {
+    const current = btnPos ?? { x: window.innerWidth - 48 - 24, y: window.innerHeight - 48 - 24 };
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: current.x, origY: current.y, moved: false };
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const dx = ev.clientX - dragRef.current.startX;
+      const dy = ev.clientY - dragRef.current.startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragRef.current.moved = true;
+      setBtnPos({
+        x: Math.max(0, Math.min(window.innerWidth - 48, dragRef.current.origX + dx)),
+        y: Math.max(0, Math.min(window.innerHeight - 48, dragRef.current.origY + dy)),
+      });
+    };
+    const onUp = () => {
+      const wasDrag = dragRef.current?.moved ?? false;
+      dragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      if (!wasDrag) setIsOpen(true);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [btnPos]);
 
   const hasConversation = messages.length > 1;
 
@@ -378,20 +404,21 @@ export default function ChatWidget() {
       {/* ── Floating button ── */}
       <AnimatePresence>
         {!isOpen && (
-          <motion.button
+          <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full
+            onMouseDown={handleBtnDragStart}
+            className="fixed z-50 w-12 h-12 rounded-full
                        bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100
                        border border-zinc-700/50 hover:border-zinc-600
                        shadow-lg shadow-black/40
-                       flex items-center justify-center transition-all duration-200"
+                       flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
+            style={btnPos ? { left: btnPos.x, top: btnPos.y } : { bottom: 24, right: 24 }}
           >
             <MessageSquare className="w-5 h-5" />
-          </motion.button>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -413,7 +440,7 @@ export default function ChatWidget() {
             {/* Header (drag handle) */}
             <div
               className="px-3 py-2.5 flex items-center justify-between shrink-0 border-b border-zinc-800/40 relative cursor-grab active:cursor-grabbing select-none"
-              onMouseDown={handleDragStart}
+              onMouseDown={handlePanelDragStart}
             >
               <button
                 type="button"
