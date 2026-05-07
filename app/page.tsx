@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Moon, Sun } from 'lucide-react';
 import { useMarketData } from '@/hooks/useMarketData';
-import { useTheme } from '@/hooks/useTheme';
 import { formatTimestamp } from '@/lib/api';
+import StockSearch from '@/components/common/StockSearch';
 import GlobalMarketTicker from '@/components/terminal/GlobalMarketTicker';
 import MacroIndicators from '@/components/terminal/MacroIndicators';
 import AIPredictionRadar from '@/components/terminal/AIPredictionRadar';
@@ -67,7 +66,6 @@ export default function TerminalPage() {
     error,
     wsConnected,
   } = useMarketData();
-  const { theme, toggle: toggleTheme } = useTheme();
 
   const toTickerItems = (items: MacroIndicator[] | null | undefined) => {
     if (!items) return [];
@@ -164,6 +162,7 @@ export default function TerminalPage() {
           >
             종목 비교
           </Link>
+          <StockSearch stocks={stocks} />
         </div>
       </div>
 
@@ -214,9 +213,6 @@ export default function TerminalPage() {
           </span>
         </div>
         <div className="flex items-center gap-3 text-[9px] font-mono">
-          <button onClick={toggleTheme} className="text-zinc-600 hover:text-zinc-400 transition-colors" title={theme === 'dark' ? 'Soft 모드' : 'Dark 모드'}>
-            {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
-          </button>
           <span className="text-zinc-500">© 2025 Quantix Terminal</span>
         </div>
       </div>

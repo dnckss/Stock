@@ -263,15 +263,3 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
-/* ── Soft dark theme ── */
-[data-theme="soft"] {
-  --background: oklch(0.18 0.005 260);
-  --foreground: oklch(0.85 0 0);
-  --card: oklch(0.20 0.005 260);
-  --card-foreground: oklch(0.85 0 0);
-}
-
-[data-theme="soft"] body {
-  background-color: #1e1e2e;
-}

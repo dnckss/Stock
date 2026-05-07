@@ -68,7 +68,7 @@ export const WS_URL =
 
 // ── Ticker name lookup ──
 
-const TICKER_NAMES: Record<string, string> = {
+export const TICKER_NAMES: Record<string, string> = {
   AAPL: 'Apple Inc',
   MSFT: 'Microsoft Corp',
   NVDA: 'NVIDIA Corp',

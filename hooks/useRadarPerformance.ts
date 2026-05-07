@@ -16,6 +16,9 @@ export interface UseRadarPerformanceReturn {
   isLoading: boolean;
 }
 
+/** 백엔드/외부 API 부하 방지를 위한 동시 요청 제한 */
+const FETCH_CONCURRENCY = 6;
+
 function buildPerfMap(
   cache: PerfCache,
   tickers: string[],
@@ -28,6 +31,20 @@ function buildPerfMap(
     if (item) result.set(key, item);
   }
   return result;
+}
+
+/** 동시 요청 수를 제한하여 순차적으로 batch 실행. 각 batch 완료 시 콜백 호출. */
+async function processInBatches<T>(
+  items: T[],
+  worker: (item: T) => Promise<void>,
+  concurrency: number,
+  onBatchComplete: () => void,
+): Promise<void> {
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    await Promise.allSettled(batch.map(worker));
+    onBatchComplete();
+  }
 }
 
 export function useRadarPerformance(
@@ -52,30 +69,33 @@ export function useRadarPerformance(
       (t) => !cacheRef.current.has(t),
     );
 
-    if (missing.length === 0) {
-      setPerfMap(buildPerfMap(cacheRef.current, stableTickers, period));
-      return;
-    }
+    // 캐시에 이미 있는 데이터로 일단 즉시 반영
+    setPerfMap(buildPerfMap(cacheRef.current, stableTickers, period));
+
+    if (missing.length === 0) return;
 
     let cancelled = false;
     setIsLoading(true);
 
-    Promise.allSettled(
-      missing.map(async (t) => {
-        const raw = await fetchPricePerformance(t);
-        const parsed = parsePricePerformance(raw);
-        return { ticker: t, data: parsed };
-      }),
-    ).then((results) => {
-      if (cancelled) return;
-
-      for (const r of results) {
-        if (r.status === 'fulfilled') {
-          cacheRef.current.set(r.value.ticker, r.value.data);
+    processInBatches(
+      missing,
+      async (t) => {
+        try {
+          const raw = await fetchPricePerformance(t);
+          const parsed = parsePricePerformance(raw);
+          if (!cancelled) cacheRef.current.set(t, parsed);
+        } catch {
+          // 개별 실패는 다른 티커 처리에 영향 없음
         }
-      }
-
-      setPerfMap(buildPerfMap(cacheRef.current, stableTickers, period));
+      },
+      FETCH_CONCURRENCY,
+      () => {
+        if (cancelled) return;
+        // batch 단위로 누적 데이터 반영 (progressive UI 업데이트)
+        setPerfMap(buildPerfMap(cacheRef.current, stableTickers, period));
+      },
+    ).then(() => {
+      if (cancelled) return;
       setIsLoading(false);
     });
 
