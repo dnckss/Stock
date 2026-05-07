@@ -7,7 +7,6 @@ import {
   fetchStockQuote,
   fetchStockAnalysis,
   parseStockAnalysis,
-  requestReport,
   apiHistoryToChart,
   deriveConfidence,
   apiStockNewsToRelatedNews,
@@ -45,7 +44,6 @@ export interface StockDetailState {
 
 export interface UseStockDetailReturn {
   detail: StockDetailState | null;
-  report: string | null;
   quote: StockQuote | null;
   chartBars: ChartBar[];
   chartPeriod: ChartPeriod;
@@ -54,12 +52,9 @@ export interface UseStockDetailReturn {
   analysisLoading: boolean;
   analysisError: string | null;
   isLoading: boolean;
-  reportLoading: boolean;
   newsRefreshing: boolean;
   lastNewsRefreshForced: boolean;
   error: string | null;
-  reportError: string | null;
-  retryReport: () => void;
   retryAnalysis: () => void;
   refreshLatestNews: () => void;
   setChartPeriod: (period: ChartPeriod) => void;
@@ -67,7 +62,6 @@ export interface UseStockDetailReturn {
 
 export function useStockDetail(ticker: string): UseStockDetailReturn {
   const [detail, setDetail] = useState<StockDetailState | null>(null);
-  const [report, setReport] = useState<string | null>(null);
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [chartBars, setChartBars] = useState<ChartBar[]>([]);
   const [chartPeriod, setChartPeriodState] = useState<ChartPeriod>(CHART_DEFAULT_PERIOD as ChartPeriod);
@@ -76,11 +70,9 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [reportLoading, setReportLoading] = useState(false);
   const [newsRefreshing, setNewsRefreshing] = useState(false);
   const [lastNewsRefreshForced, setLastNewsRefreshForced] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reportError, setReportError] = useState<string | null>(null);
   const inFlightNewsRef = useRef(false);
   const lastForcedAtRef = useRef(0);
   const pendingForceRef = useRef(false);
@@ -106,32 +98,12 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     }
   }, []);
 
-  // ── Report ──
-  const generateReport = useCallback(async (t: string) => {
-    setReportLoading(true);
-    setReportError(null);
-    try {
-      const data = await requestReport(t);
-      if (mountedRef.current) setReport(data.report);
-    } catch (err: unknown) {
-      if (mountedRef.current) {
-        setReportError(
-          err instanceof Error ? err.message : 'AI 리포트 생성에 실패했습니다',
-        );
-      }
-    } finally {
-      if (mountedRef.current) setReportLoading(false);
-    }
-  }, []);
-
   // ── Initial load ──
   useEffect(() => {
     mountedRef.current = true;
     let cancelled = false;
     setIsLoading(true);
     setError(null);
-    setReport(null);
-    setReportError(null);
     setAnalysis(null);
     setAnalysisError(null);
     setLastNewsRefreshForced(false);
@@ -172,18 +144,9 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
         setLastNewsRefreshForced(Boolean(data.stock_news_meta?.refresh));
         if (data.stock_news_meta?.refresh) lastForcedAtRef.current = Date.now();
 
-        // report from analysis fallback
-        const reportRecord = data.latest_report ?? data.analysis?.latest_report ?? null;
-
         // quote & chart from initial response
         if (data.quote) setQuote(parseQuote(data.quote));
         if (data.chart) setChartBars(parseChartBars(data.chart.bars));
-
-        if (reportRecord) {
-          setReport(reportRecord.report);
-        } else {
-          generateReport(data.ticker);
-        }
 
         // AI 분석 비동기 로드
         loadAnalysis(data.ticker);
@@ -201,7 +164,7 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
       cancelled = true;
       mountedRef.current = false;
     };
-  }, [ticker, generateReport, loadAnalysis]);
+  }, [ticker, loadAnalysis]);
 
   // ── Quote polling (8s) ──
   useEffect(() => {
@@ -296,17 +259,12 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     };
   }, [ticker]);
 
-  const retryReport = useCallback(() => {
-    if (detail) generateReport(detail.ticker);
-  }, [detail, generateReport]);
-
   const retryAnalysis = useCallback(() => {
     if (detail) loadAnalysis(detail.ticker);
   }, [detail, loadAnalysis]);
 
   return {
     detail,
-    report,
     quote,
     chartBars,
     chartPeriod,
@@ -315,12 +273,9 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     analysisLoading,
     analysisError,
     isLoading,
-    reportLoading,
     newsRefreshing,
     lastNewsRefreshForced,
     error,
-    reportError,
-    retryReport,
     retryAnalysis,
     refreshLatestNews,
     setChartPeriod,
