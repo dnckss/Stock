@@ -2,9 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import Link from 'next/link';
 import { useCallback, useState } from 'react';
-import { ArrowLeft, ExternalLink, Loader2 } from 'lucide-react';
+import { ExternalLink, Loader2 } from 'lucide-react';
+import PageHeader from '@/components/common/PageHeader';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
@@ -147,30 +147,17 @@ export default function NewsDetailView({
         onAnalysis={handleAnalysis}
         onPollExhausted={handlePollExhausted}
       />
-      <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex flex-wrap items-center justify-between gap-2">
-          <Link
-            href={backHref}
-            className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="font-mono text-[10px] uppercase tracking-widest">
-              Back
-            </span>
-          </Link>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => openInNewTab(url)}
-              disabled={!url}
-              className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] font-mono text-zinc-200 transition-colors hover:bg-zinc-800 disabled:opacity-50 disabled:hover:bg-zinc-900"
-            >
-              <ExternalLink className="w-4 h-4" />
-              원문 보기
-            </button>
-          </div>
-        </div>
-      </nav>
+      <PageHeader backHref={backHref} title="News">
+        <button
+          type="button"
+          onClick={() => openInNewTab(url)}
+          disabled={!url}
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-800 hover:border-zinc-700 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          원문 보기
+        </button>
+      </PageHeader>
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         <header className="mb-6">

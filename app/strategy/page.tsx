@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, RefreshCw, ChevronDown, Sparkles, Target } from 'lucide-react';
+import { RefreshCw, ChevronDown, Sparkles, Target } from 'lucide-react';
+import PageHeader from '@/components/common/PageHeader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStrategyData } from '@/hooks/useStrategy';
 import { usePortfolioStream } from '@/hooks/usePortfolioStream';
@@ -241,44 +241,26 @@ export default function StrategyPage() {
         <div className="absolute -bottom-[200px] right-[30%] w-[500px] h-[500px] rounded-full bg-violet-500/[0.02] blur-[120px]" />
       </div>
 
-      {/* Nav */}
-      <nav className="sticky top-0 z-50 bg-[#09090b]/80 backdrop-blur-xl border-b border-zinc-800/50">
-        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-xs font-medium hidden sm:block">Terminal</span>
-            </Link>
-            <div className="h-4 w-px bg-zinc-800" />
-            <div className="flex items-center gap-2.5">
-              <span className="text-base font-bold text-zinc-100 tracking-tight">
-                Quant<span className="text-emerald-400">ix</span>
-              </span>
-              <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Strategy</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {data?.generatedAt && (
-              <span className="text-xs font-mono text-zinc-600 hidden sm:block">
-                {formatGeneratedAt(data.generatedAt)}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={retry}
-              disabled={isLoading}
-              className="text-zinc-500 hover:text-zinc-300 disabled:opacity-40 transition-colors"
-              title="새로고침"
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-          </div>
-        </div>
-      </nav>
+      <PageHeader title="Strategy">
+        {data?.generatedAt && (
+          <span className="text-xs font-mono text-zinc-600 hidden sm:block">
+            {formatGeneratedAt(data.generatedAt)}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={retry}
+          disabled={isLoading}
+          className="text-zinc-500 hover:text-zinc-300 disabled:opacity-40 transition-colors"
+          title="새로고침"
+        >
+          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+        </button>
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+        </span>
+      </PageHeader>
 
       {/* Content */}
       {isLoading ? (

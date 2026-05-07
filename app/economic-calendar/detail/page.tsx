@@ -2,8 +2,8 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, Loader2, RefreshCw, TrendingUp, TrendingDown, Clock, BarChart3, BookOpen, AlertTriangle } from 'lucide-react';
+import { Loader2, RefreshCw, TrendingUp, TrendingDown, Clock, BarChart3, BookOpen, AlertTriangle } from 'lucide-react';
+import PageHeader from '@/components/common/PageHeader';
 import { fetchEconEventDetail, parseEconEventDetail } from '@/lib/api';
 import type { EconEventDetail } from '@/types/dashboard';
 
@@ -66,20 +66,7 @@ function EconEventDetailContent() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-zinc-900/95 backdrop-blur border-b border-zinc-800">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/economic-calendar"
-              className="inline-flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              경제 일정
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PageHeader title="Economic Calendar" />
 
       <main className="max-w-3xl mx-auto px-4 py-6">
         {/* Loading */}

@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
+import PageHeader from '@/components/common/PageHeader';
 import { useStockDetail } from '@/hooks/useStockDetail';
 import { useStockFundamentals } from '@/hooks/useStockFundamentals';
 import StockHeader from '@/components/detail/StockHeader';
@@ -76,25 +77,7 @@ export default function StockDetailPage() {
 
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
-      {/* Nav */}
-      <nav className="shrink-0 border-b border-zinc-800 bg-[#0a0a0a]">
-        <div className="px-3 py-1.5 flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors"
-          >
-            <ArrowLeft className="w-3 h-3" />
-            <span className="font-mono text-[9px] uppercase tracking-widest">Terminal</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] font-bold text-zinc-100 tracking-wider">
-              Quant<span className="text-green-500">ix</span>
-            </span>
-            <span className="text-zinc-700">|</span>
-            <span className="text-[9px] text-zinc-500 font-mono">{detail.ticker}</span>
-          </div>
-        </div>
-      </nav>
+      <PageHeader title={detail.ticker} />
 
       {/* Stock Header */}
       <div className="shrink-0">

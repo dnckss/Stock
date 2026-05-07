@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Newspaper, TrendingUp, TrendingDown, Minus, Search, X } from 'lucide-react';
+import { Loader2, Newspaper, TrendingUp, TrendingDown, Minus, Search, X } from 'lucide-react';
+import PageHeader from '@/components/common/PageHeader';
 import { fetchNewsList } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { ApiStockNewsItem, SentimentLabel } from '@/types/dashboard';
@@ -177,87 +178,63 @@ export default function NewsListPage() {
 
   return (
     <div className="min-h-screen bg-[#09090b]">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-[#09090b]/80 backdrop-blur-xl border-b border-zinc-800/50">
-        <div className="max-w-[1400px] mx-auto px-6">
-          {/* Top row */}
-          <div className="h-14 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors">
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-xs font-medium hidden sm:block">Terminal</span>
-              </Link>
-              <div className="h-4 w-px bg-zinc-800" />
-              <div className="flex items-center gap-2">
-                <Newspaper className="w-4 h-4 text-zinc-500" />
-                <span className="text-sm font-semibold text-zinc-200">뉴스 피드</span>
-              </div>
+      <PageHeader title="News Feed">
+        {total != null && (
+          <span className="text-xs font-mono text-zinc-600">{total.toLocaleString()}건</span>
+        )}
+      </PageHeader>
+
+      {/* Search + filter bar */}
+      <div className="sticky top-14 z-40 bg-[#09090b]/80 backdrop-blur-xl border-b border-zinc-800/40">
+        <div className="max-w-[1400px] mx-auto px-6 py-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="flex items-center gap-2 flex-1">
+            <div className="relative flex-1 max-w-[320px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="뉴스 검색..."
+                className="w-full text-[13px] bg-zinc-900/60 border border-zinc-800/50 rounded-lg pl-9 pr-3 py-2
+                           text-zinc-200 placeholder:text-zinc-600
+                           focus:outline-none focus:border-zinc-700 transition-colors"
+              />
             </div>
-            {total != null && (
-              <span className="text-xs font-mono text-zinc-600">{total.toLocaleString()}건</span>
+            <div className="relative w-[140px]">
+              <input
+                type="text"
+                value={tickerSearch}
+                onChange={(e) => handleTickerSearch(e.target.value)}
+                placeholder="티커 (AAPL)"
+                className="w-full text-[13px] font-mono bg-zinc-900/60 border border-zinc-800/50 rounded-lg px-3 py-2
+                           text-zinc-200 placeholder:text-zinc-600 uppercase
+                           focus:outline-none focus:border-zinc-700 transition-colors"
+              />
+            </div>
+            {hasActiveFilter && (
+              <button onClick={clearSearch} className="p-2 text-zinc-600 hover:text-zinc-400 transition-colors shrink-0" title="필터 초기화">
+                <X className="w-4 h-4" />
+              </button>
             )}
           </div>
-
-          {/* Search + filter row */}
-          <div className="pb-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            {/* Search inputs */}
-            <div className="flex items-center gap-2 flex-1">
-              {/* Text search */}
-              <div className="relative flex-1 max-w-[320px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="뉴스 검색..."
-                  className="w-full text-[13px] bg-zinc-900/60 border border-zinc-800/50 rounded-lg pl-9 pr-3 py-2
-                             text-zinc-200 placeholder:text-zinc-600
-                             focus:outline-none focus:border-zinc-700 transition-colors"
-                />
-              </div>
-              {/* Ticker search */}
-              <div className="relative w-[140px]">
-                <input
-                  type="text"
-                  value={tickerSearch}
-                  onChange={(e) => handleTickerSearch(e.target.value)}
-                  placeholder="티커 (AAPL)"
-                  className="w-full text-[13px] font-mono bg-zinc-900/60 border border-zinc-800/50 rounded-lg px-3 py-2
-                             text-zinc-200 placeholder:text-zinc-600 uppercase
-                             focus:outline-none focus:border-zinc-700 transition-colors"
-                />
-              </div>
-              {hasActiveFilter && (
-                <button
-                  onClick={clearSearch}
-                  className="p-2 text-zinc-600 hover:text-zinc-400 transition-colors shrink-0"
-                  title="필터 초기화"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Sentiment tabs */}
-            <div className="flex items-center gap-1">
-              {FILTER_TABS.map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setSentimentFilter(tab.key)}
-                  className={cn(
-                    'px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all',
-                    sentimentFilter === tab.key
-                      ? 'bg-zinc-800 text-zinc-200'
-                      : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/50',
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-1">
+            {FILTER_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setSentimentFilter(tab.key)}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all',
+                  sentimentFilter === tab.key
+                    ? 'bg-zinc-800 text-zinc-200'
+                    : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/50',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Content */}
       <main className="max-w-[1400px] mx-auto px-6 py-6">
