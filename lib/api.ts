@@ -942,7 +942,9 @@ function toQuarterLabel(dateStr: string): string {
 export function parseFundamentals(
   raw: ApiFundamentalsResponse | null | undefined,
 ): FundamentalsData | null {
-  if (!raw || typeof raw.ticker !== 'string') return null;
+  if (!raw) return null;
+  // ticker 필드가 없어도 다른 데이터가 있으면 파싱 진행
+  if (!raw.ticker && !raw.profile && !raw.indicators) return null;
 
   // Profile
   const rp = raw.profile;

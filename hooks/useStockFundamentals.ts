@@ -31,7 +31,7 @@ export function useStockFundamentals(ticker: string | null): UseStockFundamental
         if (!mountedRef.current) return;
         const parsed = parseFundamentals(raw);
         setData(parsed);
-        if (!parsed) setError('펀더멘털 데이터를 파싱할 수 없습니다');
+        // 파싱 실패해도 에러로 표시하지 않음 — 데이터 없는 섹션은 개별 null 처리
       })
       .catch((err: unknown) => {
         if (!mountedRef.current) return;
