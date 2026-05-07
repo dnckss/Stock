@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Loader2, Newspaper, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { fetchNewsList } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { ApiStockNewsItem, SentimentLabel } from '@/types/dashboard';
 
 const PAGE_SIZE = 50;
 
-const SENT_STYLE: Record<SentimentLabel, { dot: string; label: string; text: string }> = {
-  positive: { dot: 'bg-green-500', label: '호재', text: 'text-green-400' },
-  negative: { dot: 'bg-red-500', label: '악재', text: 'text-red-400' },
-  neutral: { dot: 'bg-yellow-500', label: '중립', text: 'text-yellow-400' },
+const SENT_CONFIG: Record<SentimentLabel, { dot: string; label: string; text: string; bg: string; icon: typeof TrendingUp }> = {
+  positive: { dot: 'bg-emerald-500', label: '호재', text: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', icon: TrendingUp },
+  negative: { dot: 'bg-red-500', label: '악재', text: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20', icon: TrendingDown },
+  neutral: { dot: 'bg-zinc-500', label: '중립', text: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-700/20', icon: Minus },
 };
 
 function formatTime(ts: number): string {
@@ -22,7 +22,14 @@ function formatTime(ts: number): string {
   if (diff < 60) return '방금 전';
   if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+  if (diff < 172800) return '어제';
   return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+}
+
+function formatFullDate(ts: number): string {
+  return new Date(ts * 1000).toLocaleString('ko-KR', {
+    month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+  });
 }
 
 function buildDetailHref(item: ApiStockNewsItem): string {
@@ -34,34 +41,98 @@ function buildDetailHref(item: ApiStockNewsItem): string {
   return `/news?${params.toString()}`;
 }
 
-function NewsRow({ item }: { item: ApiStockNewsItem }) {
-  const style = SENT_STYLE[item.sentiment_label] ?? SENT_STYLE.neutral;
+/* ── News card ── */
+
+function NewsCard({ item }: { item: ApiStockNewsItem }) {
+  const cfg = SENT_CONFIG[item.sentiment_label] ?? SENT_CONFIG.neutral;
+  const SentIcon = cfg.icon;
 
   return (
     <Link
       href={buildDetailHref(item)}
-      className="flex items-start gap-3 px-4 py-3 border-b border-zinc-800/40 hover:bg-zinc-800/30 transition-colors group"
+      className="group block bg-zinc-900/40 border border-zinc-800/50 rounded-xl hover:border-zinc-700/60 hover:bg-zinc-900/60 transition-all duration-200"
     >
-      <div className={cn('mt-2 w-2 h-2 rounded-full shrink-0', style.dot)} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-zinc-200 leading-relaxed line-clamp-2 group-hover:text-zinc-100 transition-colors">
+      <div className="p-4">
+        {/* Top row: publisher + time */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] text-zinc-500 font-medium">{item.publisher}</span>
+          <span className="text-[11px] text-zinc-600" title={formatFullDate(item.timestamp)}>
+            {formatTime(item.timestamp)}
+          </span>
+        </div>
+
+        {/* Title */}
+        <h3 className="text-[15px] text-zinc-200 leading-relaxed font-medium line-clamp-2 group-hover:text-zinc-100 transition-colors">
           {item.title}
-        </p>
-        <div className="flex items-center gap-2 mt-1.5">
-          <span className="text-[11px] text-zinc-600">{item.publisher}</span>
-          <span className="text-[11px] text-zinc-700">{formatTime(item.timestamp)}</span>
+        </h3>
+
+        {/* Bottom row: ticker + sentiment */}
+        <div className="flex items-center gap-2 mt-3">
           {item.ticker && (
-            <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/60 px-1.5 py-0.5 rounded">
+            <span className="text-[11px] font-mono text-zinc-400 bg-zinc-800/60 border border-zinc-700/30 px-2 py-0.5 rounded-md">
               {item.ticker}
             </span>
           )}
-          <span className={cn('text-[10px] font-mono', style.text)}>{style.label}</span>
+          <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md border', cfg.bg, cfg.text)}>
+            <SentIcon className="w-3 h-3" />
+            {cfg.label}
+          </span>
+          {item.score != null && Math.abs(item.score) > 0.01 && (
+            <span className={cn('text-[11px] font-mono tabular-nums', item.score >= 0 ? 'text-emerald-500/60' : 'text-red-500/60')}>
+              {item.score >= 0 ? '+' : ''}{item.score.toFixed(2)}
+            </span>
+          )}
+          {item.confidence != null && item.confidence > 0 && (
+            <span className="text-[11px] font-mono text-zinc-600 ml-auto tabular-nums">
+              {(item.confidence * 100).toFixed(0)}%
+            </span>
+          )}
         </div>
       </div>
-      <ChevronRight className="w-4 h-4 text-zinc-700 group-hover:text-zinc-500 shrink-0 mt-1 transition-colors" />
     </Link>
   );
 }
+
+/* ── Sentiment summary bar ── */
+
+function SentimentBar({ items }: { items: ApiStockNewsItem[] }) {
+  const pos = items.filter((i) => i.sentiment_label === 'positive').length;
+  const neg = items.filter((i) => i.sentiment_label === 'negative').length;
+  const neu = items.length - pos - neg;
+  const total = items.length || 1;
+
+  return (
+    <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="text-xs text-zinc-500">감성 분포</span>
+        <span className="text-xs font-mono text-zinc-600">{items.length}건 분석</span>
+      </div>
+      {/* Bar */}
+      <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800">
+        <div className="bg-emerald-500/70 transition-all duration-500" style={{ width: `${(pos / total) * 100}%` }} />
+        <div className="bg-zinc-500/50 transition-all duration-500" style={{ width: `${(neu / total) * 100}%` }} />
+        <div className="bg-red-500/70 transition-all duration-500" style={{ width: `${(neg / total) * 100}%` }} />
+      </div>
+      {/* Labels */}
+      <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="text-[11px] text-zinc-500">호재 <span className="text-zinc-400 font-mono">{pos}</span></span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-zinc-500" />
+          <span className="text-[11px] text-zinc-500">중립 <span className="text-zinc-400 font-mono">{neu}</span></span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-red-500" />
+          <span className="text-[11px] text-zinc-500">악재 <span className="text-zinc-400 font-mono">{neg}</span></span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main ── */
 
 export default function NewsListPage() {
   const [items, setItems] = useState<ApiStockNewsItem[]>([]);
@@ -114,17 +185,26 @@ export default function NewsListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
+    <div className="min-h-screen bg-[#09090b]">
+      {/* Ambient */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[300px] -left-[200px] w-[600px] h-[600px] rounded-full bg-emerald-500/[0.02] blur-[100px]" />
+        <div className="absolute -bottom-[200px] right-[20%] w-[500px] h-[500px] rounded-full bg-blue-500/[0.02] blur-[100px]" />
+      </div>
+
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-zinc-800">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-[#09090b]/80 backdrop-blur-xl border-b border-zinc-800/50">
+        <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <Link href="/" className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 transition-colors">
               <ArrowLeft className="w-4 h-4" />
-              <span className="text-xs font-medium">Terminal</span>
+              <span className="text-xs font-medium hidden sm:block">Terminal</span>
             </Link>
             <div className="h-4 w-px bg-zinc-800" />
-            <span className="text-sm font-semibold text-zinc-200">뉴스 피드</span>
+            <div className="flex items-center gap-2">
+              <Newspaper className="w-4 h-4 text-zinc-500" />
+              <span className="text-sm font-semibold text-zinc-200">뉴스 피드</span>
+            </div>
           </div>
           {total != null && (
             <span className="text-xs font-mono text-zinc-600">{total.toLocaleString()}건</span>
@@ -133,43 +213,54 @@ export default function NewsListPage() {
       </header>
 
       {/* Content */}
-      <main className="max-w-3xl mx-auto">
+      <main className="relative max-w-3xl mx-auto px-6 py-6">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
+            <span className="text-xs text-zinc-600">뉴스를 불러오는 중...</span>
           </div>
         ) : error && items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-sm text-red-400 mb-3">{error}</p>
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <p className="text-sm text-red-400">{error}</p>
             <button
               onClick={() => loadPage(0, true)}
-              className="text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded-lg px-4 py-2 transition-colors"
+              className="text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded-xl px-5 py-2.5 transition-colors"
             >
               다시 시도
             </button>
           </div>
         ) : items.length === 0 ? (
-          <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center justify-center py-24">
+            <Newspaper className="w-8 h-8 text-zinc-700 mb-3" />
             <p className="text-sm text-zinc-600">뉴스가 없습니다</p>
           </div>
         ) : (
-          <>
-            {items.map((item, i) => (
-              <NewsRow key={`${item.url}-${i}`} item={item} />
-            ))}
+          <div className="space-y-4">
+            {/* Sentiment summary */}
+            <SentimentBar items={items} />
+
+            {/* News list */}
+            <div className="space-y-3">
+              {items.map((item, i) => (
+                <NewsCard key={`${item.url}-${i}`} item={item} />
+              ))}
+            </div>
 
             {/* Load more */}
             {hasMoreRef.current && (
-              <div className="flex justify-center py-6">
+              <div className="flex justify-center pt-4 pb-2">
                 <button
                   onClick={handleLoadMore}
                   disabled={isLoadingMore}
                   className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200
-                             border border-zinc-800 hover:border-zinc-700 rounded-xl px-6 py-2.5
-                             transition-colors disabled:opacity-50"
+                             bg-zinc-900/40 border border-zinc-800/50 hover:border-zinc-700/60
+                             rounded-xl px-8 py-3 transition-all duration-200 disabled:opacity-50"
                 >
                   {isLoadingMore ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      불러오는 중...
+                    </>
                   ) : (
                     '더 불러오기'
                   )}
@@ -178,11 +269,11 @@ export default function NewsListPage() {
             )}
 
             {!hasMoreRef.current && items.length > 0 && (
-              <div className="text-center py-6">
-                <span className="text-xs text-zinc-700 font-mono">모든 뉴스를 불러왔습니다</span>
+              <div className="text-center py-8">
+                <span className="text-xs text-zinc-700">모든 뉴스를 불러왔습니다</span>
               </div>
             )}
-          </>
+          </div>
         )}
       </main>
     </div>
