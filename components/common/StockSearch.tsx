@@ -117,7 +117,7 @@ export default function StockSearch({ stocks }: { stocks?: RadarStock[] }) {
 
       {/* Dropdown */}
       {showDropdown && (
-        <div className="absolute top-full left-0 mt-1 w-[300px] z-50
+        <div className="absolute top-full right-0 mt-1 w-[300px] z-50
                         bg-zinc-900 border border-zinc-700/50 rounded-xl shadow-xl shadow-black/40
                         overflow-hidden">
           {results.map((r, i) => {
