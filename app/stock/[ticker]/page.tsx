@@ -18,12 +18,12 @@ import FundamentalsPanel from '@/components/detail/fundamentals/FundamentalsPane
 import RelatedNews from '@/components/detail/RelatedNews';
 import StockAnalysisPanel from '@/components/detail/StockAnalysis';
 
-function PageSkeleton() {
+function PanelSkeleton({ label }: { label: string }) {
   return (
-    <div className="h-screen bg-[#0a0a0a] flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="w-6 h-6 text-zinc-500 animate-spin mx-auto mb-3" />
-        <p className="text-xs text-zinc-500 font-mono">데이터 로딩 중...</p>
+    <div className="border-b border-zinc-800 px-4 py-8">
+      <div className="flex items-center justify-center gap-2">
+        <Loader2 className="w-3.5 h-3.5 text-zinc-600 animate-spin" />
+        <span className="text-[10px] text-zinc-600 font-mono">{label}</span>
       </div>
     </div>
   );
@@ -55,7 +55,7 @@ export default function StockDetailPage() {
     error: fundamentalsError,
     refreshSection,
     sectionRefreshing,
-  } = useStockFundamentals(detail ? ticker : null);
+  } = useStockFundamentals(ticker);
   const watchlist = useWatchlist();
   const { memo, setMemo } = useStockMemo(ticker);
   const { add: addAlert, requestPermission } = useAlerts();
@@ -63,9 +63,7 @@ export default function StockDetailPage() {
   const [alertPrice, setAlertPrice] = useState('');
   const [alertDir, setAlertDir] = useState<'above' | 'below'>('above');
 
-  if (isLoading) return <PageSkeleton />;
-
-  if (error) {
+  if (error && !detail) {
     return (
       <div className="h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
@@ -83,23 +81,21 @@ export default function StockDetailPage() {
     );
   }
 
-  if (!detail) return null;
-
   return (
     <div className="h-screen flex flex-col bg-[#0a0a0a] overflow-hidden">
-      <PageHeader title={detail.ticker}>
+      <PageHeader title={detail?.ticker ?? ticker.toUpperCase()}>
         <button
           type="button"
-          onClick={() => watchlist.toggle(detail.ticker)}
+          onClick={() => watchlist.toggle(ticker)}
           className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-yellow-400 transition-colors"
-          title={watchlist.has(detail.ticker) ? '관심 종목 해제' : '관심 종목 추가'}
+          title={watchlist.has(ticker) ? '관심 종목 해제' : '관심 종목 추가'}
         >
-          <Star className={`w-4 h-4 ${watchlist.has(detail.ticker) ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-          <span className="hidden sm:block">{watchlist.has(detail.ticker) ? '관심 종목' : '관심 추가'}</span>
+          <Star className={`w-4 h-4 ${watchlist.has(ticker) ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+          <span className="hidden sm:block">{watchlist.has(ticker) ? '관심 종목' : '관심 추가'}</span>
         </button>
         <button
           type="button"
-          onClick={async () => { await requestPermission(); setShowAlertForm((p) => !p); }}
+          onClick={async () => { await requestPermission(); setShowAlertForm((prev) => !prev); }}
           className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
           title="가격 알림"
         >
@@ -128,7 +124,7 @@ export default function StockDetailPage() {
           <button
             onClick={() => {
               const price = Number(alertPrice);
-              if (price > 0) { addAlert(detail.ticker, price, alertDir); setAlertPrice(''); setShowAlertForm(false); }
+              if (price > 0) { addAlert(ticker, price, alertDir); setAlertPrice(''); setShowAlertForm(false); }
             }}
             disabled={!Number(alertPrice)}
             className="text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 border border-zinc-700/50 rounded px-3 py-1.5 disabled:opacity-30 transition-colors"
@@ -142,9 +138,11 @@ export default function StockDetailPage() {
       )}
 
       {/* Stock Header */}
-      <div className="shrink-0">
-        <StockHeader detail={detail} quote={quote} />
-      </div>
+      {detail && (
+        <div className="shrink-0">
+          <StockHeader detail={detail} quote={quote} />
+        </div>
+      )}
 
       {/* Main: 2-panel layout */}
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -184,7 +182,7 @@ export default function StockDetailPage() {
           {/* 토스증권 바로가기 */}
           <div className="px-4 py-4">
             <a
-              href={`https://tossinvest.com/stocks/${detail.ticker}`}
+              href={`https://tossinvest.com/stocks/${ticker}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg
@@ -199,13 +197,17 @@ export default function StockDetailPage() {
 
         {/* Right: News + AI Report */}
         <div className="w-[420px] shrink-0 flex flex-col overflow-y-auto terminal-scroll">
-          <RelatedNews
-            items={detail.relatedNews}
-            ticker={detail.ticker}
-            onRefreshLatest={refreshLatestNews}
-            isRefreshing={newsRefreshing}
-            lastRefreshForced={lastNewsRefreshForced}
-          />
+          {detail ? (
+            <RelatedNews
+              items={detail.relatedNews}
+              ticker={detail.ticker}
+              onRefreshLatest={refreshLatestNews}
+              isRefreshing={newsRefreshing}
+              lastRefreshForced={lastNewsRefreshForced}
+            />
+          ) : (
+            <PanelSkeleton label="뉴스 로딩 중..." />
+          )}
           <StockAnalysisPanel
             analysis={analysis}
             isLoading={analysisLoading}
