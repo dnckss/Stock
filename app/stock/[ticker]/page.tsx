@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
 import { useStockDetail } from '@/hooks/useStockDetail';
 import { useStockFundamentals } from '@/hooks/useStockFundamentals';
 import StockHeader from '@/components/detail/StockHeader';
@@ -119,6 +119,20 @@ export default function StockDetailPage() {
             sectionRefreshing={sectionRefreshing}
             onRefreshSection={refreshSection}
           />
+          {/* 토스증권 바로가기 */}
+          <div className="px-4 py-4">
+            <a
+              href={`https://tossinvest.com/stocks/${detail.ticker}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg
+                         border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/60
+                         text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              토스증권에서 보기
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
         </div>
 
         {/* Right: News + AI Report */}
