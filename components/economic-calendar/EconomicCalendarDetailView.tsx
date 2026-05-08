@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, CalendarDays } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import {
   fetchEconomicCalendar,
@@ -348,6 +348,21 @@ export default function EconomicCalendarDetailView() {
           </div>
         )}
       </main>
+
+      {/* 오늘로 이동 플로팅 버튼 */}
+      <button
+        type="button"
+        onClick={() => todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        className="fixed bottom-6 left-6 z-40 flex items-center gap-2
+                   bg-zinc-900 border border-zinc-700/50 hover:border-zinc-600
+                   text-zinc-400 hover:text-zinc-200
+                   rounded-full px-4 py-2.5 shadow-lg shadow-black/40
+                   transition-all duration-200"
+        title="오늘로 이동"
+      >
+        <CalendarDays className="w-4 h-4" />
+        <span className="text-xs font-medium">오늘</span>
+      </button>
     </div>
   );
 }
