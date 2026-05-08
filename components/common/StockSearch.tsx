@@ -3,31 +3,71 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
-import { TICKER_NAMES } from '@/lib/api';
+import { API_BASE } from '@/lib/api';
 import StockLogo from '@/components/common/StockLogo';
 import type { RadarStock } from '@/types/dashboard';
+
+interface UniverseItem {
+  ticker: string;
+  name: string;
+  sector?: string;
+  searchKey: string;
+}
 
 interface SearchResult {
   ticker: string;
   name: string;
+  sector?: string;
   price?: number;
   changePct?: number;
 }
 
-// 모든 티커+회사명 쌍을 검색 가능한 목록으로 변환
-const STATIC_ENTRIES = Object.entries(TICKER_NAMES).map(([ticker, name]) => ({
-  ticker,
-  name,
-  searchKey: `${ticker} ${name}`.toLowerCase(),
-}));
+// 전체 종목 캐시 (앱 수명 동안 1회 로드)
+let universeCache: UniverseItem[] | null = null;
+let universeFetching = false;
+
+async function loadUniverse(): Promise<UniverseItem[]> {
+  if (universeCache) return universeCache;
+  if (universeFetching) {
+    // 다른 인스턴스가 로딩 중 — 잠시 대기
+    await new Promise((r) => setTimeout(r, 500));
+    return universeCache ?? [];
+  }
+  universeFetching = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/stocks/universe`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const items: UniverseItem[] = (data.items ?? []).map((item: Record<string, unknown>) => ({
+      ticker: String(item.ticker ?? ''),
+      name: String(item.name ?? ''),
+      sector: item.sector ? String(item.sector) : undefined,
+      searchKey: `${item.ticker} ${item.name}`.toLowerCase(),
+    }));
+    universeCache = items;
+    return items;
+  } catch {
+    return [];
+  } finally {
+    universeFetching = false;
+  }
+}
 
 export default function StockSearch({ stocks }: { stocks?: RadarStock[] }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(-1);
+  const [universe, setUniverse] = useState<UniverseItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // 최초 포커스 시 universe 로드
+  useEffect(() => {
+    if (focused && universe.length === 0) {
+      loadUniverse().then(setUniverse);
+    }
+  }, [focused, universe.length]);
 
   // 라이브 가격 매핑
   const priceMap = useMemo(() => {
@@ -43,7 +83,7 @@ export default function StockSearch({ stocks }: { stocks?: RadarStock[] }) {
     const q = query.trim().toLowerCase();
     if (!q) return [];
 
-    const matched = STATIC_ENTRIES
+    return universe
       .filter((e) => e.searchKey.includes(q))
       .slice(0, 8)
       .map((e) => {
@@ -51,12 +91,12 @@ export default function StockSearch({ stocks }: { stocks?: RadarStock[] }) {
         return {
           ticker: e.ticker,
           name: e.name,
+          sector: e.sector,
           price: live?.price,
           changePct: live?.changePct,
         };
       });
-    return matched;
-  }, [query, priceMap]);
+  }, [query, universe, priceMap]);
 
   const showDropdown = focused && results.length > 0;
 
@@ -72,7 +112,6 @@ export default function StockSearch({ stocks }: { stocks?: RadarStock[] }) {
     return () => document.removeEventListener('mousedown', close);
   }, [showDropdown]);
 
-  // 선택 초기화
   useEffect(() => { setSelectedIdx(-1); }, [query]);
 
   const navigate = (ticker: string) => {
@@ -117,9 +156,9 @@ export default function StockSearch({ stocks }: { stocks?: RadarStock[] }) {
 
       {/* Dropdown */}
       {showDropdown && (
-        <div className="absolute top-full right-0 mt-1 w-[300px] z-50
+        <div className="absolute top-full right-0 mt-1 w-[320px] z-50
                         bg-zinc-900 border border-zinc-700/50 rounded-xl shadow-xl shadow-black/40
-                        overflow-hidden">
+                        overflow-hidden max-h-[400px] overflow-y-auto">
           {results.map((r, i) => {
             const positive = (r.changePct ?? 0) >= 0;
             return (
@@ -138,6 +177,9 @@ export default function StockSearch({ stocks }: { stocks?: RadarStock[] }) {
                     <span className="text-[11px] font-mono font-bold text-zinc-100">{r.ticker}</span>
                     <span className="text-[11px] text-zinc-500 truncate">{r.name}</span>
                   </div>
+                  {r.sector && (
+                    <span className="text-[9px] text-zinc-600">{r.sector}</span>
+                  )}
                 </div>
                 {r.price != null && (
                   <div className="text-right shrink-0">
