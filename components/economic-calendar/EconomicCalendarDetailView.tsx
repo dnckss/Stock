@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import PageHeader from '@/components/common/PageHeader';
 import {
   fetchEconomicCalendar,
   apiEconomicCalendarToDisplay,
@@ -175,35 +175,17 @@ export default function EconomicCalendarDetailView() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-zinc-900/95 backdrop-blur border-b border-zinc-800">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              터미널
-            </Link>
-            <span className="text-zinc-700">|</span>
-            <h1 className="text-sm font-mono font-bold tracking-wider">
-              경제 일정
-            </h1>
-          </div>
-          <button
-            type="button"
-            onClick={() => void loadData(1)}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-1.5 rounded border border-zinc-700 text-zinc-300 hover:bg-zinc-700/60 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <RefreshCw
-              className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`}
-            />
-            {isRefreshing ? '갱신중...' : '새로고침'}
-          </button>
-        </div>
-      </header>
+      <PageHeader title="Economic Calendar">
+        <button
+          type="button"
+          onClick={() => void loadData(1)}
+          disabled={isRefreshing}
+          className="text-zinc-500 hover:text-zinc-300 disabled:opacity-40 transition-colors"
+          title="새로고침"
+        >
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+        </button>
+      </PageHeader>
 
       <main className="max-w-5xl mx-auto px-4 py-4">
         {/* Meta info */}
@@ -294,7 +276,7 @@ export default function EconomicCalendarDetailView() {
               const isToday = isTodayLabel(dateLabel);
               return (
               <section key={dateLabel} ref={isToday ? todayRef : undefined}>
-                <div className={`sticky top-[53px] z-[5] backdrop-blur py-1.5 mb-2 border-b ${isToday ? 'bg-green-500/5 border-green-500/20' : 'bg-[#0a0a0a]/95 border-zinc-800'}`}>
+                <div className={`sticky top-[56px] z-[5] backdrop-blur py-1.5 mb-2 border-b ${isToday ? 'bg-green-500/5 border-green-500/20' : 'bg-[#0a0a0a]/95 border-zinc-800'}`}>
                   <h2 className={`text-[11px] font-mono font-semibold tracking-wide ${isToday ? 'text-green-400' : 'text-zinc-300'}`}>
                     {dateLabel}{isToday ? ' — 오늘' : ''}
                   </h2>
