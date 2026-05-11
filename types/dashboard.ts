@@ -596,6 +596,7 @@ export interface ApiPortfolioAllocation {
   shares: number;
   amount: number;
   weight_pct: number;
+  weight?: number;
   rationale?: string;
 }
 
