@@ -541,11 +541,11 @@ export default function PortfolioResultView({ data }: { data: PortfolioFullResul
         </div>
         <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl px-4 py-3">
           <span className="text-[10px] font-mono text-zinc-600 uppercase block mb-1">투자 성향</span>
-          <span className="text-lg font-semibold text-zinc-100">{data.styleKo}</span>
+          <span className="text-lg font-semibold text-zinc-100">{data.styleKo || data.style || '-'}</span>
         </div>
         <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-xl px-4 py-3">
           <span className="text-[10px] font-mono text-zinc-600 uppercase block mb-1">투자 기간</span>
-          <span className="text-lg font-semibold text-zinc-100">{data.periodKo}</span>
+          <span className="text-lg font-semibold text-zinc-100">{data.periodKo || data.period || '-'}</span>
         </div>
       </div>
 
