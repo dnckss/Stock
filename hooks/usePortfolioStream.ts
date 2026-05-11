@@ -148,8 +148,8 @@ export function usePortfolioStream(): UsePortfolioStreamReturn {
         const raw = JSON.parse(e.data);
         const payload = raw.data ?? raw.result ?? raw;
 
-        // allocations가 있으면 최종 포트폴리오 결과
-        if (Array.isArray(payload.allocations)) {
+        // allocations 또는 portfolio_thesis가 있으면 최종 결과로 간주
+        if (Array.isArray(payload.allocations) || payload.portfolio_thesis) {
           const parsed = parsePortfolioFullResult(payload as ApiPortfolioStreamResult);
           if (parsed) {
             setResult(parsed);
@@ -195,7 +195,7 @@ export function usePortfolioStream(): UsePortfolioStreamReturn {
         if (data.error) {
           setError(data.error);
           setStatus('error');
-        } else if (Array.isArray(data.allocations)) {
+        } else {
           const parsed = parsePortfolioFullResult(data as ApiPortfolioStreamResult);
           if (parsed) {
             setResult(parsed);
@@ -204,10 +204,6 @@ export function usePortfolioStream(): UsePortfolioStreamReturn {
             setError('포트폴리오 결과를 파싱할 수 없습니다');
             setStatus('error');
           }
-        } else {
-          // allocations도 error도 없는 경우
-          setError('포트폴리오 생성 결과가 비어있습니다');
-          setStatus('error');
         }
       } catch {
         setError('포트폴리오 결과를 처리할 수 없습니다');

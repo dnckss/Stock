@@ -761,20 +761,22 @@ export async function fetchPortfolio(options: {
 }
 
 export function parsePortfolioResult(raw: ApiPortfolioResponse | null | undefined): PortfolioResult | null {
-  if (!raw || !Array.isArray(raw.allocations)) return null;
+  if (!raw) return null;
+  // allocations가 배열이 아니어도 빈 배열로 fallback (파싱 자체는 성공)
+  const rawAllocs = Array.isArray(raw.allocations) ? raw.allocations : [];
   return {
     budget: raw.budget ?? 0,
     style: raw.style ?? '',
     styleKo: raw.style_ko ?? raw.style ?? '',
     period: raw.period ?? '',
     periodKo: raw.period_ko ?? raw.period ?? '',
-    allocations: raw.allocations.map((a) => ({
+    allocations: rawAllocs.map((a) => ({
       ticker: String(a.ticker ?? '').trim().toUpperCase(),
       name: String(a.name ?? '').trim(),
       price: a.price ?? 0,
       shares: a.shares ?? 0,
       amount: a.amount ?? 0,
-      weightPct: a.weight_pct ?? 0,
+      weightPct: a.weight_pct ?? a.weight ?? 0,
       rationale: String(a.rationale ?? '').trim(),
     })),
     totalInvested: raw.total_invested ?? 0,
