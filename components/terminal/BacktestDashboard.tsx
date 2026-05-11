@@ -7,7 +7,8 @@ import {
   Clock, AlertTriangle, Info, Loader2, TrendingUp,
 } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  ResponsiveContainer, Tooltip, Cell, ReferenceLine, Area, ComposedChart,
 } from 'recharts';
 import { useBacktest } from '@/hooks/useBacktest';
 import { formatUsd, formatPctDirect, formatDateWithDay } from '@/lib/api';
@@ -218,9 +219,13 @@ function TradeCard({ trade, source, isOpen, onToggle }: {
   );
 }
 
-/* ── Equity curve (derived from trades) ── */
+/* ── Performance charts ── */
 
-type CurvePayload = { payload?: { date: string; cumRet: number }; value?: number };
+type CurvePoint = { date: string; cumRet: number; drawdown: number };
+type TradeBarPoint = { date: string; ret: number; ticker: string };
+
+type CurvePayload = { payload?: CurvePoint; value?: number; dataKey?: string };
+type TradeBarPayload = { payload?: TradeBarPoint; value?: number };
 
 function CurveTooltip({ active, payload }: { active?: boolean; payload?: CurvePayload[] }) {
   if (!active || !payload?.length) return null;
@@ -230,43 +235,141 @@ function CurveTooltip({ active, payload }: { active?: boolean; payload?: CurvePa
     <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/95 px-3 py-2 shadow-xl backdrop-blur-lg text-xs font-mono">
       <p className="text-zinc-400">{d.date}</p>
       <p className={d.cumRet >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
-        {d.cumRet >= 0 ? '+' : ''}{d.cumRet.toFixed(2)}%
+        누적 {d.cumRet >= 0 ? '+' : ''}{d.cumRet.toFixed(2)}%
+      </p>
+      {d.drawdown < 0 && (
+        <p className="text-red-400/70">DD {d.drawdown.toFixed(2)}%</p>
+      )}
+    </div>
+  );
+}
+
+function TradeBarTooltip({ active, payload }: { active?: boolean; payload?: TradeBarPayload[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  if (!d) return null;
+  return (
+    <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/95 px-3 py-2 shadow-xl backdrop-blur-lg text-xs font-mono">
+      <p className="text-zinc-300 font-bold">{d.ticker}</p>
+      <p className="text-zinc-400">{d.date}</p>
+      <p className={d.ret >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+        {d.ret >= 0 ? '+' : ''}{d.ret.toFixed(2)}%
       </p>
     </div>
   );
 }
 
-function EquityCurve({ trades }: { trades: BacktestTrade[] }) {
-  const curveData = useMemo(() => {
-    const closed = trades
+function PerformanceCharts({ trades }: { trades: BacktestTrade[] }) {
+  const closed = useMemo(() =>
+    trades
       .filter((t) => t.status === 'closed' && t.exit_date)
-      .sort((a, b) => (a.exit_date ?? '').localeCompare(b.exit_date ?? ''));
+      .sort((a, b) => (a.exit_date ?? '').localeCompare(b.exit_date ?? '')),
+    [trades],
+  );
+
+  // Equity curve + drawdown
+  const curveData = useMemo(() => {
     if (closed.length < 2) return [];
     let cum = 0;
+    let peak = 0;
     return closed.map((t) => {
       cum += Number(t.portfolio_return_pct) || 0;
-      return { date: formatDateWithDay(t.exit_date), cumRet: cum };
+      if (cum > peak) peak = cum;
+      return { date: formatDateWithDay(t.exit_date), cumRet: cum, drawdown: cum - peak };
     });
-  }, [trades]);
+  }, [closed]);
 
-  if (curveData.length < 2) return null;
+  // Per-trade return bars
+  const tradeBarData = useMemo(() =>
+    closed.map((t) => {
+      const mainTicker = t.legs?.[0]?.ticker ?? '';
+      return {
+        date: formatDateWithDay(t.exit_date),
+        ret: Number(t.portfolio_return_pct) || 0,
+        ticker: mainTicker,
+      };
+    }),
+    [closed],
+  );
+
+  // Win/Loss stats
+  const wins = closed.filter((t) => (Number(t.portfolio_return_pct) || 0) >= 0);
+  const losses = closed.filter((t) => (Number(t.portfolio_return_pct) || 0) < 0);
+  const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + (Number(t.portfolio_return_pct) || 0), 0) / wins.length : 0;
+  const avgLoss = losses.length > 0 ? losses.reduce((s, t) => s + (Number(t.portfolio_return_pct) || 0), 0) / losses.length : 0;
+
+  if (closed.length < 2) return null;
 
   return (
-    <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl overflow-hidden">
-      <div className="px-3 py-2 border-b border-zinc-800/40 flex items-center gap-2">
-        <TrendingUp className="w-3.5 h-3.5 text-zinc-500" />
-        <span className="text-[10px] font-mono text-zinc-500 uppercase">Equity Curve</span>
+    <div className="space-y-3">
+      {/* Equity curve with drawdown */}
+      <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl overflow-hidden">
+        <div className="px-3 py-2 border-b border-zinc-800/40 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-3.5 h-3.5 text-zinc-500" />
+            <span className="text-[10px] font-mono text-zinc-500 uppercase">누적 수익률 + 낙폭</span>
+          </div>
+          <div className="flex items-center gap-3 text-[9px] font-mono text-zinc-600">
+            <span className="flex items-center gap-1"><span className="w-2 h-0.5 bg-emerald-500 rounded" />수익률</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-500/20 rounded-sm" />낙폭</span>
+          </div>
+        </div>
+        <div className="px-2 py-2 h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={curveData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1c1c22" />
+              <XAxis dataKey="date" tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }} tickLine={false} axisLine={false} width={45} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
+              <Tooltip content={<CurveTooltip />} />
+              <ReferenceLine y={0} stroke="#27272a" />
+              <Area type="monotone" dataKey="drawdown" fill="#ef4444" fillOpacity={0.1} stroke="none" />
+              <Line type="monotone" dataKey="cumRet" stroke="#10b981" strokeWidth={1.5} dot={false} activeDot={{ r: 3, fill: '#10b981', strokeWidth: 0 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
       </div>
-      <div className="px-2 py-2 h-[160px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={curveData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1c1c22" />
-            <XAxis dataKey="date" tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }} tickLine={false} axisLine={false} width={45} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
-            <Tooltip content={<CurveTooltip />} />
-            <Line type="monotone" dataKey="cumRet" stroke="#10b981" strokeWidth={1.5} dot={false} activeDot={{ r: 3, fill: '#10b981', strokeWidth: 0 }} />
-          </LineChart>
-        </ResponsiveContainer>
+
+      {/* Per-trade return bars */}
+      <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl overflow-hidden">
+        <div className="px-3 py-2 border-b border-zinc-800/40 flex items-center gap-2">
+          <span className="text-[10px] font-mono text-zinc-500 uppercase">트레이드별 수익률</span>
+        </div>
+        <div className="px-2 py-2 h-[160px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={tradeBarData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1c1c22" />
+              <XAxis dataKey="date" tick={{ fill: '#3f3f46', fontSize: 8, fontFamily: 'monospace' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis tick={{ fill: '#3f3f46', fontSize: 9, fontFamily: 'monospace' }} tickLine={false} axisLine={false} width={40} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
+              <ReferenceLine y={0} stroke="#27272a" />
+              <Tooltip content={<TradeBarTooltip />} />
+              <Bar dataKey="ret" radius={[2, 2, 0, 0]} barSize={Math.max(4, Math.min(16, 300 / tradeBarData.length))}>
+                {tradeBarData.map((d, i) => (
+                  <Cell key={i} fill={d.ret >= 0 ? '#10b981' : '#ef4444'} fillOpacity={0.7} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Win vs Loss summary */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl px-3 py-3">
+          <span className="text-[9px] font-mono text-zinc-600 uppercase block mb-2">수익 트레이드</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-lg font-mono font-bold text-emerald-400">{wins.length}</span>
+            <span className="text-[10px] text-zinc-500">건</span>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-400/70">평균 {avgWin >= 0 ? '+' : ''}{avgWin.toFixed(2)}%</span>
+        </div>
+        <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl px-3 py-3">
+          <span className="text-[9px] font-mono text-zinc-600 uppercase block mb-2">손실 트레이드</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-lg font-mono font-bold text-red-400">{losses.length}</span>
+            <span className="text-[10px] text-zinc-500">건</span>
+          </div>
+          <span className="text-[10px] font-mono text-red-400/70">평균 {avgLoss.toFixed(2)}%</span>
+        </div>
       </div>
     </div>
   );
@@ -420,8 +523,8 @@ export default function BacktestDashboard() {
         {/* Summary */}
         {summary && totalTrades > 0 && <SummarySection summary={summary} />}
 
-        {/* Equity curve */}
-        {trades.length >= 2 && <EquityCurve trades={trades} />}
+        {/* Performance charts */}
+        {trades.length >= 2 && <PerformanceCharts trades={trades} />}
 
         {/* Counts */}
         {summary && totalTrades > 0 && (
