@@ -178,7 +178,7 @@ export default function NewsListPage() {
 
   return (
     <div className="min-h-screen bg-[#09090b]">
-      <PageHeader title="News Feed">
+      <PageHeader title="News">
         {total != null && (
           <span className="text-xs font-mono text-zinc-600">{total.toLocaleString()}건</span>
         )}

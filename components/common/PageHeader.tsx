@@ -5,7 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 
 export default function PageHeader({
   backHref = '/',
-  backLabel = 'Terminal',
+  backLabel = 'Home',
   title,
   children,
 }: {

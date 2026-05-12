@@ -1,7 +1,7 @@
 import EconomicCalendarDetailView from '@/components/economic-calendar/EconomicCalendarDetailView';
 
 export const metadata = {
-  title: '경제 일정 | Quantix Terminal',
+  title: 'Economic Calendar | Quantix',
 };
 
 export default function EconomicCalendarPage() {

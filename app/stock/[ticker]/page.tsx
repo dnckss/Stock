@@ -74,7 +74,7 @@ export default function StockDetailPage() {
             className="inline-flex items-center gap-2 text-sm text-green-500 hover:text-green-400 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            터미널로 돌아가기
+            돌아가기
           </Link>
         </div>
       </div>
@@ -219,8 +219,8 @@ export default function StockDetailPage() {
 
       {/* Status bar */}
       <div className="shrink-0 px-3 py-1 border-t border-zinc-800 flex items-center justify-between text-[8px] font-mono text-zinc-700">
-        <span>QUANTIX v3.7.2</span>
-        <span>&copy; 2025 Quantix</span>
+        <span>Quantix</span>
+        <span>&copy; 2026 Quantix</span>
       </div>
     </div>
   );

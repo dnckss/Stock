@@ -103,11 +103,11 @@ function generateSparkline(points: number = 16): number[] {
 // ── Phase config ──
 
 const PHASES = [
-  { label: '시장 데이터 수집', description: '실시간 주가 / 거래량 / 지수 데이터를 수집합니다' },
-  { label: '뉴스 감성 분석', description: '최신 뉴스의 투자 심리를 AI로 분석합니다' },
-  { label: '기술적 지표 계산', description: 'RSI / MACD / 볼린저밴드 등 핵심 지표를 산출합니다' },
-  { label: '섹터 상관관계 분석', description: '업종별 괴리율과 회전 패턴을 분석합니다' },
-  { label: 'AI 전략 수립', description: '모든 데이터를 종합하여 최적 전략을 도출합니다' },
+  { label: 'Market Data', description: '실시간 시장 데이터를 수집하고 있습니다' },
+  { label: 'Sentiment', description: '뉴스 감성을 분석하고 있습니다' },
+  { label: 'Technicals', description: '기술적 지표를 산출하고 있습니다' },
+  { label: 'Correlation', description: '섹터 상관관계를 분석하고 있습니다' },
+  { label: 'Strategy', description: '최적 전략을 도출하고 있습니다' },
 ] as const;
 
 const PHASE_DURATION_MS = 12_000;
@@ -484,7 +484,7 @@ export default function StrategyLoadingCanvas() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
           </span>
-          <span className="text-xs font-medium text-emerald-400">AI Strategy Engine</span>
+          <span className="text-xs font-medium text-emerald-400">Strategy Engine</span>
         </div>
         <DataCounter phaseIndex={phaseIndex} />
       </div>

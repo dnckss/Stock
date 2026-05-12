@@ -151,7 +151,7 @@ export const BACKTEST_HORIZON_LABELS: Record<number, string> = { 1: '1일', 5: '
 // ── Chat ──
 export const CHAT_MAX_MESSAGES = 50;
 export const CHAT_WELCOME_MESSAGE =
-  '안녕하세요! Quantix AI입니다. 종목 분석, 시장 전망, 투자 전략에 대해 자유롭게 질문해주세요.';
+  '무엇이든 물어보세요. 종목 분석, 시장 전망, 투자 전략에 대해 답변해드립니다.';
 
 // ── S&P 500 Heatmap ──
 export const HEATMAP_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2분

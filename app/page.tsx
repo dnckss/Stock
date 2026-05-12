@@ -43,7 +43,7 @@ function TerminalBoot() {
         <div className="flex items-center gap-2 justify-center">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
           <span className="text-[10px] text-zinc-500 font-mono tracking-wider">
-            INITIALIZING TERMINAL...
+            LOADING...
           </span>
         </div>
       </div>
@@ -110,7 +110,7 @@ export default function TerminalPage() {
           </span>
           <span className="text-zinc-700">|</span>
           <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-medium">
-            Global Trading Terminal
+            Market Intelligence
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -148,19 +148,19 @@ export default function TerminalPage() {
             className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-zinc-800/50 bg-zinc-800/20 hover:bg-zinc-800/60 hover:border-zinc-700 transition-colors text-[10px] text-zinc-300 font-mono"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-            AI 전략실
+            Strategy
           </Link>
           <Link
             href="/watchlist"
             className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-zinc-800/50 bg-zinc-800/20 hover:bg-zinc-800/60 hover:border-zinc-700 transition-colors text-[10px] text-zinc-300 font-mono"
           >
-            관심 종목
+            Watchlist
           </Link>
           <Link
             href="/compare"
             className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-zinc-800/50 bg-zinc-800/20 hover:bg-zinc-800/60 hover:border-zinc-700 transition-colors text-[10px] text-zinc-300 font-mono"
           >
-            종목 비교
+            Compare
           </Link>
           <StockSearch stocks={stocks} />
         </div>
@@ -198,7 +198,7 @@ export default function TerminalPage() {
       {/* Status Bar */}
       <div className="flex items-center justify-between px-4 py-1 bg-zinc-900/80 border-t border-zinc-800 shrink-0">
         <div className="flex items-center gap-3 text-[9px] font-mono">
-          <span className="text-zinc-600">QUANTIX v3.7.2</span>
+          <span className="text-zinc-600">Quantix</span>
           <span className="text-zinc-800">|</span>
           {wsConnected ? (
             <span className="text-green-600">● WS CONNECTED</span>
@@ -213,7 +213,7 @@ export default function TerminalPage() {
           </span>
         </div>
         <div className="flex items-center gap-3 text-[9px] font-mono">
-          <span className="text-zinc-500">© 2025 Quantix Terminal</span>
+          <span className="text-zinc-500">© 2026 Quantix</span>
         </div>
       </div>
     </div>

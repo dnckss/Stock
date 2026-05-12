@@ -20,10 +20,10 @@ import type { ChatMessage, ApiChatSession } from '@/types/dashboard';
 /* ── Quick actions ── */
 
 const QUICK_ACTIONS = [
-  { icon: TrendingUp, label: '종목 분석 요청하기', prompt: '관심 종목을 분석해주세요' },
-  { icon: BarChart3, label: '시장 전망 물어보기', prompt: '현재 시장 전망은 어떤가요?' },
-  { icon: Lightbulb, label: '투자 전략 상담하기', prompt: '지금 시점에 맞는 투자 전략을 추천해주세요' },
-  { icon: Briefcase, label: '포트폴리오 리뷰하기', prompt: '포트폴리오를 리뷰하고 개선점을 알려주세요' },
+  { icon: TrendingUp, label: '종목 분석', prompt: '관심 종목을 분석해주세요' },
+  { icon: BarChart3, label: '시장 전망', prompt: '현재 시장 전망은 어떤가요?' },
+  { icon: Lightbulb, label: '투자 전략', prompt: '지금 시점에 맞는 투자 전략을 추천해주세요' },
+  { icon: Briefcase, label: '포트폴리오 리뷰', prompt: '포트폴리오를 리뷰하고 개선점을 알려주세요' },
 ];
 
 /* ── Markdown components ── */

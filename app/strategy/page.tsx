@@ -317,8 +317,8 @@ export default function StrategyPage() {
                   <Target className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-zinc-100">AI Recommendations</h2>
-                  <p className="text-xs text-zinc-500">{data.recommendations.length} picks selected</p>
+                  <h2 className="text-sm font-semibold text-zinc-100">Top Picks</h2>
+                  <p className="text-xs text-zinc-500">{data.recommendations.length} 종목 추천</p>
                 </div>
               </div>
             </div>
@@ -359,7 +359,7 @@ export default function StrategyPage() {
                              shadow-lg shadow-violet-500/5 hover:shadow-violet-500/10"
                 >
                   <Sparkles className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  AI 포트폴리오 생성
+                  Portfolio Builder
                 </button>
               </div>
             )}
@@ -381,7 +381,7 @@ export default function StrategyPage() {
                     <div className="px-6 py-4 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-2.5">
                         <Sparkles className="w-4 h-4 text-violet-400" />
-                        <span className="text-sm font-semibold text-zinc-200">AI 포트폴리오 빌더</span>
+                        <span className="text-sm font-semibold text-zinc-200">Portfolio Builder</span>
                       </div>
                       <button
                         type="button"
@@ -419,7 +419,7 @@ export default function StrategyPage() {
                 <div className="px-5 py-3.5 border-b border-zinc-800/50 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <Sparkles className="w-4 h-4 text-violet-400" />
-                    <span className="text-sm font-semibold text-zinc-200">AI 포트폴리오</span>
+                    <span className="text-sm font-semibold text-zinc-200">Portfolio</span>
                   </div>
                   <button
                     type="button"
@@ -441,8 +441,8 @@ export default function StrategyPage() {
             className="mt-12 pb-6 flex items-center justify-between text-xs font-mono text-zinc-700"
             variants={cardVariants}
           >
-            <span>QUANTIX STRATEGY ENGINE</span>
-            <span>&copy; 2025 Quantix</span>
+            <span>Quantix Strategy</span>
+            <span>&copy; 2026 Quantix</span>
           </motion.div>
         </motion.main>
       ) : null}
