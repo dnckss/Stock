@@ -176,6 +176,35 @@ export function formatDateWithDay(iso: string | null): string {
 
 // ── Data Transforms ──
 
+/**
+ * /api/latest의 daily 배열에서 가장 최근 거래일 volume을 추출.
+ * 백엔드의 top-level `volume`은 0으로 오는 경우가 많아 daily가 더 신뢰 가능.
+ */
+function pickLiveVolume(item: ApiStockItem): number {
+  if (item.volume && Number.isFinite(item.volume) && item.volume > 0) {
+    return item.volume;
+  }
+  const daily = Array.isArray(item.daily) ? item.daily : [];
+  for (let i = daily.length - 1; i >= 0; i--) {
+    const v = Number(daily[i]?.volume);
+    if (Number.isFinite(v) && v > 0) return v;
+  }
+  return 0;
+}
+
+/** daily 마지막 close가 있으면 그것을, 없으면 top-level price 사용 */
+function pickLivePrice(item: ApiStockItem): number {
+  if (item.price && Number.isFinite(item.price) && item.price > 0) {
+    return item.price;
+  }
+  const daily = Array.isArray(item.daily) ? item.daily : [];
+  for (let i = daily.length - 1; i >= 0; i--) {
+    const c = Number(daily[i]?.close);
+    if (Number.isFinite(c) && c > 0) return c;
+  }
+  return 0;
+}
+
 export function apiStockToRadar(
   item: ApiStockItem,
   isTopPick: boolean,
@@ -183,8 +212,8 @@ export function apiStockToRadar(
   return {
     ticker: item.ticker,
     name: getTickerName(item.ticker),
-    price: item.price ?? 0,
-    volume: item.volume ?? 0,
+    price: pickLivePrice(item),
+    volume: pickLiveVolume(item),
     priceReturn: item['return'],
     sentiment: item.sentiment,
     divergence: item.divergence,
@@ -321,8 +350,19 @@ export class ApiError extends Error {
   }
 }
 
-export async function fetchLatest(): Promise<ApiLatestResponse> {
-  const res = await fetch(`${API_BASE}/api/latest`);
+export async function fetchLatest(options?: {
+  /** Radar 종목 수. 기본 500 (SP500 전체) */
+  radarLimit?: number;
+}): Promise<ApiLatestResponse> {
+  const qs = new URLSearchParams();
+  const limit = options?.radarLimit;
+  if (typeof limit === 'number' && Number.isFinite(limit) && limit > 0) {
+    qs.set('radar_limit', String(Math.trunc(limit)));
+  }
+  const url = qs.toString()
+    ? `${API_BASE}/api/latest?${qs.toString()}`
+    : `${API_BASE}/api/latest`;
+  const res = await fetch(url);
   if (!res.ok) {
     throw new ApiError(res.status, '시장 데이터를 불러올 수 없습니다');
   }

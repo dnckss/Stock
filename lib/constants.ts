@@ -143,6 +143,10 @@ export const PORTFOLIO_STREAM_TOTAL_STEPS = 5;
 export const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'] as const;
 export const TICKER_ALIASES: Record<string, string> = { GOOG: 'GOOGL' };
 
+// ── /api/latest ──
+/** Radar에 노출할 최대 종목 수 (백엔드 radar_limit 파라미터로 전달) */
+export const LATEST_RADAR_LIMIT = 500;
+
 // ── Alerts (price watcher) ──
 export const ALERT_POLL_INTERVAL_MS = 30_000; // 30초
 

@@ -20,11 +20,11 @@ import type {
   EconomicCalendarItem,
 } from '@/types/dashboard';
 import {
-  ECON_CALENDAR_DEFAULT_LIMIT,
   ECON_CALENDAR_DEFAULT_SOURCE,
   ECON_CALENDAR_AUTO_REFRESH_MIN_MS,
   ECON_CALENDAR_AUTO_REFRESH_MAX_MS,
   TICKER_ALIASES,
+  LATEST_RADAR_LIMIT,
 } from '@/lib/constants';
 
 const WS_RECONNECT_DELAY = 3000;
@@ -94,20 +94,36 @@ export function useMarketData(): MarketDataState {
       timestamp: string | null,
       macroPayload?: ApiMacroData,
       newsFeedPayload?: ApiNewsFeedItem[],
+      /** 'full': 응답을 정답으로 교체 / 'merge': 기존 stocks에 in-place 덮어쓰기 */
+      mode: 'full' | 'merge' = 'full',
     ) => {
-      const all = [
+      const incoming = [
         ...topPicks.map((s) => apiStockToRadar(s, true)),
         ...radar.map((s) => apiStockToRadar(s, false)),
       ];
       // 동일 기업 중복 제거 (GOOG/GOOGL 등 — canonical 티커 우선)
       const seen = new Set<string>();
-      const merged = all.filter((s) => {
+      const incomingMerged = incoming.filter((s) => {
         const canonical = TICKER_ALIASES[s.ticker] ?? s.ticker;
         if (seen.has(canonical)) return false;
         seen.add(canonical);
         return true;
       });
-      setStocks(merged);
+
+      if (mode === 'merge') {
+        // WS 업데이트: 들어온 ticker만 갱신, 나머지는 기존 값 유지
+        setStocks((prev) => {
+          if (prev.length === 0) return incomingMerged;
+          const byTicker = new Map(prev.map((s) => [s.ticker, s]));
+          for (const s of incomingMerged) {
+            byTicker.set(s.ticker, s);
+          }
+          return Array.from(byTicker.values());
+        });
+      } else {
+        setStocks(incomingMerged);
+      }
+
       setUpdatedAt(timestamp);
       setError(null);
 
@@ -204,7 +220,7 @@ export function useMarketData(): MarketDataState {
   useEffect(() => {
     let cancelled = false;
 
-    fetchLatest()
+    fetchLatest({ radarLimit: LATEST_RADAR_LIMIT })
       .then((data) => {
         if (!cancelled) {
           handleUpdate(
@@ -213,6 +229,7 @@ export function useMarketData(): MarketDataState {
             data.updated_at,
             data.macro,
             data.news_feed,
+            'full',
           );
         }
       })
@@ -269,6 +286,7 @@ export function useMarketData(): MarketDataState {
               msg.updated_at,
               msg.macro,
               msg.news_feed,
+              'merge',
             );
             setIsLoading(false);
           }

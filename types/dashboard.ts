@@ -108,14 +108,27 @@ export interface StockDetailData {
 
 // ── API Response Types (match backend exactly) ──
 
+/** /api/latest 응답의 일별 OHLCV (백엔드 ApiStockItem.daily) */
+export interface ApiStockDailyBar {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 export interface ApiStockItem {
   ticker: string;
   return: number;
   price?: number;
+  /** 백엔드가 0으로 보낼 수 있음 — daily 마지막 항목 volume이 실제 값 */
   volume?: number;
   sentiment: number;
   divergence: number;
   signal: SignalType;
+  /** 최근 5~6 거래일 OHLCV. 실시간 거래량/거래대금 산정에 사용 */
+  daily?: ApiStockDailyBar[];
 }
 
 export interface ApiLatestResponse {
