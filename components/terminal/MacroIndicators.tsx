@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
-import { ECON_CALENDAR_SIDEBAR_PAGE_SIZE } from '@/lib/constants';
+import { ECON_CALENDAR_SIDEBAR_PAGE_SIZE, getFearGreedThreshold } from '@/lib/constants';
 import type {
   MacroIndicator,
   FearGreedData,
@@ -23,20 +23,6 @@ interface MacroIndicatorsProps {
   isEconomicLoading: boolean;
 }
 
-const FEAR_GREED_THRESHOLDS: { min: number; label: string; color: string }[] = [
-  { min: 75, label: 'Extreme Greed', color: 'text-green-400' },
-  { min: 55, label: 'Greed', color: 'text-green-500' },
-  { min: 45, label: 'Neutral', color: 'text-yellow-500' },
-  { min: 25, label: 'Fear', color: 'text-orange-500' },
-  { min: 0, label: 'Extreme Fear', color: 'text-red-500' },
-];
-
-function getFearGreedStyle(value: number) {
-  return (
-    FEAR_GREED_THRESHOLDS.find((t) => value >= t.min) ??
-    FEAR_GREED_THRESHOLDS[FEAR_GREED_THRESHOLDS.length - 1]
-  );
-}
 
 function SparklineChart({
   data,
@@ -150,7 +136,7 @@ function MacroBlock({
 }
 
 function FearGreedGauge({ data }: { data: FearGreedData }) {
-  const style = getFearGreedStyle(data.value);
+  const style = getFearGreedThreshold(data.value);
 
   return (
     <div className="p-3 border-b border-zinc-800">

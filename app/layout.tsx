@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ChatWidget from "@/components/chat/ChatWidget";
+import AlertWatcher from "@/components/common/AlertWatcher";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,6 +32,7 @@ export default function RootLayout({
       >
         {children}
         <ChatWidget />
+        <AlertWatcher />
       </body>
     </html>
   );

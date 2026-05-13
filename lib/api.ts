@@ -59,7 +59,7 @@ import type {
   ApiChatSessionsResponse,
   ApiChatFileResponse,
 } from '@/types/dashboard';
-import { ECON_CALENDAR_DEFAULT_LIMIT, DAYS_KO } from '@/lib/constants';
+import { DAYS_KO, getFearGreedThreshold } from '@/lib/constants';
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -280,6 +280,12 @@ export function apiMacroToDisplay(macro: ApiMacroData | null | undefined): Macro
     };
   };
 
+  const fearGreedRaw = macro.fear_greed;
+  const fearGreedNum =
+    typeof fearGreedRaw === 'number' && Number.isFinite(fearGreedRaw)
+      ? Math.max(0, Math.min(100, fearGreedRaw))
+      : null;
+
   return {
     marquee: marqueeRaw.map((m) => {
       const name = String(m?.name ?? '');
@@ -294,7 +300,10 @@ export function apiMacroToDisplay(macro: ApiMacroData | null | undefined): Macro
         changePercent: pct * 100,
       };
     }),
-    fearGreed: null,
+    fearGreed:
+      fearGreedNum !== null
+        ? { value: fearGreedNum, label: getFearGreedThreshold(fearGreedNum).label }
+        : null,
     indices: indicesRaw.map(mapToIndicator),
     indicators: sidebarRaw.map(mapToIndicator),
   };

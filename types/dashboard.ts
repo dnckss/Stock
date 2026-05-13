@@ -406,6 +406,8 @@ export interface ApiMacroData {
   sidebar: ApiMacroItem[];
   /** 3대지수 (S&P 500, NASDAQ, Dow 등) — 있으면 사이드바 상단에 표시 */
   indices?: ApiMacroItem[];
+  /** Fear & Greed Index (0~100). 없으면 게이지를 표시하지 않음 */
+  fear_greed?: number | null;
 }
 
 export interface MacroDisplayData {

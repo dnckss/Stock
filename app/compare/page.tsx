@@ -1,44 +1,48 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Plus, X, Loader2 } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
-import { API_BASE, getTickerName } from '@/lib/api';
+import {
+  fetchStockQuote,
+  parseQuote,
+  getTickerName,
+  formatMarketCap,
+  ApiError,
+} from '@/lib/api';
 import { cn } from '@/lib/utils';
+import type { StockQuote } from '@/types/dashboard';
 
-interface StockSnapshot {
-  ticker: string;
+interface CompareEntry {
+  quote: StockQuote;
   name: string;
-  price: number;
-  changePct: number;
-  marketCap?: string;
-  pe?: number;
-  eps?: number;
-  dividendYield?: number;
-  beta?: number;
-  high52w?: number;
-  low52w?: number;
 }
 
-async function fetchSnapshot(ticker: string): Promise<StockSnapshot | null> {
+async function fetchEntry(ticker: string): Promise<CompareEntry | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/stock/${ticker}/quote`);
-    if (!res.ok) return null;
-    const d = await res.json();
-    return {
-      ticker: ticker.toUpperCase(),
-      name: d.name ?? getTickerName(ticker),
-      price: d.price ?? d.current_price ?? 0,
-      changePct: d.change_percent ?? d.change_pct ?? 0,
-      marketCap: d.market_cap ?? d.marketCap ?? undefined,
-      pe: d.pe ?? d.pe_ratio ?? undefined,
-      eps: d.eps ?? undefined,
-      dividendYield: d.dividend_yield ?? undefined,
-      beta: d.beta ?? undefined,
-      high52w: d.high_52w ?? d.year_high ?? undefined,
-      low52w: d.low_52w ?? d.year_low ?? undefined,
-    };
-  } catch { return null; }
+    const raw = await fetchStockQuote(ticker);
+    const quote = parseQuote(raw);
+    if (!quote) return null;
+    return { quote, name: getTickerName(ticker) };
+  } catch (err) {
+    if (err instanceof ApiError) return null;
+    return null;
+  }
+}
+
+function formatNum(n: number | null | undefined, digits = 2): string | undefined {
+  if (n == null || !Number.isFinite(n)) return undefined;
+  return n.toFixed(digits);
+}
+
+function formatPct(n: number | null | undefined): string | undefined {
+  if (n == null || !Number.isFinite(n)) return undefined;
+  return `${n.toFixed(2)}%`;
+}
+
+function formatUsdValue(n: number | null | undefined): string | undefined {
+  if (n == null || !Number.isFinite(n) || n === 0) return undefined;
+  return `$${n.toFixed(2)}`;
 }
 
 function MetricRow({ label, values }: { label: string; values: (string | undefined)[] }) {
@@ -57,7 +61,7 @@ function MetricRow({ label, values }: { label: string; values: (string | undefin
 export default function ComparePage() {
   const [tickers, setTickers] = useState<string[]>([]);
   const [input, setInput] = useState('');
-  const [data, setData] = useState<Map<string, StockSnapshot>>(new Map());
+  const [data, setData] = useState<Map<string, CompareEntry>>(new Map());
   const [loading, setLoading] = useState<Set<string>>(new Set());
 
   const addTicker = useCallback(async () => {
@@ -66,17 +70,25 @@ export default function ComparePage() {
     setInput('');
     setTickers((prev) => [...prev, t]);
     setLoading((prev) => new Set(prev).add(t));
-    const snapshot = await fetchSnapshot(t);
-    if (snapshot) setData((prev) => new Map(prev).set(t, snapshot));
-    setLoading((prev) => { const next = new Set(prev); next.delete(t); return next; });
+    const entry = await fetchEntry(t);
+    if (entry) setData((prev) => new Map(prev).set(t, entry));
+    setLoading((prev) => {
+      const next = new Set(prev);
+      next.delete(t);
+      return next;
+    });
   }, [input, tickers]);
 
   const removeTicker = (t: string) => {
     setTickers((prev) => prev.filter((x) => x !== t));
-    setData((prev) => { const next = new Map(prev); next.delete(t); return next; });
+    setData((prev) => {
+      const next = new Map(prev);
+      next.delete(t);
+      return next;
+    });
   };
 
-  const stocks = tickers.map((t) => data.get(t));
+  const entries = tickers.map((t) => data.get(t));
 
   return (
     <div className="min-h-screen bg-[#09090b]">
@@ -89,7 +101,9 @@ export default function ComparePage() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') addTicker(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') addTicker();
+            }}
             placeholder="티커 입력 (예: AAPL)"
             className="text-sm font-mono bg-zinc-900/60 border border-zinc-800/50 rounded-lg px-4 py-2.5 w-[200px]
                        text-zinc-200 placeholder:text-zinc-600 uppercase
@@ -119,14 +133,15 @@ export default function ComparePage() {
             <div className="flex items-center border-b border-zinc-800/50">
               <div className="w-[120px] shrink-0 px-4 py-3" />
               {tickers.map((t) => {
-                const s = data.get(t);
+                const entry = data.get(t);
                 const isLoading = loading.has(t);
-                const positive = (s?.changePct ?? 0) >= 0;
+                const positive = (entry?.quote.changePct ?? 0) >= 0;
                 return (
                   <div key={t} className="flex-1 px-4 py-3 text-center relative">
                     <button
                       onClick={() => removeTicker(t)}
                       className="absolute top-2 right-2 p-1 text-zinc-700 hover:text-red-400 transition-colors"
+                      aria-label={`${t} 제거`}
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -135,12 +150,24 @@ export default function ComparePage() {
                     ) : (
                       <>
                         <div className="text-sm font-mono font-bold text-zinc-100">{t}</div>
-                        <div className="text-[11px] text-zinc-500 truncate">{s?.name ?? getTickerName(t)}</div>
-                        {s && (
-                          <div className={cn('text-lg font-mono font-bold mt-1 tabular-nums', positive ? 'text-emerald-400' : 'text-red-400')}>
-                            ${s.price.toFixed(2)}
-                            <span className="text-xs ml-1">{positive ? '+' : ''}{s.changePct.toFixed(2)}%</span>
+                        <div className="text-[11px] text-zinc-500 truncate">
+                          {entry?.name ?? getTickerName(t)}
+                        </div>
+                        {entry ? (
+                          <div
+                            className={cn(
+                              'text-lg font-mono font-bold mt-1 tabular-nums',
+                              positive ? 'text-emerald-400' : 'text-red-400',
+                            )}
+                          >
+                            ${entry.quote.price.toFixed(2)}
+                            <span className="text-xs ml-1">
+                              {positive ? '+' : ''}
+                              {entry.quote.changePct.toFixed(2)}%
+                            </span>
                           </div>
+                        ) : (
+                          <div className="text-[11px] text-zinc-600 mt-1">데이터 없음</div>
                         )}
                       </>
                     )}
@@ -150,13 +177,18 @@ export default function ComparePage() {
             </div>
 
             {/* Metric rows */}
-            <MetricRow label="시가총액" values={stocks.map((s) => s?.marketCap)} />
-            <MetricRow label="P/E" values={stocks.map((s) => s?.pe?.toFixed(1))} />
-            <MetricRow label="EPS" values={stocks.map((s) => s?.eps != null ? `$${s.eps.toFixed(2)}` : undefined)} />
-            <MetricRow label="배당수익률" values={stocks.map((s) => s?.dividendYield != null ? `${s.dividendYield.toFixed(2)}%` : undefined)} />
-            <MetricRow label="Beta" values={stocks.map((s) => s?.beta?.toFixed(2))} />
-            <MetricRow label="52주 최고" values={stocks.map((s) => s?.high52w != null ? `$${s.high52w.toFixed(2)}` : undefined)} />
-            <MetricRow label="52주 최저" values={stocks.map((s) => s?.low52w != null ? `$${s.low52w.toFixed(2)}` : undefined)} />
+            <MetricRow
+              label="시가총액"
+              values={entries.map((e) =>
+                e?.quote.marketCapDisplay || (e?.quote.marketCap ? formatMarketCap(e.quote.marketCap) : undefined),
+              )}
+            />
+            <MetricRow label="PER" values={entries.map((e) => formatNum(e?.quote.peRatio))} />
+            <MetricRow label="Forward PER" values={entries.map((e) => formatNum(e?.quote.forwardPe))} />
+            <MetricRow label="배당수익률" values={entries.map((e) => formatPct(e?.quote.dividendYield))} />
+            <MetricRow label="Beta" values={entries.map((e) => formatNum(e?.quote.beta))} />
+            <MetricRow label="MA50" values={entries.map((e) => formatUsdValue(e?.quote.ma50))} />
+            <MetricRow label="MA200" values={entries.map((e) => formatUsdValue(e?.quote.ma200))} />
           </div>
         )}
       </main>

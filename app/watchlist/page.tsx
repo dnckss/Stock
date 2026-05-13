@@ -1,57 +1,81 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { Star, Trash2, Loader2 } from 'lucide-react';
+import { Star, Trash2, Loader2, RefreshCw } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import { useWatchlist } from '@/hooks/useWatchlist';
-import { API_BASE, getTickerName } from '@/lib/api';
+import { fetchStockQuote, parseQuote, getTickerName } from '@/lib/api';
+import { WATCHLIST_POLL_INTERVAL_MS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import type { StockQuote } from '@/types/dashboard';
 
-interface QuoteSnapshot {
-  ticker: string;
-  price: number;
-  change: number;
-  changePct: number;
-}
-
-async function fetchQuote(ticker: string): Promise<QuoteSnapshot | null> {
+async function fetchOne(ticker: string): Promise<StockQuote | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/stock/${ticker}/quote`);
-    if (!res.ok) return null;
-    const d = await res.json();
-    return {
-      ticker,
-      price: d.price ?? d.current_price ?? 0,
-      change: d.change ?? d.price_change ?? 0,
-      changePct: d.change_percent ?? d.change_pct ?? 0,
-    };
-  } catch { return null; }
+    const raw = await fetchStockQuote(ticker);
+    return parseQuote(raw);
+  } catch {
+    return null;
+  }
 }
 
 export default function WatchlistPage() {
   const { tickers, remove } = useWatchlist();
-  const [quotes, setQuotes] = useState<Map<string, QuoteSnapshot>>(new Map());
+  const [quotes, setQuotes] = useState<Map<string, StockQuote>>(new Map());
   const [loading, setLoading] = useState(false);
+  const mountedRef = useRef(true);
 
   const loadQuotes = useCallback(async () => {
-    if (tickers.length === 0) return;
+    if (tickers.length === 0) {
+      setQuotes(new Map());
+      return;
+    }
     setLoading(true);
-    const results = await Promise.allSettled(tickers.map(fetchQuote));
-    const map = new Map<string, QuoteSnapshot>();
+    const results = await Promise.allSettled(
+      tickers.map(async (t) => ({ ticker: t, quote: await fetchOne(t) })),
+    );
+    if (!mountedRef.current) return;
+    const map = new Map<string, StockQuote>();
     for (const r of results) {
-      if (r.status === 'fulfilled' && r.value) map.set(r.value.ticker, r.value);
+      if (r.status === 'fulfilled' && r.value.quote) {
+        map.set(r.value.ticker, r.value.quote);
+      }
     }
     setQuotes(map);
     setLoading(false);
   }, [tickers]);
 
-  useEffect(() => { loadQuotes(); }, [loadQuotes]);
+  // 초기 로드 + tickers 변경 시 로드
+  useEffect(() => {
+    mountedRef.current = true;
+    // 비동기 호출 — setState는 fetch 완료 후에만 발생하므로 cascade 위험 없음
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadQuotes();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [loadQuotes]);
+
+  // 주기 폴링
+  useEffect(() => {
+    if (tickers.length === 0) return;
+    const id = setInterval(() => void loadQuotes(), WATCHLIST_POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [tickers.length, loadQuotes]);
 
   return (
     <div className="min-h-screen bg-[#09090b]">
       <PageHeader title="Watchlist">
-        {loading && <Loader2 className="w-3.5 h-3.5 text-zinc-600 animate-spin" />}
+        <button
+          type="button"
+          onClick={() => void loadQuotes()}
+          disabled={loading || tickers.length === 0}
+          className="text-zinc-500 hover:text-zinc-300 disabled:opacity-40 transition-colors"
+          title="새로고침"
+          aria-label="새로고침"
+        >
+          <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+        </button>
       </PageHeader>
 
       <main className="max-w-3xl mx-auto px-6 py-8">
@@ -78,21 +102,36 @@ export default function WatchlistPage() {
                     <span className="text-sm font-mono font-bold text-zinc-100">{ticker}</span>
                     <span className="text-xs text-zinc-500 ml-2">{getTickerName(ticker)}</span>
                   </div>
-                  {q && (
+                  {q ? (
                     <div className="text-right shrink-0">
                       <div className="text-sm font-mono font-bold text-zinc-100 tabular-nums">
                         ${q.price.toFixed(2)}
                       </div>
-                      <div className={cn('text-xs font-mono tabular-nums', positive ? 'text-emerald-400' : 'text-red-400')}>
-                        {positive ? '+' : ''}{q.changePct.toFixed(2)}%
+                      <div
+                        className={cn(
+                          'text-xs font-mono tabular-nums',
+                          positive ? 'text-emerald-400' : 'text-red-400',
+                        )}
+                      >
+                        {positive ? '+' : ''}
+                        {q.changePct.toFixed(2)}%
                       </div>
                     </div>
+                  ) : loading ? (
+                    <Loader2 className="w-3.5 h-3.5 text-zinc-600 animate-spin shrink-0" />
+                  ) : (
+                    <span className="text-xs text-zinc-600 shrink-0">시세 없음</span>
                   )}
                   <button
                     type="button"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); remove(ticker); }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      remove(ticker);
+                    }}
                     className="p-1.5 text-zinc-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"
                     title="관심 종목 해제"
+                    aria-label="관심 종목 해제"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

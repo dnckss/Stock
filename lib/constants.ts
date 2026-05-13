@@ -143,6 +143,36 @@ export const PORTFOLIO_STREAM_TOTAL_STEPS = 5;
 export const DAYS_KO = ['일', '월', '화', '수', '목', '금', '토'] as const;
 export const TICKER_ALIASES: Record<string, string> = { GOOG: 'GOOGL' };
 
+// ── Alerts (price watcher) ──
+export const ALERT_POLL_INTERVAL_MS = 30_000; // 30초
+
+// ── Watchlist ──
+export const WATCHLIST_POLL_INTERVAL_MS = 30_000; // 30초
+
+// ── Fear & Greed (단일 소스) ──
+export interface FearGreedThreshold {
+  /** 이 임계값 이상일 때 매칭 (내림차순 정렬 가정) */
+  min: number;
+  label: string;
+  /** Tailwind text color class */
+  color: string;
+}
+
+export const FEAR_GREED_THRESHOLDS: FearGreedThreshold[] = [
+  { min: 75, label: 'Extreme Greed', color: 'text-green-400' },
+  { min: 55, label: 'Greed', color: 'text-green-500' },
+  { min: 45, label: 'Neutral', color: 'text-yellow-500' },
+  { min: 25, label: 'Fear', color: 'text-orange-500' },
+  { min: 0, label: 'Extreme Fear', color: 'text-red-500' },
+];
+
+export function getFearGreedThreshold(value: number): FearGreedThreshold {
+  return (
+    FEAR_GREED_THRESHOLDS.find((t) => value >= t.min) ??
+    FEAR_GREED_THRESHOLDS[FEAR_GREED_THRESHOLDS.length - 1]
+  );
+}
+
 // ── Backtest ──
 export const BACKTEST_DEFAULT_LOOKBACK = 90;
 export const BACKTEST_HORIZONS = [1, 5, 20] as const;
