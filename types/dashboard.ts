@@ -120,13 +120,15 @@ export interface ApiStockDailyBar {
 
 export interface ApiStockItem {
   ticker: string;
-  return: number;
-  price?: number;
+  /** 신호 데이터가 없는 종목은 null/누락 가능 */
+  return?: number | null;
+  price?: number | null;
   /** 백엔드가 0으로 보낼 수 있음 — daily 마지막 항목 volume이 실제 값 */
-  volume?: number;
-  sentiment: number;
-  divergence: number;
-  signal: SignalType;
+  volume?: number | null;
+  /** 알파 데이터 없는 종목(예: 신호 미산출)은 누락 또는 null */
+  sentiment?: number | null;
+  divergence?: number | null;
+  signal?: SignalType | null;
   /** 최근 5~6 거래일 OHLCV. 실시간 거래량/거래대금 산정에 사용 */
   daily?: ApiStockDailyBar[];
 }

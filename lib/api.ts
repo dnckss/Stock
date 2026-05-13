@@ -176,31 +176,40 @@ export function formatDateWithDay(iso: string | null): string {
 
 // ── Data Transforms ──
 
+/** number | null | undefined → 안전한 number (NaN/Infinity는 fallback) */
+function safeNum(v: unknown, fallback = 0): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return fallback;
+  return v;
+}
+
+const VALID_RADAR_SIGNALS: SignalType[] = ['BUY', 'SELL', 'HOLD'];
+function safeSignal(v: unknown): SignalType {
+  return VALID_RADAR_SIGNALS.includes(v as SignalType) ? (v as SignalType) : 'HOLD';
+}
+
 /**
  * /api/latest의 daily 배열에서 가장 최근 거래일 volume을 추출.
  * 백엔드의 top-level `volume`은 0으로 오는 경우가 많아 daily가 더 신뢰 가능.
  */
 function pickLiveVolume(item: ApiStockItem): number {
-  if (item.volume && Number.isFinite(item.volume) && item.volume > 0) {
-    return item.volume;
-  }
+  const top = safeNum(item.volume);
+  if (top > 0) return top;
   const daily = Array.isArray(item.daily) ? item.daily : [];
   for (let i = daily.length - 1; i >= 0; i--) {
-    const v = Number(daily[i]?.volume);
-    if (Number.isFinite(v) && v > 0) return v;
+    const v = safeNum(daily[i]?.volume);
+    if (v > 0) return v;
   }
   return 0;
 }
 
 /** daily 마지막 close가 있으면 그것을, 없으면 top-level price 사용 */
 function pickLivePrice(item: ApiStockItem): number {
-  if (item.price && Number.isFinite(item.price) && item.price > 0) {
-    return item.price;
-  }
+  const top = safeNum(item.price);
+  if (top > 0) return top;
   const daily = Array.isArray(item.daily) ? item.daily : [];
   for (let i = daily.length - 1; i >= 0; i--) {
-    const c = Number(daily[i]?.close);
-    if (Number.isFinite(c) && c > 0) return c;
+    const c = safeNum(daily[i]?.close);
+    if (c > 0) return c;
   }
   return 0;
 }
@@ -214,10 +223,10 @@ export function apiStockToRadar(
     name: getTickerName(item.ticker),
     price: pickLivePrice(item),
     volume: pickLiveVolume(item),
-    priceReturn: item['return'],
-    sentiment: item.sentiment,
-    divergence: item.divergence,
-    signal: item.signal as SignalType,
+    priceReturn: safeNum(item['return']),
+    sentiment: safeNum(item.sentiment),
+    divergence: safeNum(item.divergence),
+    signal: safeSignal(item.signal),
     isTopPick,
   };
 }
