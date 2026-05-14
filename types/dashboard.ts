@@ -398,6 +398,11 @@ export interface RadarStock {
   divergence: number;
   signal: SignalType;
   isTopPick: boolean;
+  /**
+   * 백엔드가 이 종목에 대해 신호(signal/sentiment/divergence)를 산출했는지.
+   * false인 경우 sentiment/divergence/signal은 fallback(0/HOLD)이므로 표시에서 분기 필요.
+   */
+  hasAlpha: boolean;
 }
 
 export interface ChartDataPoint {

@@ -218,6 +218,10 @@ export function apiStockToRadar(
   item: ApiStockItem,
   isTopPick: boolean,
 ): RadarStock {
+  // 백엔드가 signal을 valid SignalType으로 보냈으면 알파 산출 종목
+  const hasAlpha =
+    typeof item.signal === 'string' &&
+    VALID_RADAR_SIGNALS.includes(item.signal as SignalType);
   return {
     ticker: item.ticker,
     name: getTickerName(item.ticker),
@@ -228,6 +232,7 @@ export function apiStockToRadar(
     divergence: safeNum(item.divergence),
     signal: safeSignal(item.signal),
     isTopPick,
+    hasAlpha,
   };
 }
 

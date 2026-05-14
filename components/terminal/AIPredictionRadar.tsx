@@ -41,12 +41,12 @@ function sortAndFilter(
   period: RadarPeriod,
   perfMap: PerfMap,
 ): RadarStock[] {
-  const list = [...stocks];
   const usePeriodData = period !== '1D' && perfMap.size > 0;
 
   switch (key) {
     case 'tradingValue':
-      return list.sort((a, b) => {
+      // 거래대금/거래량은 알파 무관하게 전체 표시
+      return [...stocks].sort((a, b) => {
         if (usePeriodData) {
           const pa = perfMap.get(a.ticker)?.tradingValue ?? 0;
           const pb = perfMap.get(b.ticker)?.tradingValue ?? 0;
@@ -55,7 +55,7 @@ function sortAndFilter(
         return (b.price * b.volume) - (a.price * a.volume);
       });
     case 'volume':
-      return list.sort((a, b) => {
+      return [...stocks].sort((a, b) => {
         if (usePeriodData) {
           const pa = perfMap.get(a.ticker)?.volume ?? 0;
           const pb = perfMap.get(b.ticker)?.volume ?? 0;
@@ -64,15 +64,22 @@ function sortAndFilter(
         return b.volume - a.volume;
       });
     case 'gainers':
-      return list.sort((a, b) => {
-        if (usePeriodData) {
-          const pa = perfMap.get(a.ticker)?.changePct ?? -Infinity;
-          const pb = perfMap.get(b.ticker)?.changePct ?? -Infinity;
-          return pb - pa;
-        }
-        return b.priceReturn - a.priceReturn;
-      });
-    case 'losers':
+    case 'losers': {
+      // 1D 탭: 알파(return) 있는 종목만. 기간 탭: perf 데이터 있는 종목만
+      const filtered = stocks.filter((s) =>
+        usePeriodData ? perfMap.has(s.ticker) : s.hasAlpha,
+      );
+      const list = [...filtered];
+      if (key === 'gainers') {
+        return list.sort((a, b) => {
+          if (usePeriodData) {
+            const pa = perfMap.get(a.ticker)?.changePct ?? -Infinity;
+            const pb = perfMap.get(b.ticker)?.changePct ?? -Infinity;
+            return pb - pa;
+          }
+          return b.priceReturn - a.priceReturn;
+        });
+      }
       return list.sort((a, b) => {
         if (usePeriodData) {
           const pa = perfMap.get(a.ticker)?.changePct ?? Infinity;
@@ -81,12 +88,14 @@ function sortAndFilter(
         }
         return a.priceReturn - b.priceReturn;
       });
+    }
     case 'divergence':
-      return list.sort(
-        (a, b) => Math.abs(b.divergence) - Math.abs(a.divergence),
-      );
+      // 괴리율은 알파 산출 종목에만 의미가 있음
+      return stocks
+        .filter((s) => s.hasAlpha)
+        .sort((a, b) => Math.abs(b.divergence) - Math.abs(a.divergence));
     default:
-      return list;
+      return [...stocks];
   }
 }
 
@@ -145,6 +154,22 @@ function formatTradingValue(v: number): string {
   return `$${v.toLocaleString('en-US')}`;
 }
 
+function MissingCell({ align = 'right' }: { align?: 'right' | 'center' | 'left' }) {
+  return (
+    <span
+      className={cn(
+        'block font-mono text-[10px] text-zinc-700 tabular-nums',
+        align === 'right' && 'text-right',
+        align === 'center' && 'text-center',
+        align === 'left' && 'text-left',
+      )}
+      aria-label="데이터 없음"
+    >
+      —
+    </span>
+  );
+}
+
 function PredictionRow({
   stock,
   onClick,
@@ -158,6 +183,8 @@ function PredictionRow({
   const displayReturn = perf ? perf.changePct / 100 : stock.priceReturn;
   const displayVolume = perf ? perf.volume : stock.volume;
   const displayTv = perf ? perf.tradingValue : stock.price * stock.volume;
+  // perf가 있으면 기간 수익률이 있고, 아니면 알파(return) 산출 종목만 의미 있음
+  const hasReturn = Boolean(perf) || stock.hasAlpha;
 
   return (
     <tr
@@ -165,6 +192,7 @@ function PredictionRow({
       className={cn(
         'group hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50 cursor-pointer',
         stock.isTopPick && 'animate-signal-glow',
+        !stock.hasAlpha && 'opacity-70',
       )}
     >
       <td className="py-2.5 px-3">
@@ -195,14 +223,18 @@ function PredictionRow({
       </td>
 
       <td className="py-2.5 px-2 text-right">
-        <span
-          className={cn(
-            'font-mono text-xs font-medium tabular-nums',
-            displayReturn >= 0 ? 'text-green-500' : 'text-red-500',
-          )}
-        >
-          {formatReturn(displayReturn)}
-        </span>
+        {hasReturn ? (
+          <span
+            className={cn(
+              'font-mono text-xs font-medium tabular-nums',
+              displayReturn >= 0 ? 'text-green-500' : 'text-red-500',
+            )}
+          >
+            {formatReturn(displayReturn)}
+          </span>
+        ) : (
+          <MissingCell />
+        )}
       </td>
 
       <td className="py-2.5 px-2 text-right">
@@ -218,22 +250,26 @@ function PredictionRow({
       </td>
 
       <td className="py-2.5 px-2 text-center">
-        <SignalBadge signal={stock.signal} />
+        {stock.hasAlpha ? <SignalBadge signal={stock.signal} /> : <MissingCell align="center" />}
       </td>
 
       <td className="py-2.5 px-2">
-        <DivergenceGauge value={stock.divergence} />
+        {stock.hasAlpha ? <DivergenceGauge value={stock.divergence} /> : <MissingCell align="left" />}
       </td>
 
       <td className="py-2.5 px-2 text-right">
-        <span
-          className={cn(
-            'font-mono text-xs tabular-nums',
-            sentimentPositive ? 'text-green-400' : 'text-red-400',
-          )}
-        >
-          {formatSentiment(stock.sentiment)}
-        </span>
+        {stock.hasAlpha ? (
+          <span
+            className={cn(
+              'font-mono text-xs tabular-nums',
+              sentimentPositive ? 'text-green-400' : 'text-red-400',
+            )}
+          >
+            {formatSentiment(stock.sentiment)}
+          </span>
+        ) : (
+          <MissingCell />
+        )}
       </td>
 
       <td className="py-2.5 pr-3 w-8">
@@ -312,14 +348,16 @@ export default function AIPredictionRadar({
     [stocks, activeTab, activePeriod, perfMap],
   );
 
-  const { buyCount, sellCount, holdCount } = useMemo(() => {
-    let buy = 0, sell = 0, hold = 0;
+  const { buyCount, sellCount, holdCount, alphaCount } = useMemo(() => {
+    let buy = 0, sell = 0, hold = 0, alpha = 0;
     for (const s of stocks) {
+      if (!s.hasAlpha) continue;
+      alpha++;
       if (s.signal === 'BUY') buy++;
       else if (s.signal === 'SELL') sell++;
       else hold++;
     }
-    return { buyCount: buy, sellCount: sell, holdCount: hold };
+    return { buyCount: buy, sellCount: sell, holdCount: hold, alphaCount: alpha };
   }, [stocks]);
 
   const activeTabConfig = RADAR_TABS.find((t) => t.key === activeTab);
@@ -352,7 +390,10 @@ export default function AIPredictionRadar({
             <span className="text-green-500">{buyCount} BUY</span>
             <span className="text-yellow-500">{holdCount} HOLD</span>
             <span className="text-red-500">{sellCount} SELL</span>
-            <span className="text-zinc-600 ml-1">
+            <span
+              className="text-zinc-600 ml-1"
+              title={`알파 산출 ${alphaCount} / 표시 ${sorted.length} / 전체 ${stocks.length}`}
+            >
               {sorted.length}/{stocks.length}
             </span>
           </div>
