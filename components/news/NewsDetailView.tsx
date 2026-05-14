@@ -380,7 +380,8 @@ function ArticleBody({
 }) {
   return (
     <Card className="px-5 sm:px-6 py-6">
-      <article className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:text-zinc-200 prose-strong:text-zinc-100 prose-headings:text-zinc-100">
+      {/* 카드는 넓게, 본문 텍스트만 reading width 제한 */}
+      <article className="prose prose-invert mx-auto max-w-[75ch] prose-p:leading-relaxed prose-p:text-zinc-200 prose-strong:text-zinc-100 prose-headings:text-zinc-100">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}
@@ -610,7 +611,7 @@ export default function NewsDetailView({
         </button>
       </PageHeader>
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-4">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-4">
         {isLoading ? (
           <>
             <HeroSkeleton />
