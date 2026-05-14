@@ -222,17 +222,28 @@ export function apiStockToRadar(
   const hasAlpha =
     typeof item.signal === 'string' &&
     VALID_RADAR_SIGNALS.includes(item.signal as SignalType);
+
+  // 라이브 가격 추적 데이터(return 또는 daily OHLCV) 존재 여부
+  const rawReturn = item['return'];
+  const hasReturnNumber = typeof rawReturn === 'number' && Number.isFinite(rawReturn);
+  const dailyArr = Array.isArray(item.daily) ? item.daily : [];
+  const lastDaily = dailyArr.length > 0 ? dailyArr[dailyArr.length - 1] : null;
+  const hasDailyClose =
+    lastDaily != null && safeNum(lastDaily.close) > 0 && safeNum(lastDaily.volume) > 0;
+  const hasLiveData = hasReturnNumber || hasDailyClose;
+
   return {
     ticker: item.ticker,
     name: getTickerName(item.ticker),
     price: pickLivePrice(item),
     volume: pickLiveVolume(item),
-    priceReturn: safeNum(item['return']),
+    priceReturn: safeNum(rawReturn),
     sentiment: safeNum(item.sentiment),
     divergence: safeNum(item.divergence),
     signal: safeSignal(item.signal),
     isTopPick,
     hasAlpha,
+    hasLiveData,
   };
 }
 

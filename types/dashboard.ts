@@ -403,6 +403,11 @@ export interface RadarStock {
    * false인 경우 sentiment/divergence/signal은 fallback(0/HOLD)이므로 표시에서 분기 필요.
    */
   hasAlpha: boolean;
+  /**
+   * 백엔드가 라이브 가격 추적 데이터(return 또는 daily OHLCV)를 채웠는지.
+   * false인 경우 priceReturn=0, volume=0이 fallback이므로 표시/정렬에서 분기 필요.
+   */
+  hasLiveData: boolean;
 }
 
 export interface ChartDataPoint {

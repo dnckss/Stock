@@ -65,9 +65,9 @@ function sortAndFilter(
       });
     case 'gainers':
     case 'losers': {
-      // 1D 탭: 알파(return) 있는 종목만. 기간 탭: perf 데이터 있는 종목만
+      // 1D 탭: 라이브 가격 데이터(return) 있는 종목만. 기간 탭: perf 데이터 있는 종목만
       const filtered = stocks.filter((s) =>
-        usePeriodData ? perfMap.has(s.ticker) : s.hasAlpha,
+        usePeriodData ? perfMap.has(s.ticker) : s.hasLiveData,
       );
       const list = [...filtered];
       if (key === 'gainers') {
@@ -90,9 +90,9 @@ function sortAndFilter(
       });
     }
     case 'divergence':
-      // 괴리율은 알파 산출 종목에만 의미가 있음
+      // 괴리율은 알파 + 라이브 가격 데이터가 모두 있어야 actionable
       return stocks
-        .filter((s) => s.hasAlpha)
+        .filter((s) => s.hasAlpha && s.hasLiveData)
         .sort((a, b) => Math.abs(b.divergence) - Math.abs(a.divergence));
     default:
       return [...stocks];
@@ -183,8 +183,8 @@ function PredictionRow({
   const displayReturn = perf ? perf.changePct / 100 : stock.priceReturn;
   const displayVolume = perf ? perf.volume : stock.volume;
   const displayTv = perf ? perf.tradingValue : stock.price * stock.volume;
-  // perf가 있으면 기간 수익률이 있고, 아니면 알파(return) 산출 종목만 의미 있음
-  const hasReturn = Boolean(perf) || stock.hasAlpha;
+  // perf가 있으면 기간 수익률이 있고, 아니면 라이브 가격 데이터가 있어야 의미 있음
+  const hasReturn = Boolean(perf) || stock.hasLiveData;
 
   return (
     <tr
