@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { RefreshCw, ChevronDown, Sparkles, Target } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { RefreshCw, ChevronDown, Target, Briefcase, X } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStrategyData } from '@/hooks/useStrategy';
@@ -13,9 +14,6 @@ import StrategyNewsThemes from '@/components/strategy/StrategyNewsThemes';
 import StrategyEconPanel from '@/components/strategy/StrategyEconPanel';
 import StrategySectorHeatmap from '@/components/strategy/StrategySectorHeatmap';
 import StrategyRecommendationCard from '@/components/strategy/StrategyRecommendationCard';
-import PortfolioForm from '@/components/portfolio/PortfolioForm';
-import PortfolioStreamView from '@/components/portfolio/PortfolioStreamView';
-import PortfolioResultView from '@/components/portfolio/PortfolioResultView';
 import type { PortfolioFormValues } from '@/components/portfolio/PortfolioForm';
 import {
   STRATEGY_DIRECTION_CONFIG,
@@ -23,6 +21,17 @@ import {
 } from '@/lib/strategyConstants';
 import { PORTFOLIO_MAX_WEIGHT_DEFAULT } from '@/lib/constants';
 import type { StrategyRecommendation, StrategyNewsTheme } from '@/types/dashboard';
+
+// 모달/스트림 결과: 사용자 트리거 후에만 필요 → 동적 분할
+const PortfolioForm = dynamic(() => import('@/components/portfolio/PortfolioForm'), {
+  ssr: false,
+});
+const PortfolioStreamView = dynamic(() => import('@/components/portfolio/PortfolioStreamView'), {
+  ssr: false,
+});
+const PortfolioResultView = dynamic(() => import('@/components/portfolio/PortfolioResultView'), {
+  ssr: false,
+});
 
 /* ── Helpers ── */
 
@@ -238,7 +247,7 @@ export default function StrategyPage() {
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[400px] -right-[300px] w-[800px] h-[800px] rounded-full bg-emerald-500/[0.03] blur-[120px]" />
         <div className="absolute top-[50%] -left-[300px] w-[600px] h-[600px] rounded-full bg-blue-500/[0.03] blur-[120px]" />
-        <div className="absolute -bottom-[200px] right-[30%] w-[500px] h-[500px] rounded-full bg-violet-500/[0.02] blur-[120px]" />
+        <div className="absolute -bottom-[200px] right-[30%] w-[500px] h-[500px] rounded-full bg-zinc-500/[0.015] blur-[120px]" />
       </div>
 
       <PageHeader title="Strategy">
@@ -347,20 +356,37 @@ export default function StrategyPage() {
 
           {/* Portfolio Builder */}
           <motion.div className="mt-8" variants={cardVariants}>
-            {/* Idle: trigger button */}
+            {/* Idle: trigger panel */}
             {stream.status === 'idle' && !showPortfolioForm && (
-              <div className="flex justify-center py-6">
-                <button
-                  type="button"
-                  onClick={() => setShowPortfolioForm(true)}
-                  className="group inline-flex items-center gap-3 text-sm font-medium px-6 py-3 rounded-xl
-                             border border-violet-500/30 bg-violet-500/10 text-violet-400
-                             hover:bg-violet-500/20 hover:border-violet-500/50 transition-all duration-300
-                             shadow-lg shadow-violet-500/5 hover:shadow-violet-500/10"
-                >
-                  <Sparkles className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  Portfolio Builder
-                </button>
+              <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/40 overflow-hidden">
+                <div className="px-5 py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10">
+                      <Briefcase className="h-4 w-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-semibold text-zinc-100">Portfolio Builder</h2>
+                      <p className="text-xs text-zinc-500">투자 조건 기반 자산배분</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="hidden md:flex items-center gap-2 text-[11px] font-mono text-zinc-600">
+                      <span className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1">RISK</span>
+                      <span className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1">SECTOR</span>
+                      <span className="rounded-md border border-zinc-800 bg-zinc-900/60 px-2 py-1">REBALANCE</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPortfolioForm(true)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5
+                                 text-sm font-medium text-emerald-300 transition-colors
+                                 hover:border-emerald-400/50 hover:bg-emerald-500/15 hover:text-emerald-200"
+                    >
+                      <Briefcase className="h-4 w-4" />
+                      구성하기
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -376,19 +402,25 @@ export default function StrategyPage() {
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="relative w-full max-w-2xl mx-4 max-h-[90vh] rounded-2xl border border-zinc-700/50 bg-zinc-900 shadow-2xl flex flex-col overflow-hidden"
+                    className="relative w-full max-w-3xl mx-4 max-h-[90vh] rounded-xl border border-zinc-700/70 bg-[#101012] shadow-2xl flex flex-col overflow-hidden"
                   >
-                    <div className="px-6 py-4 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
-                      <div className="flex items-center gap-2.5">
-                        <Sparkles className="w-4 h-4 text-violet-400" />
-                        <span className="text-sm font-semibold text-zinc-200">Portfolio Builder</span>
+                    <div className="px-6 py-4 border-b border-zinc-800/70 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10">
+                          <Briefcase className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-semibold text-zinc-100">Portfolio Builder</span>
+                          <p className="text-[11px] text-zinc-500">Investment mandate</p>
+                        </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => setShowPortfolioForm(false)}
-                        className="text-zinc-500 hover:text-zinc-300 transition-colors text-lg leading-none"
+                        aria-label="닫기"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-800/70 hover:text-zinc-200"
                       >
-                        ✕
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                     <div className="p-6 overflow-y-auto flex-1">
@@ -409,23 +441,23 @@ export default function StrategyPage() {
                 thinkingLog={stream.thinkingLog}
                 error={stream.error}
                 onCancel={handleStreamCancel}
-                strategyData={data}
               />
             )}
 
             {/* Complete: result */}
             {stream.result && (
-              <div className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl overflow-hidden">
-                <div className="px-5 py-3.5 border-b border-zinc-800/50 flex items-center justify-between">
+              <div className="bg-zinc-950/40 border border-zinc-800/70 rounded-xl overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-zinc-800/70 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <Sparkles className="w-4 h-4 text-violet-400" />
-                    <span className="text-sm font-semibold text-zinc-200">Portfolio</span>
+                    <Briefcase className="w-4 h-4 text-emerald-400" />
+                    <span className="text-sm font-semibold text-zinc-100">Portfolio Allocation</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleRegenerate}
-                    className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 px-3 py-1.5 text-xs text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-300"
                   >
+                    <RefreshCw className="h-3.5 w-3.5" />
                     다시 생성
                   </button>
                 </div>

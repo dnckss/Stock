@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, memo } from 'react';
 import Link from 'next/link';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { ECON_CALENDAR_SIDEBAR_PAGE_SIZE, getFearGreedThreshold } from '@/lib/constants';
@@ -309,7 +309,7 @@ function EconomicCalendarSection({
   );
 }
 
-export default function MacroIndicators({
+function MacroIndicatorsImpl({
   indices,
   indicators,
   fearGreed,
@@ -373,3 +373,6 @@ export default function MacroIndicators({
     </div>
   );
 }
+
+const MacroIndicators = memo(MacroIndicatorsImpl);
+export default MacroIndicators;

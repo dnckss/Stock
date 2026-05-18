@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { useMarketData } from '@/hooks/useMarketData';
 import { formatTimestamp } from '@/lib/api';
@@ -11,7 +11,12 @@ import AIPredictionRadar from '@/components/terminal/AIPredictionRadar';
 import LiveSentimentFeed from '@/components/terminal/LiveSentimentFeed';
 import type { MarketTickerItem, MacroIndicator } from '@/types/dashboard';
 
-function useCurrentTime() {
+/**
+ * 매초 setInterval로 갱신되는 시계 — 부모를 리렌더링하지 않도록
+ * 별도 컴포넌트로 격리한다. MacroIndicators/AIPredictionRadar/LiveSentimentFeed가
+ * 매초 리렌더되던 문제를 제거.
+ */
+const TerminalClock = memo(function TerminalClock() {
   const [time, setTime] = useState('');
 
   useEffect(() => {
@@ -30,8 +35,15 @@ function useCurrentTime() {
     return () => clearInterval(interval);
   }, []);
 
-  return time;
-}
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="font-mono text-xs text-zinc-300 tabular-nums">
+        {time}
+      </span>
+      <span className="text-[9px] text-zinc-600 font-mono">KST</span>
+    </div>
+  );
+});
 
 function TerminalBoot() {
   return (
@@ -51,9 +63,19 @@ function TerminalBoot() {
   );
 }
 
+function toTickerItems(items: MacroIndicator[] | null | undefined): MarketTickerItem[] {
+  if (!items) return [];
+  return items.map((m) => ({
+    symbol: m.label,
+    name: m.label,
+    price: m.value,
+    change: m.change,
+    changePercent: m.change,
+  }));
+}
+
 export default function TerminalPage() {
   const [isBooted, setIsBooted] = useState(false);
-  const currentTime = useCurrentTime();
   const {
     stocks,
     macro,
@@ -67,26 +89,15 @@ export default function TerminalPage() {
     wsConnected,
   } = useMarketData();
 
-  const toTickerItems = (items: MacroIndicator[] | null | undefined) => {
-    if (!items) return [];
-    return items.map(
-      (m): MarketTickerItem => ({
-        symbol: m.label,
-        name: m.label,
-        price: m.value,
-        change: m.change,
-        changePercent: m.change,
-      }),
-    );
-  };
-
-  const headerTickerItems: MarketTickerItem[] = macro
-    ? [
-        ...(macro.marquee ?? []),
-        ...toTickerItems(macro.indices),
-        ...toTickerItems(macro.indicators),
-      ]
-    : [];
+  // macro snapshot이 동일 참조면 동일 ticker 배열을 재사용 → GlobalMarketTicker memo 적중
+  const headerTickerItems: MarketTickerItem[] = useMemo(() => {
+    if (!macro) return [];
+    return [
+      ...(macro.marquee ?? []),
+      ...toTickerItems(macro.indices),
+      ...toTickerItems(macro.indicators),
+    ];
+  }, [macro]);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsBooted(true), 800);
@@ -137,12 +148,7 @@ export default function TerminalPage() {
             )}
           </div>
           <span className="text-zinc-700">|</span>
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono text-xs text-zinc-300 tabular-nums">
-              {currentTime}
-            </span>
-            <span className="text-[9px] text-zinc-600 font-mono">KST</span>
-          </div>
+          <TerminalClock />
           <Link
             href="/strategy"
             className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-zinc-800/50 bg-zinc-800/20 hover:bg-zinc-800/60 hover:border-zinc-700 transition-colors text-[10px] text-zinc-300 font-mono"

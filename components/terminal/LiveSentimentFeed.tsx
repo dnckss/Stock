@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ExternalLink, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
@@ -202,13 +203,20 @@ function FeedSkeleton() {
   );
 }
 
-export default function LiveSentimentFeed({
+function LiveSentimentFeedImpl({
   items,
   isLoading,
 }: LiveSentimentFeedProps) {
-  const posCount = items.filter((n) => n.sentimentLabel === 'positive').length;
-  const negCount = items.filter((n) => n.sentimentLabel === 'negative').length;
-  const neutralCount = items.length - posCount - negCount;
+  // 동일 items 참조면 한 번만 계산 (3-pass filter → 1-pass reduce)
+  const { posCount, negCount, neutralCount } = useMemo(() => {
+    let pos = 0;
+    let neg = 0;
+    for (const n of items) {
+      if (n.sentimentLabel === 'positive') pos++;
+      else if (n.sentimentLabel === 'negative') neg++;
+    }
+    return { posCount: pos, negCount: neg, neutralCount: items.length - pos - neg };
+  }, [items]);
 
   return (
     <div className="h-full flex flex-col bg-zinc-900 border-l border-zinc-800">
@@ -263,3 +271,6 @@ export default function LiveSentimentFeed({
     </div>
   );
 }
+
+const LiveSentimentFeed = memo(LiveSentimentFeedImpl);
+export default LiveSentimentFeed;

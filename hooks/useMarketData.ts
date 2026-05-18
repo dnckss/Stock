@@ -30,6 +30,32 @@ import {
 const WS_RECONNECT_DELAY = 3000;
 const MAX_NEWS_ITEMS = 30;
 
+/** macro 표시 객체의 의미 변화가 있는지 얕게 비교 — referential 안정성 유지용 */
+function isMacroEqual(
+  a: MacroDisplayData | null,
+  b: MacroDisplayData | null,
+): boolean {
+  if (a === b) return true;
+  if (a === null || b === null) return false;
+  if (a.fearGreed?.value !== b.fearGreed?.value) return false;
+  if (a.marquee.length !== b.marquee.length) return false;
+  if (a.indices.length !== b.indices.length) return false;
+  if (a.indicators.length !== b.indicators.length) return false;
+  for (let i = 0; i < a.marquee.length; i++) {
+    if (a.marquee[i].price !== b.marquee[i].price) return false;
+    if (a.marquee[i].changePercent !== b.marquee[i].changePercent) return false;
+  }
+  for (let i = 0; i < a.indices.length; i++) {
+    if (a.indices[i].value !== b.indices[i].value) return false;
+    if (a.indices[i].change !== b.indices[i].change) return false;
+  }
+  for (let i = 0; i < a.indicators.length; i++) {
+    if (a.indicators[i].value !== b.indicators[i].value) return false;
+    if (a.indicators[i].change !== b.indicators[i].change) return false;
+  }
+  return true;
+}
+
 export interface MarketDataState {
   stocks: RadarStock[];
   macro: MacroDisplayData | null;
@@ -124,26 +150,34 @@ export function useMarketData(): MarketDataState {
         setStocks(incomingMerged);
       }
 
-      setUpdatedAt(timestamp);
-      setError(null);
+      setUpdatedAt((prev) => (prev === timestamp ? prev : timestamp));
+      setError((prev) => (prev === null ? prev : null));
 
       if (macroPayload != null) {
         const next = apiMacroToDisplay(macroPayload);
-        if (next !== null) setMacro(next);
+        if (next !== null) {
+          // 동일 macro snapshot이면 setState 자체를 회피 (얕은 비교)
+          setMacro((prev) => (isMacroEqual(prev, next) ? prev : next));
+        }
       }
 
-      if (newsFeedPayload) {
+      if (newsFeedPayload && newsFeedPayload.length > 0) {
         const normalized = normalizeNews(newsFeedPayload);
-        setNewsFeed((prev) => {
-          const seen = new Set<string>();
-          const mergedNews = [...normalized, ...prev].filter((x) => {
-            if (seen.has(x.id)) return false;
-            seen.add(x.id);
-            return true;
+        if (normalized.length > 0) {
+          setNewsFeed((prev) => {
+            // 들어온 뉴스가 모두 이미 prev에 존재하면 상태 갱신 자체를 스킵
+            // → React가 리렌더하지 않으므로 LiveSentimentFeed/하위 트리 보존
+            const prevIds = new Set(prev.map((p) => p.id));
+            const fresh = normalized.filter((n) => !prevIds.has(n.id));
+            if (fresh.length === 0) return prev;
+
+            const merged = [...fresh, ...prev];
+            merged.sort((a, b) => b.timestamp - a.timestamp);
+            return merged.length > MAX_NEWS_ITEMS
+              ? merged.slice(0, MAX_NEWS_ITEMS)
+              : merged;
           });
-          mergedNews.sort((a, b) => b.timestamp - a.timestamp);
-          return mergedNews.slice(0, MAX_NEWS_ITEMS);
-        });
+        }
       }
     },
     [normalizeNews],
@@ -252,7 +286,6 @@ export function useMarketData(): MarketDataState {
   }, [handleUpdate]);
 
   useEffect(() => {
-    mountedRef.current = true;
     void loadEconomicCalendar(0);
   }, [loadEconomicCalendar]);
 

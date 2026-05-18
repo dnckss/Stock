@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import type { MarketTickerItem } from '@/types/dashboard';
 
 interface GlobalMarketTickerProps {
@@ -50,10 +51,7 @@ function TickerSkeleton() {
   );
 }
 
-export default function GlobalMarketTicker({
-  items,
-  isLoading,
-}: GlobalMarketTickerProps) {
+function GlobalMarketTicker({ items, isLoading }: GlobalMarketTickerProps) {
   if (isLoading) {
     return <TickerSkeleton />;
   }
@@ -85,3 +83,5 @@ export default function GlobalMarketTicker({
     </div>
   );
 }
+
+export default memo(GlobalMarketTicker);

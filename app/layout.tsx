@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import ChatWidget from "@/components/chat/ChatWidget";
-import AlertWatcher from "@/components/common/AlertWatcher";
+import dynamic from "next/dynamic";
 import "./globals.css";
+
+// 모든 페이지 layout에 항상 마운트되지만 초기 가시 UI는 없거나(AlertWatcher)
+// 닫혀있는 floating 위젯(ChatWidget) — react-markdown/framer-motion/lucide 다수를
+// 끌고 들어오므로 dynamic import로 critical path에서 제외한다.
+// (자식이 'use client'이므로 ssr:false 없이도 클라이언트 전용으로 동작)
+const ChatWidget = dynamic(() => import("@/components/chat/ChatWidget"));
+const AlertWatcher = dynamic(() => import("@/components/common/AlertWatcher"));
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

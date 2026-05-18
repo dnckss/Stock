@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 import {
@@ -23,8 +24,16 @@ import { useRadarPerformance, type PerfMap } from '@/hooks/useRadarPerformance';
 import StockLogo from '@/components/common/StockLogo';
 import type { RadarStock, PricePerformanceItem } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
-import SP500Heatmap from './SP500Heatmap';
-import BacktestDashboard from './BacktestDashboard';
+
+// 탭 전환 시에만 사용되는 화면 — 초기 번들에서 분리
+const SP500Heatmap = dynamic(() => import('./SP500Heatmap'), {
+  ssr: false,
+  loading: () => <TableSkeleton />,
+});
+const BacktestDashboard = dynamic(() => import('./BacktestDashboard'), {
+  ssr: false,
+  loading: () => <TableSkeleton />,
+});
 
 const DIVERGENCE_MAX = 0.5;
 
@@ -170,13 +179,13 @@ function MissingCell({ align = 'right' }: { align?: 'right' | 'center' | 'left' 
   );
 }
 
-function PredictionRow({
+const PredictionRow = memo(function PredictionRow({
   stock,
   onClick,
   perf,
 }: {
   stock: RadarStock;
-  onClick: () => void;
+  onClick: (ticker: string) => void;
   perf: PricePerformanceItem | undefined;
 }) {
   const sentimentPositive = stock.sentiment >= 0;
@@ -188,7 +197,7 @@ function PredictionRow({
 
   return (
     <tr
-      onClick={onClick}
+      onClick={() => onClick(stock.ticker)}
       className={cn(
         'group hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50 cursor-pointer',
         stock.isTopPick && 'animate-signal-glow',
@@ -279,7 +288,7 @@ function PredictionRow({
       </td>
     </tr>
   );
-}
+});
 
 function TableSkeleton() {
   return (
@@ -327,7 +336,7 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
-export default function AIPredictionRadar({
+function AIPredictionRadarImpl({
   stocks,
   isLoading,
   error,
@@ -342,6 +351,11 @@ export default function AIPredictionRadar({
 
   const tickers = useMemo(() => stocks.map((s) => s.ticker), [stocks]);
   const { perfMap, isLoading: perfLoading } = useRadarPerformance(tickers, activePeriod);
+
+  const handleRowClick = useCallback(
+    (ticker: string) => router.push(`/stock/${ticker}`),
+    [router],
+  );
 
   const sorted = useMemo(
     () => sortAndFilter(stocks, activeTab, activePeriod, perfMap),
@@ -521,7 +535,7 @@ export default function AIPredictionRadar({
                   key={stock.ticker}
                   stock={stock}
                   perf={perfMap.get(stock.ticker.toUpperCase())}
-                  onClick={() => router.push(`/stock/${stock.ticker}`)}
+                  onClick={handleRowClick}
                 />
               ))}
             </tbody>
@@ -531,3 +545,6 @@ export default function AIPredictionRadar({
     </div>
   );
 }
+
+const AIPredictionRadar = memo(AIPredictionRadarImpl);
+export default AIPredictionRadar;
