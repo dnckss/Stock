@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, ExternalLink, Star, StickyNote, Bell } from 'lucide-react';
+import { ArrowLeft, Loader2, ExternalLink, Star, Bell } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import { useWatchlist } from '@/hooks/useWatchlist';
-import { useStockMemo } from '@/hooks/useStockMemo';
 import { useAlerts } from '@/hooks/useAlerts';
 import { useStockDetail } from '@/hooks/useStockDetail';
 import { useStockFundamentals } from '@/hooks/useStockFundamentals';
@@ -57,7 +56,6 @@ export default function StockDetailPage() {
     sectionRefreshing,
   } = useStockFundamentals(ticker);
   const watchlist = useWatchlist();
-  const { memo, setMemo } = useStockMemo(ticker);
   const { add: addAlert, requestPermission } = useAlerts();
   const [showAlertForm, setShowAlertForm] = useState(false);
   const [alertPrice, setAlertPrice] = useState('');
@@ -162,23 +160,6 @@ export default function StockDetailPage() {
             sectionRefreshing={sectionRefreshing}
             onRefreshSection={refreshSection}
           />
-          {/* 투자 메모 */}
-          <div className="px-4 py-3 border-t border-zinc-800/40">
-            <div className="flex items-center gap-1.5 mb-2">
-              <StickyNote className="w-3.5 h-3.5 text-zinc-600" />
-              <span className="text-[10px] font-mono text-zinc-600 uppercase">메모</span>
-            </div>
-            <textarea
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              placeholder="이 종목에 대한 메모를 남겨보세요..."
-              rows={3}
-              className="w-full text-xs bg-zinc-900/50 border border-zinc-800/50 rounded-lg px-3 py-2
-                         text-zinc-300 placeholder:text-zinc-700 resize-none
-                         focus:outline-none focus:border-zinc-700 transition-colors"
-            />
-          </div>
-
           {/* 토스증권 바로가기 */}
           <div className="px-4 py-4">
             <a
