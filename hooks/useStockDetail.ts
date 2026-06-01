@@ -55,6 +55,7 @@ export interface UseStockDetailReturn {
   newsRefreshing: boolean;
   lastNewsRefreshForced: boolean;
   error: string | null;
+  startAnalysis: () => void;
   retryAnalysis: () => void;
   refreshLatestNews: () => void;
   setChartPeriod: (period: ChartPeriod) => void;
@@ -148,8 +149,7 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
         if (data.quote) setQuote(parseQuote(data.quote));
         if (data.chart) setChartBars(parseChartBars(data.chart.bars));
 
-        // AI 분석 비동기 로드
-        loadAnalysis(data.ticker);
+        // AI 분석은 사용자가 버튼을 눌렀을 때만 실행 (startAnalysis)
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -164,7 +164,7 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
       cancelled = true;
       mountedRef.current = false;
     };
-  }, [ticker, loadAnalysis]);
+  }, [ticker]);
 
   // ── Quote polling (8s) ──
   useEffect(() => {
@@ -259,9 +259,11 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     };
   }, [ticker]);
 
-  const retryAnalysis = useCallback(() => {
-    if (detail) loadAnalysis(detail.ticker);
-  }, [detail, loadAnalysis]);
+  // 사용자가 버튼을 눌러 AI 분석을 시작/재시도할 때 사용
+  const runAnalysis = useCallback(() => {
+    const t = detail?.ticker ?? ticker;
+    if (t) loadAnalysis(t);
+  }, [detail, ticker, loadAnalysis]);
 
   return {
     detail,
@@ -276,7 +278,8 @@ export function useStockDetail(ticker: string): UseStockDetailReturn {
     newsRefreshing,
     lastNewsRefreshForced,
     error,
-    retryAnalysis,
+    startAnalysis: runAnalysis,
+    retryAnalysis: runAnalysis,
     refreshLatestNews,
     setChartPeriod,
   };

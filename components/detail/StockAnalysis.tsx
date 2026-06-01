@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, RefreshCw, TrendingUp, TrendingDown, Minus, AlertTriangle, Target, Shield } from 'lucide-react';
+import { Loader2, RefreshCw, TrendingUp, TrendingDown, Minus, AlertTriangle, Target, Shield, Sparkles } from 'lucide-react';
 import type { StockAnalysis, TrendType, TechnicalCondition, ReboundRating, StrategyAction } from '@/types/dashboard';
 
 const TREND_CONFIG: Record<TrendType, { icon: typeof TrendingUp; text: string; bg: string; label: string }> = {
@@ -40,11 +40,13 @@ export default function StockAnalysisPanel({
   analysis,
   isLoading,
   error,
+  onStart,
   onRetry,
 }: {
   analysis: StockAnalysis | null;
   isLoading: boolean;
   error: string | null;
+  onStart: () => void;
   onRetry: () => void;
 }) {
   return (
@@ -219,10 +221,21 @@ export default function StockAnalysisPanel({
         </div>
       )}
 
-      {/* Empty state */}
+      {/* Empty state — 사용자가 버튼을 눌러야 분석 시작 */}
       {!isLoading && !error && !analysis && (
-        <div className="px-3 py-4 text-center">
-          <span className="text-[10px] text-zinc-600">분석 데이터 없음</span>
+        <div className="px-3 py-6 flex flex-col items-center gap-2.5">
+          <span className="text-[10px] text-zinc-600 text-center">
+            버튼을 누르면 AI 분석을 시작합니다 (30~60초 소요)
+          </span>
+          <button
+            type="button"
+            onClick={onStart}
+            className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold text-violet-300 hover:text-violet-200
+                       border border-violet-500/30 bg-violet-500/10 hover:bg-violet-500/20 rounded px-3 py-1.5 transition-colors"
+          >
+            <Sparkles className="w-3 h-3" />
+            AI 분석 시작
+          </button>
         </div>
       )}
     </div>

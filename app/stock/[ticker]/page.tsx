@@ -43,6 +43,7 @@ export default function StockDetailPage() {
     newsRefreshing,
     lastNewsRefreshForced,
     error,
+    startAnalysis,
     retryAnalysis,
     refreshLatestNews,
     setChartPeriod,
@@ -193,6 +194,7 @@ export default function StockDetailPage() {
             analysis={analysis}
             isLoading={analysisLoading}
             error={analysisError}
+            onStart={startAnalysis}
             onRetry={retryAnalysis}
           />
         </div>
