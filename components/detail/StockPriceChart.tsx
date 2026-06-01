@@ -2,17 +2,24 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, ChevronDown, TrendingUp, Minus, Pencil, Trash2, MousePointer } from 'lucide-react';
-import { createChart, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
-import type { IChartApi, UTCTimestamp } from 'lightweight-charts';
+import {
+  createChart,
+  CandlestickSeries,
+  HistogramSeries,
+  TickMarkType,
+} from 'lightweight-charts';
+import type { IChartApi, Time, UTCTimestamp } from 'lightweight-charts';
 import {
   CHART_MINUTE_PERIODS,
   CHART_UPPER_PERIODS,
   CHART_MINUTE_LABELS,
   CHART_UPPER_LABELS,
+  CHART_VISIBLE_BARS,
 } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import type { ChartBar, ChartPeriod } from '@/types/dashboard';
 
+// 한국식 캔들 표기: 빨강↑ / 파랑↓ — 의미색, 변경 금지
 const UP_COLOR = '#ef4444';
 const DOWN_COLOR = '#3b82f6';
 const DRAW_COLOR = '#facc15';
@@ -22,16 +29,104 @@ function isIntraday(period: ChartPeriod): boolean {
   return period.endsWith('min');
 }
 
-function toUtc(ts: string): UTCTimestamp {
-  const ms = new Date(ts).getTime();
-  if (Number.isNaN(ms)) return 0 as UTCTimestamp;
-  return Math.floor(ms / 1000) as UTCTimestamp;
+/* ── Time parsing ────────────────────────────────────────────────
+ * 백엔드 timestamp → lightweight-charts Time
+ *   • intraday(1/5/30/60min) : "YYYY-MM-DDTHH:MM:SS+00:00" → UTCTimestamp(s)
+ *   • day/week/month/year    : "YYYY-MM-DDT00:00:00" (TZ-naive)
+ *                              → BusinessDay {y,m,d}
+ *     ★ 일/주/월/년 봉은 BusinessDay 로 넘겨 타임존 영향을 원천 제거한다.
+ *       (UTCTimestamp 로 넘기면 JS 의 로컬 해석 + 라이브러리 UTC 표시로 날짜가
+ *        하루씩 어긋날 수 있음 — 본 페이지에서 발견된 버그의 핵심 원인)
+ * ──────────────────────────────────────────────────────────────── */
+function parseYmd(ts: string): { y: number; m: number; d: number } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(ts);
+  if (!match) return null;
+  return { y: +match[1], m: +match[2], d: +match[3] };
 }
 
-function dedupSort<T extends { time: UTCTimestamp }>(data: T[]): T[] {
-  const map = new Map<number, T>();
-  for (const d of data) map.set(d.time, d);
-  return Array.from(map.values()).sort((a, b) => a.time - b.time);
+function barToTime(ts: string, intra: boolean): Time | null {
+  if (intra) {
+    const ms = Date.parse(ts);
+    return Number.isNaN(ms) ? null : (Math.floor(ms / 1000) as UTCTimestamp);
+  }
+  const p = parseYmd(ts);
+  return p ? { year: p.y, month: p.m, day: p.d } : null;
+}
+
+function timeOrdinal(t: Time): number {
+  if (typeof t === 'number') return t;
+  if (typeof t === 'string') {
+    const ms = Date.parse(t);
+    return Number.isNaN(ms) ? 0 : ms / 1000;
+  }
+  return Date.UTC(t.year, t.month - 1, t.day) / 1000;
+}
+
+function timeKey(t: Time): string {
+  if (typeof t === 'number') return `n${t}`;
+  if (typeof t === 'string') return `s${t}`;
+  return `d${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
+}
+
+function dedupSortTime<T extends { time: Time }>(data: T[]): T[] {
+  const map = new Map<string, T>();
+  for (const d of data) map.set(timeKey(d.time), d);
+  return Array.from(map.values()).sort((a, b) => timeOrdinal(a.time) - timeOrdinal(b.time));
+}
+
+/* ── 라벨 포매터 ──────────────────────────────────────────────── */
+function unpackTime(time: Time): {
+  y: number; mo: number; d: number; hh: number; mm: number;
+} | null {
+  if (typeof time === 'number') {
+    const dt = new Date(time * 1000);
+    return {
+      y: dt.getFullYear(),
+      mo: dt.getMonth() + 1,
+      d: dt.getDate(),
+      hh: dt.getHours(),
+      mm: dt.getMinutes(),
+    };
+  }
+  if (typeof time === 'object' && time !== null) {
+    return { y: time.year, mo: time.month, d: time.day, hh: 0, mm: 0 };
+  }
+  return null;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/** x축 tick 라벨 — TickMarkType 에 맞춰 종류별 포맷 */
+function makeTickFormatter(intra: boolean) {
+  return (time: Time, type: TickMarkType): string | null => {
+    const u = unpackTime(time);
+    if (!u) return null;
+    switch (type) {
+      case TickMarkType.Year:
+        return String(u.y);
+      case TickMarkType.Month:
+        return `${u.y}.${pad2(u.mo)}`;
+      case TickMarkType.DayOfMonth:
+        return `${u.mo}/${u.d}`;
+      case TickMarkType.Time:
+      case TickMarkType.TimeWithSeconds:
+        return intra ? `${pad2(u.hh)}:${pad2(u.mm)}` : `${u.mo}/${u.d}`;
+      default:
+        return null;
+    }
+  };
+}
+
+/** 크로스헤어 툴팁 — 풀 데이트(필요 시 시:분 포함) */
+function makeCrosshairFormatter(intra: boolean) {
+  return (time: Time): string => {
+    const u = unpackTime(time);
+    if (!u) return '';
+    const ds = `${u.y}-${pad2(u.mo)}-${pad2(u.d)}`;
+    return intra ? `${ds} ${pad2(u.hh)}:${pad2(u.mm)}` : ds;
+  };
 }
 
 /* ── Drawing types ── */
@@ -324,6 +419,17 @@ export default function StockPriceChart({
     }
 
     const intra = isIntraday(period);
+    // 백엔드가 기간별(일/주/월/년)로 리샘플된 봉을 보내므로 그대로 사용한다.
+    const candleData = dedupSortTime(
+      bars
+        .map((b) => {
+          const t = barToTime(b.timestamp, intra);
+          return t ? { time: t, open: b.open, high: b.high, low: b.low, close: b.close } : null;
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null),
+    );
+
+    if (candleData.length === 0) return;
 
     const chart = createChart(containerRef.current, {
       width: containerRef.current.clientWidth,
@@ -350,6 +456,12 @@ export default function StockPriceChart({
         borderColor: '#27272a',
         timeVisible: intra,
         secondsVisible: false,
+        // 기간별 라벨 포매터 — UTC/로컬 혼동 없이 명시적 표기
+        tickMarkFormatter: makeTickFormatter(intra),
+      },
+      localization: {
+        // 크로스헤어 시간 표기도 동일 컨벤션
+        timeFormatter: makeCrosshairFormatter(intra),
       },
       handleScroll: !isDrawMode,
       handleScale: !isDrawMode,
@@ -363,16 +475,6 @@ export default function StockPriceChart({
       wickUpColor: UP_COLOR,
       wickDownColor: DOWN_COLOR,
     });
-
-    const candleData = dedupSort(
-      bars.map((b) => ({
-        time: toUtc(b.timestamp),
-        open: b.open,
-        high: b.high,
-        low: b.low,
-        close: b.close,
-      })),
-    );
     candles.setData(candleData);
 
     const volume = chart.addSeries(HistogramSeries, {
@@ -383,16 +485,32 @@ export default function StockPriceChart({
       scaleMargins: { top: 0.8, bottom: 0 },
     });
 
-    const volData = dedupSort(
-      bars.map((b) => ({
-        time: toUtc(b.timestamp),
-        value: b.volume,
-        color: b.close >= b.open ? `${UP_COLOR}88` : `${DOWN_COLOR}88`,
-      })),
+    const volData = dedupSortTime(
+      bars
+        .map((b) => {
+          const t = barToTime(b.timestamp, intra);
+          return t
+            ? {
+                time: t,
+                value: b.volume,
+                color: b.close >= b.open ? `${UP_COLOR}88` : `${DOWN_COLOR}88`,
+              }
+            : null;
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null),
     );
     volume.setData(volData);
 
-    chart.timeScale().fitContent();
+    // 기간별 합리적 초기 가시 범위 (fitContent 대신) — 라벨 가독성/직관성 확보.
+    // 데이터가 그보다 적으면 fitContent.
+    const visN = CHART_VISIBLE_BARS[period];
+    const total = candleData.length;
+    if (visN && total > visN) {
+      chart.timeScale().setVisibleLogicalRange({ from: total - visN, to: total });
+    } else {
+      chart.timeScale().fitContent();
+    }
+
     chartRef.current = chart;
 
     // sync canvas after chart created
