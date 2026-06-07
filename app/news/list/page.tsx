@@ -1,19 +1,40 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
-import { Loader2, Newspaper, TrendingUp, TrendingDown, Minus, Search, X } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, Minus, Search, X, Flame } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import { fetchNewsList } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import {
+  NEWS_LIST_PAGE_SIZE,
+  NEWS_IMPACT_TOP_COUNT,
+  NEWS_IMPACT_MIN_FOR_TOP,
+  NEWS_IMPACT_BAR_SEGMENTS,
+} from '@/lib/constants';
+import {
+  scoreByImpact,
+  groupNewsByDay,
+  impactBarLevel,
+  formatRelativeTime,
+  formatFullDate,
+  formatSignedScore,
+  type ScoredNewsItem,
+} from '@/lib/news';
 import type { ApiStockNewsItem, SentimentLabel } from '@/types/dashboard';
 
-const PAGE_SIZE = 48;
+type SentConfig = {
+  label: string;
+  text: string;
+  badge: string;
+  accent: string; // 좌측 액센트/바 채움 색
+  icon: typeof TrendingUp;
+};
 
-const SENT_CONFIG: Record<SentimentLabel, { label: string; text: string; bg: string; icon: typeof TrendingUp }> = {
-  positive: { label: '호재', text: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', icon: TrendingUp },
-  negative: { label: '악재', text: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20', icon: TrendingDown },
-  neutral: { label: '중립', text: 'text-zinc-400', bg: 'bg-zinc-500/10 border-zinc-700/20', icon: Minus },
+const SENT_CONFIG: Record<SentimentLabel, SentConfig> = {
+  positive: { label: '호재', text: 'text-emerald-400', badge: 'bg-emerald-500/10 border-emerald-500/20', accent: 'bg-emerald-500', icon: TrendingUp },
+  negative: { label: '악재', text: 'text-red-400', badge: 'bg-red-500/10 border-red-500/20', accent: 'bg-red-500', icon: TrendingDown },
+  neutral: { label: '중립', text: 'text-zinc-400', badge: 'bg-zinc-500/10 border-zinc-700/30', accent: 'bg-zinc-600', icon: Minus },
 };
 
 const FILTER_TABS: { key: SentimentLabel | 'all'; label: string }[] = [
@@ -23,20 +44,8 @@ const FILTER_TABS: { key: SentimentLabel | 'all'; label: string }[] = [
   { key: 'neutral', label: '중립' },
 ];
 
-function formatTime(ts: number): string {
-  const d = new Date(ts * 1000);
-  const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (diff < 60) return '방금 전';
-  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-  if (diff < 172800) return '어제';
-  return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-}
-
-function formatFullDate(ts: number): string {
-  return new Date(ts * 1000).toLocaleString('ko-KR', {
-    month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
-  });
+function sentConfig(label: SentimentLabel): SentConfig {
+  return SENT_CONFIG[label] ?? SENT_CONFIG.neutral;
 }
 
 function buildDetailHref(item: ApiStockNewsItem): string {
@@ -48,42 +57,164 @@ function buildDetailHref(item: ApiStockNewsItem): string {
   return `/news?${params.toString()}`;
 }
 
-/* ── News card ── */
+/* ── Shared bits ── */
 
-function NewsCard({ item }: { item: ApiStockNewsItem }) {
-  const cfg = SENT_CONFIG[item.sentiment_label] ?? SENT_CONFIG.neutral;
-  const SentIcon = cfg.icon;
+function SentBadge({ label, size = 'sm' }: { label: SentimentLabel; size?: 'sm' | 'md' }) {
+  const cfg = sentConfig(label);
+  const Icon = cfg.icon;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 font-medium rounded-md border shrink-0',
+        cfg.badge, cfg.text,
+        size === 'md' ? 'text-[11px] px-2 py-0.5' : 'text-[10px] px-1.5 py-0.5',
+      )}
+    >
+      <Icon className="w-3 h-3" />
+      {cfg.label}
+    </span>
+  );
+}
 
+function ImpactBar({ impact, accent }: { impact: number; accent: string }) {
+  const level = impactBarLevel(impact);
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-hidden>
+      {Array.from({ length: NEWS_IMPACT_BAR_SEGMENTS }).map((_, i) => (
+        <span key={i} className={cn('h-2.5 w-1 rounded-sm', i < level ? accent : 'bg-zinc-800')} />
+      ))}
+    </span>
+  );
+}
+
+function MetaLine({ item, now }: { item: ApiStockNewsItem; now: number }) {
+  return (
+    <div className="flex items-center gap-1.5 min-w-0 text-[11px]">
+      <span className="text-zinc-500 truncate">{item.publisher}</span>
+      <span className="text-zinc-700 shrink-0">·</span>
+      <span className="text-zinc-600 shrink-0" title={formatFullDate(item.timestamp)}>
+        {formatRelativeTime(item.timestamp, now)}
+      </span>
+      {item.ticker && (
+        <>
+          <span className="text-zinc-700 shrink-0">·</span>
+          <span className="font-mono text-zinc-500 shrink-0">{item.ticker}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Impact section ── */
+
+function ImpactLeadCard({ item, rank, now }: { item: ScoredNewsItem; rank: number; now: number }) {
+  const cfg = sentConfig(item.sentiment_label);
   return (
     <Link
       href={buildDetailHref(item)}
-      className="group flex flex-col bg-zinc-900/40 border border-zinc-800/50 rounded-2xl
-                 hover:border-zinc-700/60 hover:bg-zinc-800/40 hover:-translate-y-0.5
-                 transition-all duration-200 overflow-hidden"
+      className="group relative flex flex-col justify-between rounded-2xl border border-zinc-800/60
+                 bg-gradient-to-br from-zinc-900/70 to-zinc-900/30 p-5 min-h-[208px]
+                 hover:border-zinc-700/70 hover:from-zinc-800/60 transition-all duration-200"
     >
-      <div className="flex-1 p-4 pb-3">
-        <h3 className="text-[14px] text-zinc-200 leading-snug font-medium line-clamp-2
-                        group-hover:text-zinc-100 transition-colors mb-3">
-          {item.title}
-        </h3>
-        <span className={cn('inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border', cfg.bg, cfg.text)}>
-          <SentIcon className="w-3 h-3" />
-          {cfg.label}
-        </span>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-mono font-bold text-amber-400/90">#{rank}</span>
+        <SentBadge label={item.sentiment_label} size="md" />
       </div>
-      <div className="px-4 py-2.5 border-t border-zinc-800/40 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[11px] text-zinc-500 truncate">{item.publisher}</span>
-          <span className="text-zinc-800 shrink-0">·</span>
-          <span className="text-[11px] text-zinc-600 shrink-0" title={formatFullDate(item.timestamp)}>
-            {formatTime(item.timestamp)}
+      <h3 className="text-[17px] leading-snug font-semibold text-zinc-100 line-clamp-3 my-3
+                     group-hover:text-white transition-colors">
+        {item.title}
+      </h3>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <ImpactBar impact={item.impact} accent={cfg.accent} />
+          <span className="text-[11px] text-zinc-500">
+            영향도 <span className={cn('font-mono font-semibold', cfg.text)}>{item.impact.toFixed(2)}</span>
           </span>
         </div>
-        {item.ticker && (
-          <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/60 border border-zinc-700/30 px-1.5 py-0.5 rounded shrink-0 ml-2">
-            {item.ticker}
-          </span>
+        <MetaLine item={item} now={now} />
+      </div>
+    </Link>
+  );
+}
+
+function ImpactRankRow({ item, rank, now }: { item: ScoredNewsItem; rank: number; now: number }) {
+  const cfg = sentConfig(item.sentiment_label);
+  return (
+    <Link
+      href={buildDetailHref(item)}
+      className="group flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/30 transition-colors"
+    >
+      <span className="text-[11px] font-mono font-bold text-zinc-600 w-5 shrink-0">#{rank}</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <SentBadge label={item.sentiment_label} />
+          <h4 className="text-[13px] text-zinc-200 leading-snug line-clamp-1 group-hover:text-zinc-50 transition-colors">
+            {item.title}
+          </h4>
+        </div>
+        <div className="mt-1 pl-0.5"><MetaLine item={item} now={now} /></div>
+      </div>
+      <ImpactBar impact={item.impact} accent={cfg.accent} />
+    </Link>
+  );
+}
+
+function ImpactSection({ items, now }: { items: ScoredNewsItem[]; now: number }) {
+  if (items.length === 0) return null;
+  const [lead, ...rest] = items;
+  return (
+    <section className="mb-10">
+      <div className="flex items-center gap-2 mb-4">
+        <Flame className="w-4 h-4 text-amber-400" />
+        <h2 className="text-sm font-semibold text-zinc-200">시장 영향도 TOP</h2>
+        <span className="text-[11px] text-zinc-600" title="|감성점수| × 신뢰도 × 최신성(시간 감쇠)으로 산출">
+          감성강도 × 신뢰도 × 최신성
+        </span>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <ImpactLeadCard item={lead} rank={1} now={now} />
+        {rest.length > 0 && (
+          <div className="rounded-2xl border border-zinc-800/50 divide-y divide-zinc-800/40 overflow-hidden">
+            {rest.map((item, i) => (
+              <ImpactRankRow key={`top-${item.url}-${i}`} item={item} rank={i + 2} now={now} />
+            ))}
+          </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+/* ── Feed ── */
+
+function FeedRow({ item, now }: { item: ScoredNewsItem; now: number }) {
+  const cfg = sentConfig(item.sentiment_label);
+  return (
+    <Link
+      href={buildDetailHref(item)}
+      className="group flex items-stretch gap-3 rounded-md pr-2 py-3 hover:bg-zinc-900/40 transition-colors"
+    >
+      {/* 좌측 감성 액센트 바 */}
+      <span className={cn('w-0.5 shrink-0 rounded-full', cfg.accent)} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 mb-1">
+          <SentBadge label={item.sentiment_label} />
+          {item.ticker && <span className="text-[10px] font-mono text-zinc-500">{item.ticker}</span>}
+        </div>
+        <h3 className="text-[14px] text-zinc-200 leading-snug line-clamp-2 group-hover:text-zinc-50 transition-colors">
+          {item.title}
+        </h3>
+        <div className="mt-1.5 flex items-center gap-1.5 min-w-0 text-[11px]">
+          <span className="text-zinc-500 truncate">{item.publisher}</span>
+          <span className="text-zinc-700 shrink-0">·</span>
+          <span className="text-zinc-600 shrink-0" title={formatFullDate(item.timestamp)}>
+            {formatRelativeTime(item.timestamp, now)}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col items-end justify-center gap-1 shrink-0">
+        <ImpactBar impact={item.impact} accent={cfg.accent} />
+        <span className={cn('text-[11px] font-mono', cfg.text)}>{formatSignedScore(item.score)}</span>
       </div>
     </Link>
   );
@@ -114,20 +245,23 @@ export default function NewsListPage() {
 
     try {
       const res = await fetchNewsList({
-        limit: PAGE_SIZE,
+        limit: NEWS_LIST_PAGE_SIZE,
         offset,
         with_count: isFirst,
         ticker: ticker || undefined,
       });
       if (!mountedRef.current) return;
       if (isFirst && res.total != null) setTotal(res.total);
-      setItems((prev) => isFirst ? res.items : [...prev, ...res.items]);
+      setItems((prev) => (isFirst ? res.items : [...prev, ...res.items]));
       offsetRef.current = offset + res.count;
-      hasMoreRef.current = res.count >= PAGE_SIZE;
+      hasMoreRef.current = res.count >= NEWS_LIST_PAGE_SIZE;
     } catch (err: unknown) {
       if (mountedRef.current) setError(err instanceof Error ? err.message : '뉴스를 불러올 수 없습니다');
     } finally {
-      if (mountedRef.current) { setIsLoading(false); setIsLoadingMore(false); }
+      if (mountedRef.current) {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
     }
   }, []);
 
@@ -135,7 +269,9 @@ export default function NewsListPage() {
   useEffect(() => {
     mountedRef.current = true;
     loadPage(0, true);
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, [loadPage]);
 
   // Ticker search with debounce
@@ -143,8 +279,7 @@ export default function NewsListPage() {
     setTickerSearch(value);
     clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => {
-      const ticker = value.trim().toUpperCase();
-      loadPage(0, true, ticker);
+      loadPage(0, true, value.trim().toUpperCase());
     }, 400);
   }, [loadPage]);
 
@@ -160,21 +295,53 @@ export default function NewsListPage() {
     loadPage(offsetRef.current, false, tickerSearch.trim().toUpperCase() || undefined);
   };
 
-  // Client-side filters (text query + sentiment)
-  const filtered = items.filter((item) => {
-    if (sentimentFilter !== 'all' && item.sentiment_label !== sentimentFilter) return false;
-    if (query) {
-      const q = query.toLowerCase();
-      return (
-        item.title?.toLowerCase().includes(q) ||
-        item.publisher?.toLowerCase().includes(q) ||
-        item.ticker?.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const hasActiveFilter = Boolean(query || tickerSearch || sentimentFilter !== 'all');
 
-  const hasActiveFilter = query || tickerSearch || sentimentFilter !== 'all';
+  // 영향도 감쇠/상대시간 기준 시각 — 렌더 순수성을 위해 state 로 보관, 1분마다 갱신.
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Client-side filters (text query + sentiment)
+  const filtered = useMemo(
+    () =>
+      items.filter((item) => {
+        if (sentimentFilter !== 'all' && item.sentiment_label !== sentimentFilter) return false;
+        if (query) {
+          const q = query.toLowerCase();
+          return (
+            item.title?.toLowerCase().includes(q) ||
+            item.publisher?.toLowerCase().includes(q) ||
+            item.ticker?.toLowerCase().includes(q)
+          );
+        }
+        return true;
+      }),
+    [items, sentimentFilter, query],
+  );
+
+  const scored = useMemo(() => scoreByImpact(filtered, now), [filtered, now]);
+
+  // 영향도 TOP — 필터/검색이 없을 때만. 노이즈 컷(min impact) 후 상위 N.
+  const topItems = useMemo(
+    () =>
+      hasActiveFilter
+        ? []
+        : scored.filter((it) => it.impact >= NEWS_IMPACT_MIN_FOR_TOP).slice(0, NEWS_IMPACT_TOP_COUNT),
+    [scored, hasActiveFilter],
+  );
+
+  // 피드 — TOP에 노출된 항목은 중복 제거. 일자별 그룹핑.
+  const feedGroups = useMemo(() => {
+    const topUrls = new Set(topItems.map((it) => it.url));
+    const feedItems = topUrls.size ? scored.filter((it) => !topUrls.has(it.url)) : scored;
+    return groupNewsByDay(feedItems, now);
+  }, [scored, topItems, now]);
+
+  const showLoadMore = hasMoreRef.current && sentimentFilter === 'all' && !query;
 
   return (
     <div className="min-h-screen bg-[#09090b]">
@@ -186,7 +353,7 @@ export default function NewsListPage() {
 
       {/* Search + filter bar */}
       <div className="sticky top-14 z-40 bg-[#09090b]/80 backdrop-blur-xl border-b border-zinc-800/40">
-        <div className="max-w-[1400px] mx-auto px-6 py-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div className="max-w-[1100px] mx-auto px-6 py-2.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <div className="flex items-center gap-2 flex-1">
             <div className="relative flex-1 max-w-[320px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
@@ -195,6 +362,7 @@ export default function NewsListPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="뉴스 검색..."
+                aria-label="뉴스 검색"
                 className="w-full text-[13px] bg-zinc-900/60 border border-zinc-800/50 rounded-lg pl-9 pr-3 py-2
                            text-zinc-200 placeholder:text-zinc-600
                            focus:outline-none focus:border-zinc-700 transition-colors"
@@ -206,13 +374,14 @@ export default function NewsListPage() {
                 value={tickerSearch}
                 onChange={(e) => handleTickerSearch(e.target.value)}
                 placeholder="티커 (AAPL)"
+                aria-label="티커 검색"
                 className="w-full text-[13px] font-mono bg-zinc-900/60 border border-zinc-800/50 rounded-lg px-3 py-2
                            text-zinc-200 placeholder:text-zinc-600 uppercase
                            focus:outline-none focus:border-zinc-700 transition-colors"
               />
             </div>
             {hasActiveFilter && (
-              <button onClick={clearSearch} className="p-2 text-zinc-600 hover:text-zinc-400 transition-colors shrink-0" title="필터 초기화">
+              <button onClick={clearSearch} className="p-2 text-zinc-600 hover:text-zinc-400 transition-colors shrink-0" title="필터 초기화" aria-label="필터 초기화">
                 <X className="w-4 h-4" />
               </button>
             )}
@@ -237,7 +406,7 @@ export default function NewsListPage() {
       </div>
 
       {/* Content */}
-      <main className="max-w-[1400px] mx-auto px-6 py-6">
+      <main className="max-w-[1100px] mx-auto px-6 py-6">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 className="w-5 h-5 text-zinc-500 animate-spin" />
@@ -253,7 +422,7 @@ export default function NewsListPage() {
               다시 시도
             </button>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : scored.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24">
             <Search className="w-8 h-8 text-zinc-700 mb-3" />
             <p className="text-sm text-zinc-600">
@@ -270,19 +439,36 @@ export default function NewsListPage() {
             {/* Result count when filtered */}
             {hasActiveFilter && (
               <div className="mb-4 text-xs text-zinc-600">
-                {filtered.length}건{query && ` · "${query}"`}{tickerSearch && ` · ${tickerSearch.toUpperCase()}`}
+                {scored.length}건{query && ` · "${query}"`}{tickerSearch && ` · ${tickerSearch.toUpperCase()}`}
               </div>
             )}
 
-            {/* Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filtered.map((item, i) => (
-                <NewsCard key={`${item.url}-${i}`} item={item} />
+            {/* 시장 영향도 TOP */}
+            <ImpactSection items={topItems} now={now} />
+
+            {/* 최신 피드 (일자 그룹) */}
+            <section>
+              {!hasActiveFilter && (
+                <h2 className="sr-only">최신 뉴스</h2>
+              )}
+              {feedGroups.map((group) => (
+                <div key={group.label} className="mb-6 last:mb-0">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">{group.label}</span>
+                    <span className="h-px flex-1 bg-zinc-800/60" />
+                    <span className="text-[10px] font-mono text-zinc-700">{group.items.length}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    {group.items.map((item, i) => (
+                      <FeedRow key={`feed-${item.url}-${i}`} item={item} now={now} />
+                    ))}
+                  </div>
+                </div>
               ))}
-            </div>
+            </section>
 
             {/* Load more */}
-            {hasMoreRef.current && sentimentFilter === 'all' && !query && (
+            {showLoadMore && (
               <div className="flex justify-center pt-10">
                 <button
                   onClick={handleLoadMore}

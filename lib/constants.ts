@@ -36,6 +36,14 @@ export const STOCK_NEWS_DEFAULT_LIMIT = 10;
 export const STOCK_NEWS_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2분
 export const STOCK_NEWS_FORCE_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10분
 
+// ── News list page (시장 영향도) ──
+// 영향도 = |감성점수| × 신뢰도 × 최신성(시간 감쇠). 목록 데이터만으로 산출.
+export const NEWS_LIST_PAGE_SIZE = 48;
+export const NEWS_IMPACT_TOP_COUNT = 5; // "시장 영향도 TOP" 섹션 노출 개수 (리드 1 + 리스트 4)
+export const NEWS_IMPACT_RECENCY_HALFLIFE_HOURS = 24; // 최신성 반감기 — 24h 지나면 가중 50%
+export const NEWS_IMPACT_MIN_FOR_TOP = 0.12; // 이 값 미만이면 TOP 섹션에서 제외(중립/저신뢰 노이즈 컷)
+export const NEWS_IMPACT_BAR_SEGMENTS = 4; // 영향도 바 세그먼트 수
+
 // ── Stock detail chart / quote ──
 export const CHART_MINUTE_PERIODS = ['1min', '5min', '30min', '60min'] as const;
 export const CHART_UPPER_PERIODS = ['day', 'week', 'month', 'year'] as const;
@@ -46,6 +54,26 @@ export const CHART_UPPER_LABELS: Record<string, string> = {
   day: '일', week: '주', month: '월', year: '년',
 };
 export const CHART_DEFAULT_PERIOD = 'day';
+
+/**
+ * 차트 기본 가시(visible) 봉 개수 — 기간별 합리적 lookback.
+ * 사용자는 스크롤/핀치로 더 멀리 확장 가능. fitContent 대신 사용해 라벨 가독성 확보.
+ * 1min(~1일 분량 200) / 5min(~1주) / 30min(~1주) / 60min(~1개월) /
+ * day(~6개월) / week(~2년) / month(~10년) / year(~25년).
+ */
+export const CHART_VISIBLE_BARS: Record<
+  '1min' | '5min' | '30min' | '60min' | 'day' | 'week' | 'month' | 'year',
+  number
+> = {
+  '1min': 200,
+  '5min': 200,
+  '30min': 150,
+  '60min': 150,
+  day: 130,
+  week: 104,
+  month: 120,
+  year: 25,
+};
 export const QUOTE_POLL_INTERVAL_MS = 8_000; // 8초
 
 // ── Stock Fundamentals ──
