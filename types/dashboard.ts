@@ -331,6 +331,8 @@ export interface ApiStockNewsItem {
   score: number;
   sentiment_label: SentimentLabel;
   confidence: number;
+  /** 서버 산출 시장 영향도 0..1 (|score| × confidence × 최신성). 라이브 피드 등 일부 경로는 없을 수 있음. */
+  impact?: number;
 }
 
 /** GET /api/news 응답의 뉴스 분석(한국어 요약·영향) */

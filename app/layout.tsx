@@ -9,6 +9,7 @@ import "./globals.css";
 // (자식이 'use client'이므로 ssr:false 없이도 클라이언트 전용으로 동작)
 const ChatWidget = dynamic(() => import("@/components/chat/ChatWidget"));
 const AlertWatcher = dynamic(() => import("@/components/common/AlertWatcher"));
+const NavSidebar = dynamic(() => import("@/components/common/NavSidebar"));
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <NavSidebar />
         {children}
         <ChatWidget />
         <AlertWatcher />

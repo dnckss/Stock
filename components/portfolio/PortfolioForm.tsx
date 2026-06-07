@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Flame, Scale, Shield, Zap, Clock, Calendar, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Loader2, TrendingUp, Scale, Shield, Timer, Clock, Calendar, ChevronDown, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PORTFOLIO_STYLES,
@@ -25,13 +25,13 @@ export interface PortfolioFormValues {
 }
 
 const STYLE_ICONS: Record<string, React.ElementType> = {
-  aggressive: Flame,
+  aggressive: TrendingUp,
   balanced: Scale,
   conservative: Shield,
 };
 
 const PERIOD_ICONS: Record<string, React.ElementType> = {
-  short: Zap,
+  short: Timer,
   medium: Clock,
   long: Calendar,
 };
@@ -80,7 +80,7 @@ export default function PortfolioForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {/* ── Section: 투자 기본 설정 ── */}
       <div className="space-y-5">
         {/* Budget */}
@@ -96,9 +96,9 @@ export default function PortfolioForm({
               onChange={(e) => setBudget(e.target.value)}
               placeholder="10,000"
               disabled={isLoading}
-              className="w-full text-sm font-mono bg-zinc-900/60 border border-zinc-800/50 rounded-xl pl-8 pr-4 py-3
+              className="w-full text-sm font-mono bg-zinc-950/60 border border-zinc-800/70 rounded-lg pl-8 pr-4 py-3
                          text-zinc-100 placeholder:text-zinc-600
-                         focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20
+                         focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20
                          disabled:opacity-50 transition-colors"
             />
           </div>
@@ -110,10 +110,10 @@ export default function PortfolioForm({
                 type="button"
                 onClick={() => setBudget(String(v))}
                 disabled={isLoading}
-                className={`flex-1 text-[11px] font-mono py-1.5 rounded-lg border transition-all duration-200 disabled:opacity-50
+                className={`flex-1 text-[11px] font-mono py-1.5 rounded-md border transition-all duration-200 disabled:opacity-50
                   ${budgetNum === v
-                    ? 'border-violet-500/50 bg-violet-500/10 text-violet-400'
-                    : 'border-zinc-800/50 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400'
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                    : 'border-zinc-800/70 bg-zinc-950/30 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
                   }`}
               >
                 ${v.toLocaleString()}
@@ -125,7 +125,7 @@ export default function PortfolioForm({
         {/* Style */}
         <div>
           <label className="block text-xs font-medium text-zinc-400 mb-2">투자 성향</label>
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {PORTFOLIO_STYLES.map((s) => {
               const Icon = STYLE_ICONS[s.key];
               const selected = style === s.key;
@@ -135,17 +135,17 @@ export default function PortfolioForm({
                   type="button"
                   onClick={() => setStyle(s.key as PortfolioStyle)}
                   disabled={isLoading}
-                  className={`relative flex flex-col items-center gap-1.5 p-3.5 rounded-xl border transition-all duration-200 disabled:opacity-50
+                  className={`relative flex min-h-[104px] flex-col items-start gap-2 p-4 rounded-lg border text-left transition-all duration-200 disabled:opacity-50
                     ${selected
-                      ? 'border-violet-500/50 bg-violet-500/10'
-                      : 'border-zinc-800/50 hover:border-zinc-700 hover:bg-white/[0.02]'
+                      ? 'border-emerald-500/40 bg-emerald-500/10'
+                      : 'border-zinc-800/70 bg-zinc-950/30 hover:border-zinc-700 hover:bg-white/[0.02]'
                     }`}
                 >
-                  <Icon className={`w-5 h-5 ${selected ? 'text-violet-400' : 'text-zinc-500'}`} />
-                  <span className={`text-sm font-medium ${selected ? 'text-violet-300' : 'text-zinc-300'}`}>
+                  <Icon className={`w-5 h-5 ${selected ? 'text-emerald-300' : 'text-zinc-500'}`} />
+                  <span className={`text-sm font-semibold ${selected ? 'text-emerald-200' : 'text-zinc-200'}`}>
                     {s.label}
                   </span>
-                  <span className={`text-[10px] leading-tight text-center ${selected ? 'text-violet-400/70' : 'text-zinc-600'}`}>
+                  <span className={`text-[11px] leading-snug ${selected ? 'text-emerald-300/70' : 'text-zinc-500'}`}>
                     {s.description}
                   </span>
                 </button>
@@ -167,17 +167,17 @@ export default function PortfolioForm({
                   type="button"
                   onClick={() => setPeriod(p.key as PortfolioPeriod)}
                   disabled={isLoading}
-                  className={`flex flex-col items-center gap-1 p-3 rounded-xl border transition-all duration-200 disabled:opacity-50
+                  className={`flex flex-col items-center gap-1 p-3 rounded-lg border transition-all duration-200 disabled:opacity-50
                     ${selected
-                      ? 'border-violet-500/50 bg-violet-500/10'
-                      : 'border-zinc-800/50 hover:border-zinc-700 hover:bg-white/[0.02]'
+                      ? 'border-emerald-500/40 bg-emerald-500/10'
+                      : 'border-zinc-800/70 bg-zinc-950/30 hover:border-zinc-700 hover:bg-white/[0.02]'
                     }`}
                 >
-                  <Icon className={`w-4 h-4 ${selected ? 'text-violet-400' : 'text-zinc-500'}`} />
-                  <span className={`text-sm font-medium ${selected ? 'text-violet-300' : 'text-zinc-300'}`}>
+                  <Icon className={`w-4 h-4 ${selected ? 'text-emerald-300' : 'text-zinc-500'}`} />
+                  <span className={`text-sm font-medium ${selected ? 'text-emerald-200' : 'text-zinc-300'}`}>
                     {p.label}
                   </span>
-                  <span className={`text-[10px] ${selected ? 'text-violet-400/70' : 'text-zinc-600'}`}>
+                  <span className={`text-[10px] ${selected ? 'text-emerald-300/70' : 'text-zinc-600'}`}>
                     {p.description}
                   </span>
                 </button>
@@ -188,7 +188,7 @@ export default function PortfolioForm({
       </div>
 
       {/* ── Section: 세부 설정 (collapsible) ── */}
-      <div className="border-t border-zinc-800/50 pt-4">
+      <div className="border-t border-zinc-800/70 pt-4">
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
@@ -222,10 +222,10 @@ export default function PortfolioForm({
                           type="button"
                           onClick={() => toggleSector(sector)}
                           disabled={isLoading}
-                          className={`text-[11px] font-mono px-2.5 py-1.5 rounded-lg border transition-all duration-200 disabled:opacity-50
+                          className={`text-[11px] font-mono px-2.5 py-1.5 rounded-md border transition-all duration-200 disabled:opacity-50
                             ${selected
-                              ? 'border-violet-500/50 bg-violet-500/10 text-violet-400'
-                              : 'border-zinc-800/50 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400'
+                              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                              : 'border-zinc-800/70 bg-zinc-950/30 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
                             }`}
                         >
                           {sector}
@@ -246,9 +246,9 @@ export default function PortfolioForm({
                     onChange={(e) => setInclude(e.target.value)}
                     placeholder="AAPL, MSFT"
                     disabled={isLoading}
-                    className="w-full text-sm font-mono bg-zinc-900/60 border border-zinc-800/50 rounded-xl px-4 py-2.5
+                    className="w-full text-sm font-mono bg-zinc-950/60 border border-zinc-800/70 rounded-lg px-4 py-2.5
                                text-zinc-100 placeholder:text-zinc-600
-                               focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20
+                               focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20
                                disabled:opacity-50 transition-colors"
                   />
                 </div>
@@ -264,9 +264,9 @@ export default function PortfolioForm({
                     onChange={(e) => setExclude(e.target.value)}
                     placeholder="TSLA, META"
                     disabled={isLoading}
-                    className="w-full text-sm font-mono bg-zinc-900/60 border border-zinc-800/50 rounded-xl px-4 py-2.5
+                    className="w-full text-sm font-mono bg-zinc-950/60 border border-zinc-800/70 rounded-lg px-4 py-2.5
                                text-zinc-100 placeholder:text-zinc-600
-                               focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20
+                               focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20
                                disabled:opacity-50 transition-colors"
                   />
                 </div>
@@ -275,7 +275,7 @@ export default function PortfolioForm({
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-medium text-zinc-400">최대 단일 종목 비중</label>
-                    <span className="text-sm font-mono font-bold text-violet-400 tabular-nums">{maxWeight}%</span>
+                    <span className="text-sm font-mono font-bold text-emerald-300 tabular-nums">{maxWeight}%</span>
                   </div>
                   <input
                     type="range"
@@ -287,9 +287,9 @@ export default function PortfolioForm({
                     disabled={isLoading}
                     className="w-full h-1.5 rounded-full bg-zinc-800 appearance-none cursor-pointer disabled:opacity-50
                                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-                               [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-violet-500
-                               [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-violet-400
-                               [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-violet-500/20
+                               [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-500
+                               [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-emerald-300
+                               [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-emerald-500/20
                                [&::-webkit-slider-thumb]:cursor-pointer"
                   />
                   <div className="flex justify-between mt-1">
@@ -313,9 +313,9 @@ export default function PortfolioForm({
                       onChange={(e) => setTargetReturn(e.target.value)}
                       placeholder="15"
                       disabled={isLoading}
-                      className="w-full text-sm font-mono bg-zinc-900/60 border border-zinc-800/50 rounded-xl px-4 py-2.5 pr-10
+                      className="w-full text-sm font-mono bg-zinc-950/60 border border-zinc-800/70 rounded-lg px-4 py-2.5 pr-10
                                  text-zinc-100 placeholder:text-zinc-600
-                                 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20
+                                 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20
                                  disabled:opacity-50 transition-colors"
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-mono text-zinc-500">%</span>
@@ -332,8 +332,8 @@ export default function PortfolioForm({
                       disabled={isLoading}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 rounded-full bg-zinc-800 border border-zinc-700/50 peer-checked:bg-violet-500/30 peer-checked:border-violet-500/50 transition-all" />
-                    <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-zinc-500 peer-checked:bg-violet-400 peer-checked:translate-x-4 transition-all" />
+                    <div className="w-9 h-5 rounded-full bg-zinc-800 border border-zinc-700/70 peer-checked:bg-emerald-500/25 peer-checked:border-emerald-500/50 transition-all" />
+                    <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-zinc-500 peer-checked:bg-emerald-300 peer-checked:translate-x-4 transition-all" />
                   </div>
                   <span className="text-sm text-zinc-400 group-hover:text-zinc-300 transition-colors">
                     배당주 선호
@@ -349,26 +349,26 @@ export default function PortfolioForm({
       <button
         type="submit"
         disabled={!isValid || isLoading}
-        className="w-full flex items-center justify-center gap-2.5 text-sm font-semibold py-3.5 rounded-xl
-                   border border-violet-500/50 bg-gradient-to-r from-violet-600/20 to-violet-500/10 text-violet-300
-                   hover:from-violet-600/30 hover:to-violet-500/20 hover:text-violet-200
+        className="w-full flex items-center justify-center gap-2.5 text-sm font-semibold py-3.5 rounded-lg
+                   border border-emerald-500/40 bg-emerald-500/10 text-emerald-200
+                   hover:border-emerald-400/50 hover:bg-emerald-500/15 hover:text-emerald-100
                    disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
       >
         {isLoading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            AI가 포트폴리오를 구성하고 있습니다...
+            포트폴리오를 구성하고 있습니다...
           </>
         ) : (
-          '포트폴리오 생성'
+          '포트폴리오 구성'
         )}
       </button>
 
       {/* Disclaimer */}
-      <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+      <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-zinc-950/40 border border-zinc-800/70">
         <AlertTriangle className="shrink-0 w-3.5 h-3.5 text-yellow-500/60 mt-0.5" />
         <p className="text-[11px] text-zinc-500 leading-relaxed">
-          AI 분석 결과는 투자 조언이 아닙니다. 모든 투자 결정은 본인의 판단과 책임하에 이루어져야 합니다.
+          분석 결과는 투자 조언이 아닙니다. 모든 투자 결정은 본인의 판단과 책임하에 이루어져야 합니다.
         </p>
       </div>
     </form>
