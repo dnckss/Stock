@@ -34,11 +34,16 @@ export function computeNewsImpact(item: ApiStockNewsItem, nowMs: number): number
   return clamp01(strength * confidence * recency);
 }
 
-/** 영향도 점수를 부여하고 영향도 내림차순으로 정렬한 새 배열을 반환. */
-export function scoreByImpact(items: ApiStockNewsItem[], nowMs: number): ScoredNewsItem[] {
-  return items
-    .map((item) => ({ ...item, impact: computeNewsImpact(item, nowMs) }))
-    .sort((a, b) => b.impact - a.impact);
+/**
+ * 각 항목에 영향도(impact)를 보장한다.
+ * - 서버가 내려준 `impact`(0..1)를 우선 사용하고, 없으면 클라이언트에서 계산(폴백).
+ * - 정렬은 하지 않는다(피드는 시간순, TOP은 서버 /api/news/top 사용).
+ */
+export function ensureImpact(items: ApiStockNewsItem[], nowMs: number): ScoredNewsItem[] {
+  return items.map((item) => ({
+    ...item,
+    impact: typeof item.impact === 'number' ? clamp01(item.impact) : computeNewsImpact(item, nowMs),
+  }));
 }
 
 /** 영향도(0..1) → 막대 채움 세그먼트 수(0..SEGMENTS). 0보다 크면 최소 1칸. */

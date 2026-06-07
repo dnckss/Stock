@@ -1234,6 +1234,31 @@ export async function fetchNewsList(options: {
   return res.json();
 }
 
+export interface NewsTopResponse {
+  items: ApiStockNewsItem[];
+  count: number;
+  limit: number;
+  window_hours: number;
+  half_life_hours: number;
+}
+
+/** GET /api/news/top — 최근 window_hours 내 뉴스를 시장 영향도(impact) 내림차순 상위 N개로 반환. */
+export async function fetchNewsTop(options: {
+  limit?: number;
+  windowHours?: number;
+  ticker?: string;
+  halfLifeHours?: number;
+}): Promise<NewsTopResponse> {
+  const qs = new URLSearchParams();
+  if (options.limit != null) qs.set('limit', String(options.limit));
+  if (options.windowHours != null) qs.set('window_hours', String(options.windowHours));
+  if (options.ticker) qs.set('ticker', options.ticker);
+  if (options.halfLifeHours != null) qs.set('half_life_hours', String(options.halfLifeHours));
+  const res = await fetch(`${API_BASE}/api/news/top?${qs}`);
+  if (!res.ok) throw new ApiError(res.status, '주요 뉴스를 불러올 수 없습니다');
+  return res.json();
+}
+
 // ── Backtest ──
 
 export async function fetchBacktestSummary(

@@ -37,12 +37,12 @@ export const STOCK_NEWS_POLL_INTERVAL_MS = 2 * 60 * 1000; // 2분
 export const STOCK_NEWS_FORCE_REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10분
 
 // ── News list page (시장 영향도) ──
-// 영향도 = |감성점수| × 신뢰도 × 최신성(시간 감쇠). 목록 데이터만으로 산출.
+// 영향도 = |감성점수| × 신뢰도 × 최신성(시간 감쇠). 서버(/api/news/list, /api/news/top)가 산출.
 export const NEWS_LIST_PAGE_SIZE = 48;
 export const NEWS_IMPACT_TOP_COUNT = 5; // "시장 영향도 TOP" 섹션 노출 개수 (리드 1 + 리스트 4)
-export const NEWS_IMPACT_RECENCY_HALFLIFE_HOURS = 24; // 최신성 반감기 — 24h 지나면 가중 50%
-export const NEWS_IMPACT_MIN_FOR_TOP = 0.12; // 이 값 미만이면 TOP 섹션에서 제외(중립/저신뢰 노이즈 컷)
+export const NEWS_IMPACT_RECENCY_HALFLIFE_HOURS = 24; // 최신성 반감기 — 24h 지나면 가중 50% (클라 폴백/서버 공통)
 export const NEWS_IMPACT_BAR_SEGMENTS = 4; // 영향도 바 세그먼트 수
+export const NEWS_TOP_WINDOW_HOURS = 72; // /api/news/top 랭킹 대상 최근 구간(시간)
 
 // ── Stock detail chart / quote ──
 export const CHART_MINUTE_PERIODS = ['1min', '5min', '30min', '60min'] as const;

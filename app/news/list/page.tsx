@@ -4,16 +4,17 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { Loader2, TrendingUp, TrendingDown, Minus, Search, X, Flame } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
-import { fetchNewsList } from '@/lib/api';
+import { fetchNewsList, fetchNewsTop } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import {
   NEWS_LIST_PAGE_SIZE,
   NEWS_IMPACT_TOP_COUNT,
-  NEWS_IMPACT_MIN_FOR_TOP,
   NEWS_IMPACT_BAR_SEGMENTS,
+  NEWS_IMPACT_RECENCY_HALFLIFE_HOURS,
+  NEWS_TOP_WINDOW_HOURS,
 } from '@/lib/constants';
 import {
-  scoreByImpact,
+  ensureImpact,
   groupNewsByDay,
   impactBarLevel,
   formatRelativeTime,
@@ -224,6 +225,7 @@ function FeedRow({ item, now }: { item: ScoredNewsItem; now: number }) {
 
 export default function NewsListPage() {
   const [items, setItems] = useState<ApiStockNewsItem[]>([]);
+  const [topRaw, setTopRaw] = useState<ApiStockNewsItem[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -265,14 +267,29 @@ export default function NewsListPage() {
     }
   }, []);
 
+  // 시장 영향도 TOP — 서버 /api/news/top (전체 코퍼스 최근 구간 기준). 보조 섹션이라 실패는 조용히 숨김.
+  const loadTop = useCallback(async () => {
+    try {
+      const res = await fetchNewsTop({
+        limit: NEWS_IMPACT_TOP_COUNT,
+        windowHours: NEWS_TOP_WINDOW_HOURS,
+        halfLifeHours: NEWS_IMPACT_RECENCY_HALFLIFE_HOURS,
+      });
+      if (mountedRef.current) setTopRaw(Array.isArray(res.items) ? res.items : []);
+    } catch {
+      if (mountedRef.current) setTopRaw([]);
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     mountedRef.current = true;
     loadPage(0, true);
+    loadTop();
     return () => {
       mountedRef.current = false;
     };
-  }, [loadPage]);
+  }, [loadPage, loadTop]);
 
   // Ticker search with debounce
   const handleTickerSearch = useCallback((value: string) => {
@@ -323,15 +340,13 @@ export default function NewsListPage() {
     [items, sentimentFilter, query],
   );
 
-  const scored = useMemo(() => scoreByImpact(filtered, now), [filtered, now]);
+  // 피드 항목 — 서버 impact 우선(없으면 폴백). 정렬은 일자 그룹핑에서 처리.
+  const scored = useMemo(() => ensureImpact(filtered, now), [filtered, now]);
 
-  // 영향도 TOP — 필터/검색이 없을 때만. 노이즈 컷(min impact) 후 상위 N.
+  // 영향도 TOP — 서버 /api/news/top 결과. 필터/검색 중에는 숨김.
   const topItems = useMemo(
-    () =>
-      hasActiveFilter
-        ? []
-        : scored.filter((it) => it.impact >= NEWS_IMPACT_MIN_FOR_TOP).slice(0, NEWS_IMPACT_TOP_COUNT),
-    [scored, hasActiveFilter],
+    () => (hasActiveFilter ? [] : ensureImpact(topRaw, now).slice(0, NEWS_IMPACT_TOP_COUNT)),
+    [topRaw, hasActiveFilter, now],
   );
 
   // 피드 — TOP에 노출된 항목은 중복 제거. 일자별 그룹핑.
