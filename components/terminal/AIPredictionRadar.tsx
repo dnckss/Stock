@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, memo } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -10,6 +10,7 @@ import {
   RADAR_TABS,
   RADAR_PERIODS,
   RADAR_DEFAULT_PERIOD,
+  RADAR_LAYOUT_ANIMATE_LIMIT,
   type RadarSortKey,
   type RadarPeriod,
 } from '@/lib/constants';
@@ -37,6 +38,9 @@ const BacktestDashboard = dynamic(() => import('./BacktestDashboard'), {
 });
 
 const DIVERGENCE_MAX = 0.5;
+// 행 1개의 대략적 높이(px) — 보이는 행 범위 계산용 추정치(py-2.5 + 콘텐츠 ≈ 44).
+const ESTIMATED_ROW_HEIGHT_PX = 44;
+const VISIBLE_RANGE_BUFFER = 4; // 위/아래 여유 행
 
 interface AIPredictionRadarProps {
   stocks: RadarStock[];
@@ -184,11 +188,14 @@ const PredictionRow = memo(function PredictionRow({
   stock,
   onClick,
   perf,
+  animateLayout,
 }: {
   stock: RadarStock;
   onClick: (ticker: string) => void;
   perf: PricePerformanceItem | undefined;
-  // 정렬 기준이 바뀔 때 memo 를 무효화해 layout 측정/애니메이션이 트리거되게 하는 토큰.
+  // 뷰포트에 보이는 행만 layout(이동) 애니메이션 — 화면 밖은 측정/트랜스폼 비용을 들이지 않는다.
+  animateLayout: boolean;
+  // animateLayout 인 행만 정렬 변경 시 리렌더되도록 memo 를 무효화하는 토큰.
   // (구조분해하지 않아도 memo 의 얕은 비교에 포함된다)
   orderToken: string;
 }) {
@@ -201,13 +208,14 @@ const PredictionRow = memo(function PredictionRow({
 
   return (
     <motion.tr
-      layout
-      initial={{ opacity: 0 }}
+      layout={animateLayout}
+      initial={animateLayout ? { opacity: 0 } : false}
       animate={{ opacity: stock.hasAlpha ? 1 : 0.7 }}
-      transition={{
-        layout: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] },
-        opacity: { duration: 0.25 },
-      }}
+      transition={
+        animateLayout
+          ? { layout: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }, opacity: { duration: 0.25 } }
+          : { duration: 0 }
+      }
       onClick={() => onClick(stock.ticker)}
       className={cn(
         'group hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50 cursor-pointer',
@@ -367,10 +375,43 @@ function AIPredictionRadarImpl({
     [router],
   );
 
+  // ── 보이는 행 범위만 애니메이션 ──
+  // 스크롤 컨테이너의 scrollTop/높이로 현재 뷰포트의 행 인덱스 구간을 계산한다.
+  // 이 구간의 행만 layout 애니메이션 + 정렬 변경 시 리렌더 → 수백 행이어도 부하를 ~화면분량으로 제한.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [animRange, setAnimRange] = useState({ first: 0, last: RADAR_LAYOUT_ANIMATE_LIMIT });
+  const rafRef = useRef<number | undefined>(undefined);
+
+  const recomputeRange = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const first = Math.max(0, Math.floor(el.scrollTop / ESTIMATED_ROW_HEIGHT_PX) - VISIBLE_RANGE_BUFFER);
+    const visibleCount = Math.ceil(el.clientHeight / ESTIMATED_ROW_HEIGHT_PX) + VISIBLE_RANGE_BUFFER * 2;
+    // 안전 상한: 비정상적으로 큰 뷰포트에서도 애니메이션 행 수를 제한
+    const last = first + Math.min(visibleCount, RADAR_LAYOUT_ANIMATE_LIMIT);
+    setAnimRange((prev) => (prev.first === first && prev.last === last ? prev : { first, last }));
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = undefined;
+      recomputeRange();
+    });
+  }, [recomputeRange]);
+
   const sorted = useMemo(
     () => sortAndFilter(stocks, activeTab, activePeriod, perfMap),
     [stocks, activeTab, activePeriod, perfMap],
   );
+
+  // 데이터/정렬이 바뀌어 리스트가 렌더된 뒤 보이는 범위를 재계산(초기 높이 확보 포함).
+  useEffect(() => {
+    recomputeRange();
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [recomputeRange, sorted.length, activeTab]);
 
   const { buyCount, sellCount, holdCount, alphaCount } = useMemo(() => {
     let buy = 0, sell = 0, hold = 0, alpha = 0;
@@ -504,7 +545,7 @@ function AIPredictionRadarImpl({
       ) : sorted.length === 0 ? (
         <EmptyState label={activeTabConfig?.label ?? activeTab} />
       ) : (
-        <div className="relative flex-1 overflow-y-auto terminal-scroll">
+        <div ref={scrollRef} onScroll={handleScroll} className="relative flex-1 overflow-y-auto terminal-scroll">
           <div className="absolute top-0 left-0 right-0 h-px z-20 overflow-hidden pointer-events-none">
             <div className="animate-live-sweep absolute h-full w-[40%] bg-gradient-to-r from-transparent via-green-500/80 to-transparent" />
           </div>
@@ -540,15 +581,20 @@ function AIPredictionRadarImpl({
               </tr>
             </thead>
             <tbody>
-              {sorted.map((stock) => (
-                <PredictionRow
-                  key={stock.ticker}
-                  stock={stock}
-                  perf={perfMap.get(stock.ticker.toUpperCase())}
-                  onClick={handleRowClick}
-                  orderToken={`${activeTab}:${activePeriod}`}
-                />
-              ))}
+              {sorted.map((stock, i) => {
+                const animateLayout = i >= animRange.first && i <= animRange.last;
+                return (
+                  <PredictionRow
+                    key={stock.ticker}
+                    stock={stock}
+                    perf={perfMap.get(stock.ticker.toUpperCase())}
+                    onClick={handleRowClick}
+                    animateLayout={animateLayout}
+                    // 보이는(애니메이션) 행만 정렬 변경 시 리렌더 → 화면 밖 행은 memo 로 스킵.
+                    orderToken={animateLayout ? `${activeTab}:${activePeriod}` : 'static'}
+                  />
+                );
+              })}
             </tbody>
           </table>
         </div>

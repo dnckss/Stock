@@ -262,6 +262,10 @@ export const RADAR_TABS: RadarTab[] = [
   { key: 'divergence', label: '괴리율', shortLabel: '괴리율' },
 ];
 
+// 정렬 변경 시 layout(이동) 애니메이션을 적용할 상단 행 수.
+// 화면 밖 긴 꼬리까지 측정/애니메이션하면 reflow 부하가 커서 상단 가시 영역만 애니메이션한다.
+export const RADAR_LAYOUT_ANIMATE_LIMIT = 24;
+
 function generateTimeSeries(): TimeSeriesPoint[] {
   const data: TimeSeriesPoint[] = [];
 
