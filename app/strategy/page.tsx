@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { RefreshCw, ChevronDown, Target } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { RefreshCw, ChevronDown, Target, AlertTriangle } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStrategyData } from '@/hooks/useStrategy';
@@ -198,6 +198,16 @@ export default function StrategyPage() {
   const { data, isLoading, error, retry } = useStrategyData();
   const [openTicker, setOpenTicker] = useState<string | null>(null);
 
+  // 5단계 로딩 애니메이션이 모두 끝난 뒤에만 결과를 노출한다.
+  // (데이터가 애니메이션보다 먼저 도착해도 시퀀스를 끝까지 보여준다.)
+  const [animationDone, setAnimationDone] = useState(false);
+
+  // 재시도 시 애니메이션을 처음부터 다시 재생하도록 완료 상태를 초기화한다.
+  const handleRetry = useCallback(() => {
+    setAnimationDone(false);
+    retry();
+  }, [retry]);
+
   // 전략실에는 매수(BUY) 추천만 노출한다.
   const buyPicks = data?.recommendations.filter((r) => r.direction === 'BUY') ?? [];
 
@@ -218,7 +228,7 @@ export default function StrategyPage() {
         )}
         <button
           type="button"
-          onClick={retry}
+          onClick={handleRetry}
           disabled={isLoading}
           className="text-zinc-500 hover:text-zinc-300 disabled:opacity-40 transition-colors"
           title="새로고침"
@@ -232,12 +242,12 @@ export default function StrategyPage() {
       </PageHeader>
 
       {/* Content */}
-      {isLoading ? (
+      {error ? (
+        <ErrorState message={error} onRetry={handleRetry} />
+      ) : isLoading || !animationDone || !data ? (
         <div className="h-[calc(100vh-56px)] flex flex-col">
-          <StrategyLoadingCanvas />
+          <StrategyLoadingCanvas onComplete={() => setAnimationDone(true)} />
         </div>
-      ) : error ? (
-        <ErrorState message={error} onRetry={retry} />
       ) : data ? (
         <motion.main
           className="relative max-w-7xl mx-auto px-6 py-8"
@@ -245,6 +255,23 @@ export default function StrategyPage() {
           animate="visible"
           variants={containerVariants}
         >
+          {/* AI 분석 일시 실패 안내 — 데이터(섹터/지표)는 그대로 노출 */}
+          {data.isFallback && (
+            <motion.div className="mb-6" variants={cardVariants}>
+              <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                <div>
+                  <p className="text-sm font-medium text-amber-200">
+                    AI 분석 일시 실패 — 곧 자동으로 갱신됩니다
+                  </p>
+                  <p className="mt-0.5 text-xs text-amber-300/70">
+                    아래 섹터 집계·시장 지표 등 데이터는 정상입니다.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Risk warnings */}
           {data.riskWarnings.length > 0 && (
             <motion.div className="mb-6" variants={cardVariants}>

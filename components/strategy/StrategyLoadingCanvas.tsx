@@ -110,7 +110,7 @@ const PHASES = [
   { label: 'Strategy', description: '최적 전략을 도출하고 있습니다' },
 ] as const;
 
-const PHASE_DURATION_MS = 12_000;
+const PHASE_DURATION_MS = 2_600; // 단계별 표시 시간 (5단계 × 2.6s ≈ 13s 전체 시퀀스)
 const SPAWN_INTERVAL_MS = 3_200;
 const MAX_VISIBLE = 16;
 const BATCH_SIZE = 3;
@@ -444,10 +444,12 @@ function DataCounter({ phaseIndex }: { phaseIndex: number }) {
 
 // ── Main ──
 
-export default function StrategyLoadingCanvas() {
+export default function StrategyLoadingCanvas({ onComplete }: { onComplete?: () => void }) {
   const [cards, setCards] = useState<FloatingCard[]>([]);
   const [phaseIndex, setPhaseIndex] = useState(0);
   const spawnRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
   useEffect(() => {
     setCards(generateBatch(MAX_VISIBLE));
@@ -472,6 +474,13 @@ export default function StrategyLoadingCanvas() {
     }, PHASE_DURATION_MS);
     return () => clearInterval(timer);
   }, []);
+
+  // 마지막(5번째) 단계까지 표시된 뒤 한 번만 완료를 알린다 → 결과는 이 이후에 노출.
+  useEffect(() => {
+    if (phaseIndex < PHASES.length - 1) return;
+    const t = setTimeout(() => onCompleteRef.current?.(), PHASE_DURATION_MS);
+    return () => clearTimeout(t);
+  }, [phaseIndex]);
 
   const phase = PHASES[phaseIndex];
 
