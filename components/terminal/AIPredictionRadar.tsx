@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, memo } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import {
   SIGNAL_CONFIG,
@@ -187,6 +188,9 @@ const PredictionRow = memo(function PredictionRow({
   stock: RadarStock;
   onClick: (ticker: string) => void;
   perf: PricePerformanceItem | undefined;
+  // 정렬 기준이 바뀔 때 memo 를 무효화해 layout 측정/애니메이션이 트리거되게 하는 토큰.
+  // (구조분해하지 않아도 memo 의 얕은 비교에 포함된다)
+  orderToken: string;
 }) {
   const sentimentPositive = stock.sentiment >= 0;
   const displayReturn = perf ? perf.changePct / 100 : stock.priceReturn;
@@ -196,12 +200,18 @@ const PredictionRow = memo(function PredictionRow({
   const hasReturn = Boolean(perf) || stock.hasLiveData;
 
   return (
-    <tr
+    <motion.tr
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: stock.hasAlpha ? 1 : 0.7 }}
+      transition={{
+        layout: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] },
+        opacity: { duration: 0.25 },
+      }}
       onClick={() => onClick(stock.ticker)}
       className={cn(
         'group hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50 cursor-pointer',
         stock.isTopPick && 'animate-signal-glow',
-        !stock.hasAlpha && 'opacity-70',
       )}
     >
       <td className="py-2.5 px-3">
@@ -286,7 +296,7 @@ const PredictionRow = memo(function PredictionRow({
           <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
         </div>
       </td>
-    </tr>
+    </motion.tr>
   );
 });
 
@@ -536,6 +546,7 @@ function AIPredictionRadarImpl({
                   stock={stock}
                   perf={perfMap.get(stock.ticker.toUpperCase())}
                   onClick={handleRowClick}
+                  orderToken={`${activeTab}:${activePeriod}`}
                 />
               ))}
             </tbody>
