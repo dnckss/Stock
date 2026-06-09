@@ -184,20 +184,15 @@ function MissingCell({ align = 'right' }: { align?: 'right' | 'center' | 'left' 
   );
 }
 
-const PredictionRow = memo(function PredictionRow({
+const ROW_BASE_CLASS =
+  'group hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50 cursor-pointer';
+
+function RowCells({
   stock,
-  onClick,
   perf,
-  animateLayout,
 }: {
   stock: RadarStock;
-  onClick: (ticker: string) => void;
   perf: PricePerformanceItem | undefined;
-  // 뷰포트에 보이는 행만 layout(이동) 애니메이션 — 화면 밖은 측정/트랜스폼 비용을 들이지 않는다.
-  animateLayout: boolean;
-  // animateLayout 인 행만 정렬 변경 시 리렌더되도록 memo 를 무효화하는 토큰.
-  // (구조분해하지 않아도 memo 의 얕은 비교에 포함된다)
-  orderToken: string;
 }) {
   const sentimentPositive = stock.sentiment >= 0;
   const displayReturn = perf ? perf.changePct / 100 : stock.priceReturn;
@@ -207,21 +202,7 @@ const PredictionRow = memo(function PredictionRow({
   const hasReturn = Boolean(perf) || stock.hasLiveData;
 
   return (
-    <motion.tr
-      layout={animateLayout}
-      initial={animateLayout ? { opacity: 0 } : false}
-      animate={{ opacity: stock.hasAlpha ? 1 : 0.7 }}
-      transition={
-        animateLayout
-          ? { layout: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }, opacity: { duration: 0.25 } }
-          : { duration: 0 }
-      }
-      onClick={() => onClick(stock.ticker)}
-      className={cn(
-        'group hover:bg-zinc-800/50 transition-colors border-b border-zinc-800/50 cursor-pointer',
-        stock.isTopPick && 'animate-signal-glow',
-      )}
-    >
+    <>
       <td className="py-2.5 px-3">
         <div className="flex items-center gap-2.5">
           <StockLogo ticker={stock.ticker} size={28} />
@@ -304,6 +285,54 @@ const PredictionRow = memo(function PredictionRow({
           <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
         </div>
       </td>
+    </>
+  );
+}
+
+const PredictionRow = memo(function PredictionRow({
+  stock,
+  onClick,
+  perf,
+  animateLayout,
+}: {
+  stock: RadarStock;
+  onClick: (ticker: string) => void;
+  perf: PricePerformanceItem | undefined;
+  // 뷰포트에 보이는 행만 모션 적용 — 화면 밖은 일반 tr 로 렌더해 비용 0.
+  animateLayout: boolean;
+  // animateLayout 인 행만 정렬/기간 변경 시 리렌더되도록 memo 를 무효화하는 토큰.
+  // (구조분해하지 않아도 memo 의 얕은 비교에 포함된다)
+  orderToken: string;
+}) {
+  const handleClick = () => onClick(stock.ticker);
+
+  // 화면 밖 행 — 모션 비용 없이 일반 tr (비알파는 클래스로 디밍).
+  if (!animateLayout) {
+    return (
+      <tr
+        onClick={handleClick}
+        className={cn(ROW_BASE_CLASS, stock.isTopPick && 'animate-signal-glow', !stock.hasAlpha && 'opacity-70')}
+      >
+        <RowCells stock={stock} perf={perf} />
+      </tr>
+    );
+  }
+
+  // 보이는 행 — 탭 전환 시 enter(페이드+슬라이드, key 에 tab 포함→remount), 같은 탭 재정렬은 layout 슬라이드.
+  return (
+    <motion.tr
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: stock.hasAlpha ? 1 : 0.7, y: 0 }}
+      transition={{
+        layout: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] },
+        opacity: { duration: 0.3 },
+        y: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] },
+      }}
+      onClick={handleClick}
+      className={cn(ROW_BASE_CLASS, stock.isTopPick && 'animate-signal-glow')}
+    >
+      <RowCells stock={stock} perf={perf} />
     </motion.tr>
   );
 });
@@ -585,12 +614,14 @@ function AIPredictionRadarImpl({
                 const animateLayout = i >= animRange.first && i <= animRange.last;
                 return (
                   <PredictionRow
-                    key={stock.ticker}
+                    // 보이는 행은 key 에 탭을 포함 → 탭 전환 시 remount 되어 enter 애니메이션이 모든 탭에서 재생.
+                    // 화면 밖 행은 ticker 키로 안정 유지(모션/리렌더 비용 없음).
+                    key={animateLayout ? `a:${activeTab}:${stock.ticker}` : stock.ticker}
                     stock={stock}
                     perf={perfMap.get(stock.ticker.toUpperCase())}
                     onClick={handleRowClick}
                     animateLayout={animateLayout}
-                    // 보이는(애니메이션) 행만 정렬 변경 시 리렌더 → 화면 밖 행은 memo 로 스킵.
+                    // 보이는 행만 정렬/기간 변경 시 리렌더 → 화면 밖 행은 memo 로 스킵.
                     orderToken={animateLayout ? `${activeTab}:${activePeriod}` : 'static'}
                   />
                 );
