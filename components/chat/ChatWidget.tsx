@@ -306,7 +306,9 @@ export default function ChatWidget() {
     setSessionsLoading(true);
     try {
       const data = await fetchChatSessions(20, 0);
-      setSessions(data.sessions);
+      // 백엔드 응답에 sessions 배열이 없으면(예상 못한 형태) undefined가 상태로 들어가
+      // HistoryDropdown의 sessions.length 접근에서 크래시 → 항상 배열을 보장한다.
+      setSessions(Array.isArray(data?.sessions) ? data.sessions : []);
     } catch { /* silent */ }
     finally { setSessionsLoading(false); }
   }, []);
