@@ -190,39 +190,41 @@ function HeroCard({
       <div className={cn('w-1 shrink-0', cfg.stripe)} aria-hidden />
 
       <div className="flex-1 min-w-0 px-5 sm:px-6 py-5 sm:py-6">
-        {/* Direction badge row */}
-        <div className="flex flex-wrap items-center gap-3">
-          <span
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ring-1',
-              cfg.text,
-              cfg.badgeBg,
-              cfg.badgeRing,
-            )}
-          >
-            <DirIcon className="w-3.5 h-3.5" />
-            {cfg.label}
-          </span>
-
-          {confidencePct != null ? (
-            <div className="flex items-center gap-2 min-w-[120px]">
-              <div className="h-1.5 w-24 rounded-full bg-zinc-800 overflow-hidden">
-                <div
-                  className={cn('h-full rounded-full transition-all duration-500', cfg.barFill)}
-                  style={{ width: `${confidencePct}%` }}
-                />
-              </div>
-              <span className="text-[11px] font-mono tabular-nums text-zinc-400">
-                {confidencePct}% 신뢰도
-              </span>
-            </div>
-          ) : isAnalysisPending ? (
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              분석 진행 중
+        {/* Direction badge row — 분석이 있을 때만 방향 배지, 생성 중이면 진행 표시, 분석 전엔 숨김 */}
+        {analysis?.impact ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ring-1',
+                cfg.text,
+                cfg.badgeBg,
+                cfg.badgeRing,
+              )}
+            >
+              <DirIcon className="w-3.5 h-3.5" />
+              {cfg.label}
             </span>
-          ) : null}
-        </div>
+
+            {confidencePct != null ? (
+              <div className="flex items-center gap-2 min-w-[120px]">
+                <div className="h-1.5 w-24 rounded-full bg-zinc-800 overflow-hidden">
+                  <div
+                    className={cn('h-full rounded-full transition-all duration-500', cfg.barFill)}
+                    style={{ width: `${confidencePct}%` }}
+                  />
+                </div>
+                <span className="text-[11px] font-mono tabular-nums text-zinc-400">
+                  {confidencePct}% 신뢰도
+                </span>
+              </div>
+            ) : null}
+          </div>
+        ) : isAnalysisPending ? (
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            분석 진행 중
+          </span>
+        ) : null}
 
         {/* Title */}
         <h1 className="mt-4 text-xl sm:text-2xl font-bold text-zinc-50 leading-snug tracking-tight">
@@ -279,16 +281,60 @@ function HeroCard({
 
 function AnalysisCard({
   analysis,
+  canAnalyze,
+  analysisRequested,
+  onRequestAnalysis,
   shouldPoll,
   pollExhausted,
   extractionFailed,
 }: {
   analysis: ApiNewsAnalysis | null;
+  canAnalyze: boolean;
+  analysisRequested: boolean;
+  onRequestAnalysis: () => void;
   shouldPoll: boolean;
   pollExhausted: boolean;
   extractionFailed: boolean;
 }) {
   if (!analysis) {
+    // 본문 추출 실패 → AI 분석 불가
+    if (extractionFailed) {
+      return (
+        <Card className="px-5 sm:px-6 py-5">
+          <p className="text-sm text-zinc-400">
+            본문 추출이 완료되지 않아 AI 요약을 생성할 수 없습니다.
+          </p>
+        </Card>
+      );
+    }
+    // 아직 분석 요청 전 → 사용자 액션으로 요청 (무거운 AI 호출을 기본 로드에서 분리)
+    if (!analysisRequested) {
+      if (!canAnalyze) return null;
+      return (
+        <Card className="px-5 sm:px-6 py-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-4 h-4 text-violet-300 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm text-zinc-200">AI 분석 요약</p>
+                <p className="mt-0.5 text-[11px] text-zinc-500">
+                  시장 영향·방향·관련 종목을 AI가 요약합니다. 필요할 때만 생성돼요.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onRequestAnalysis}
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-500/10 ring-1 ring-violet-500/30 px-3.5 py-2 text-xs font-medium text-violet-200 hover:bg-violet-500/15 transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              분석 보기
+            </button>
+          </div>
+        </Card>
+      );
+    }
+    // 분석 요청 후 생성 중
     if (shouldPoll) {
       return (
         <Card className="px-5 sm:px-6 py-5">
@@ -302,15 +348,7 @@ function AnalysisCard({
         </Card>
       );
     }
-    if (extractionFailed) {
-      return (
-        <Card className="px-5 sm:px-6 py-5">
-          <p className="text-sm text-zinc-400">
-            본문 추출이 완료되지 않아 AI 요약을 생성할 수 없습니다.
-          </p>
-        </Card>
-      );
-    }
+    // 요청했지만 실패/시도 소진
     if (pollExhausted) {
       return (
         <Card className="px-5 sm:px-6 py-5">
@@ -561,6 +599,9 @@ export default function NewsDetailView({
 }: NewsDetailViewProps) {
   const [analysis, setAnalysis] = useState<ApiNewsAnalysis | null>(initialAnalysis);
   const [pollExhausted, setPollExhausted] = useState(false);
+  // AI 분석은 무거우므로 기본 로드에서 분리한다. 사용자가 "분석 보기"를 누르면 analyze=1로 요청.
+  // 서버가 이미 캐시된 분석을 함께 내려준 경우(initialAnalysis 존재)는 바로 표시되고 버튼은 생략된다.
+  const [analysisRequested, setAnalysisRequested] = useState(false);
 
   const handleAnalysis = useCallback((a: ApiNewsAnalysis) => {
     setAnalysis(a);
@@ -570,13 +611,20 @@ export default function NewsDetailView({
     setPollExhausted(true);
   }, []);
 
+  const requestAnalysis = useCallback(() => {
+    setPollExhausted(false);
+    setAnalysisRequested(true);
+  }, []);
+
   const body = typeof articleMarkdown === 'string' ? articleMarkdown : '';
   const isBodyEmpty = body.trim().length === 0;
   const extractionOk = extractionStatus === 'ok' || extractionStatus === null;
   const extractionFailed = !!extractionStatus && extractionStatus !== 'ok';
+  const canAnalyze = !error && !!url && extractionOk && !isBodyEmpty;
 
+  // 사용자가 분석을 요청한 뒤에만 폴링(analyze=1) 시작.
   const shouldPollAnalysis =
-    !error && !!url && extractionOk && !isBodyEmpty && !analysis && !pollExhausted;
+    analysisRequested && canAnalyze && !analysis && !pollExhausted;
 
   const emptyMessage =
     extractionStatus === 'blocked'
@@ -647,6 +695,9 @@ export default function NewsDetailView({
 
             <AnalysisCard
               analysis={analysis}
+              canAnalyze={canAnalyze}
+              analysisRequested={analysisRequested}
+              onRequestAnalysis={requestAnalysis}
               shouldPoll={shouldPollAnalysis}
               pollExhausted={pollExhausted}
               extractionFailed={extractionFailed}

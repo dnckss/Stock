@@ -38,9 +38,12 @@ export default async function NewsDetailPage({
     error = 'url 파라미터가 필요합니다';
   } else {
     try {
+      // AI 분석(analyze=1)은 무거우므로 초기 로드에선 생략하고 본문만 빠르게 받는다.
+      // 분석은 상세 화면의 "분석 보기" 액션에서 analyze=1로 따로 요청한다.
+      // (서버가 이미 캐시된 분석을 함께 내려주면 initialAnalysis로 바로 표시된다.)
       const data = await fetchNewsDetail(url, {
         refresh: refreshRequested,
-        analyze: true,
+        analyze: false,
       });
       apiTitle = typeof data.title === 'string' ? data.title.trim() : '';
       apiPublisher =

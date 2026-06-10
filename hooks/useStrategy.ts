@@ -265,8 +265,11 @@ function parseStrategyResponse(raw: unknown): StrategyData | null {
   if (!raw || typeof raw !== 'object') return null;
   const response = raw as ApiStrategyResponse;
 
+  const isFallback = response?.is_fallback === true;
   const marketSummary = String(response?.market_summary ?? '').trim();
-  if (!marketSummary) return null;
+  // fallback 응답은 AI 브리핑(market_summary)이 비어도 집계 데이터(섹터/fear_greed)는 노출해야 하므로 통과.
+  // 일반 응답에서 market_summary가 없으면 형식 오류로 간주한다.
+  if (!marketSummary && !isFallback) return null;
 
   const sectors = (Array.isArray(response?.sector_data) ? response.sector_data : [])
     .map(parseSectorItem)
@@ -325,6 +328,7 @@ function parseStrategyResponse(raw: unknown): StrategyData | null {
     econAnalysis,
     riskWarnings,
     generatedAt,
+    isFallback,
   };
 }
 

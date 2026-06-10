@@ -82,9 +82,15 @@ export default function StrategyMarketSituation({
 
           {/* Summary */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-line">
-              {summary}
-            </p>
+            {summary.trim() ? (
+              <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-line">
+                {summary}
+              </p>
+            ) : (
+              <p className="text-sm italic text-zinc-500">
+                AI 브리핑을 준비 중입니다. 잠시 후 자동으로 갱신됩니다.
+              </p>
+            )}
           </div>
         </div>
       </div>

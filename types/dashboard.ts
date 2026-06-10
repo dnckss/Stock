@@ -1169,6 +1169,8 @@ export interface ApiStrategyResponse {
   econ_analysis?: ApiEconAnalysis | null;
   risk_warnings?: ApiRiskWarning[] | null;
   generated_at?: string;
+  /** AI 분석 일시 실패 시 true — 집계 데이터(섹터/fear_greed 등)는 그대로 두고 안내 배너를 노출한다 */
+  is_fallback?: boolean;
   /** @deprecated 하위호환 */
   top_picks?: ApiStrategyPick[];
   /** @deprecated 하위호환 */
@@ -1272,6 +1274,8 @@ export interface StrategyData {
   econAnalysis: EconAnalysis | null;
   riskWarnings: RiskWarning[];
   generatedAt: string | null;
+  /** AI 분석 일시 실패 응답 여부 — true면 안내 배너 노출(데이터는 그대로 표시) */
+  isFallback: boolean;
 }
 
 // ── Stock Fundamentals API Types (snake_case, backend) ──
