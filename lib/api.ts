@@ -61,10 +61,11 @@ import type {
 } from '@/types/dashboard';
 import { DAYS_KO, getFearGreedThreshold } from '@/lib/constants';
 
+// 백엔드는 HF Spaces로 이전됨. env로 오버라이드 가능(로컬 백엔드 띄울 때 등).
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+  process.env.NEXT_PUBLIC_API_URL ?? 'https://dncks-quantix-api.hf.space';
 export const WS_URL =
-  process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8000/ws/market';
+  process.env.NEXT_PUBLIC_WS_URL ?? 'wss://dncks-quantix-api.hf.space/ws/market';
 
 // ── Ticker name lookup ──
 
@@ -375,6 +376,72 @@ export class ApiError extends Error {
   }
 }
 
+// ── 공통 fetch 래퍼 (HF Spaces 이전 대응) ──
+// - 타임아웃(30s): Space가 자다 깰 때(콜드스타트) 첫 응답 지연 대비.
+// - 429: Retry-After 만큼 대기 후 1회 자동 재시도 + 토스트 안내.
+// 스트리밍 응답(chatStreamFetch)은 타임아웃이 스트림을 끊으므로 이 래퍼를 쓰지 않는다.
+const API_TIMEOUT_MS = 30_000;
+const RATE_LIMIT_DEFAULT_RETRY_MS = 5_000;
+const RATE_LIMIT_MAX_RETRY_MS = 30_000;
+
+function parseRetryAfterMs(header: string | null): number {
+  const sec = Number(header);
+  if (Number.isFinite(sec) && sec >= 0) {
+    return Math.min(sec * 1000, RATE_LIMIT_MAX_RETRY_MS);
+  }
+  return RATE_LIMIT_DEFAULT_RETRY_MS;
+}
+
+let lastRateLimitToastAt = 0;
+function notifyRateLimited(retryMs: number): void {
+  if (typeof window === 'undefined') return; // SSR 가드
+  const now = Date.now();
+  if (now - lastRateLimitToastAt < 3_000) return; // 토스트 스팸 방지
+  lastRateLimitToastAt = now;
+  // sonner는 클라이언트 전용 → 동적 import로 SSR 영향 제거
+  void import('sonner')
+    .then(({ toast }) => {
+      toast.error('요청이 많습니다', {
+        description: `${Math.ceil(retryMs / 1000)}초 후 자동으로 다시 시도합니다.`,
+      });
+    })
+    .catch(() => {
+      /* 토스트 실패는 무시 */
+    });
+}
+
+async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const run = async (): Promise<Response> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+    const external = init?.signal;
+    if (external) {
+      if (external.aborted) controller.abort();
+      else external.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+    try {
+      return await globalThis.fetch(input, { ...init, signal: controller.signal });
+    } catch (err) {
+      // 우리 타임아웃에 의한 중단은 친절한 메시지로 변환(외부 취소는 그대로 전파)
+      if (err instanceof DOMException && err.name === 'AbortError' && !external?.aborted) {
+        throw new ApiError(408, '서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  const res = await run();
+  if (res.status === 429) {
+    const retryMs = parseRetryAfterMs(res.headers.get('Retry-After'));
+    notifyRateLimited(retryMs);
+    await new Promise((resolve) => setTimeout(resolve, retryMs));
+    return run(); // 1회 자동 재시도
+  }
+  return res;
+}
+
 export async function fetchLatest(options?: {
   /** Radar 종목 수. 기본 500 (SP500 전체) */
   radarLimit?: number;
@@ -387,7 +454,7 @@ export async function fetchLatest(options?: {
   const url = qs.toString()
     ? `${API_BASE}/api/latest?${qs.toString()}`
     : `${API_BASE}/api/latest`;
-  const res = await fetch(url);
+  const res = await apiFetch(url);
   if (!res.ok) {
     throw new ApiError(res.status, '시장 데이터를 불러올 수 없습니다');
   }
@@ -422,7 +489,7 @@ export async function fetchStockDetail(
     news_refresh: String(safeNewsRefresh),
   });
 
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/stock/${encodeURIComponent(ticker)}?${qs.toString()}`,
   );
   if (res.status === 404) {
@@ -464,7 +531,7 @@ export async function fetchNewsDetail(
     analyze,
   });
 
-  const res = await fetch(`${API_BASE}/api/news?${qs.toString()}`);
+  const res = await apiFetch(`${API_BASE}/api/news?${qs.toString()}`);
 
   if (res.status === 400) {
     try {
@@ -505,7 +572,7 @@ export function apiStockNewsToRelatedNews(
 export async function requestReport(
   ticker: string,
 ): Promise<ApiReportGenerateResponse> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/report`,
     { method: 'POST' },
   );
@@ -531,7 +598,7 @@ export async function fetchStockChart(
   period: ChartPeriod = 'day',
 ): Promise<ApiChartResponse> {
   const qs = new URLSearchParams({ period });
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/chart?${qs.toString()}`,
   );
   if (!res.ok) {
@@ -543,7 +610,7 @@ export async function fetchStockChart(
 export async function fetchStockQuote(
   ticker: string,
 ): Promise<ApiStockQuote> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/quote`,
   );
   if (!res.ok) {
@@ -602,7 +669,7 @@ const VALID_REBOUND = new Set<ReboundRating>(['high', 'medium', 'low']);
 const VALID_ACTIONS = new Set<StrategyAction>(['BUY', 'SELL', 'WAIT', 'HOLD']);
 
 export async function fetchStockAnalysis(ticker: string): Promise<ApiStockAnalysisResponse> {
-  const res = await fetch(`${API_BASE}/api/stock/${encodeURIComponent(ticker)}/analysis`);
+  const res = await apiFetch(`${API_BASE}/api/stock/${encodeURIComponent(ticker)}/analysis`);
   if (!res.ok) {
     throw new ApiError(res.status, 'AI 분석을 불러올 수 없습니다');
   }
@@ -651,7 +718,7 @@ export function parseStockAnalysis(raw: ApiStockAnalysisResponse | null | undefi
 }
 
 export async function fetchStrategy(): Promise<ApiStrategyResponse> {
-  const res = await fetch(`${API_BASE}/api/strategy`);
+  const res = await apiFetch(`${API_BASE}/api/strategy`);
   if (!res.ok) {
     throw new ApiError(res.status, '전략 데이터를 불러올 수 없습니다');
   }
@@ -661,7 +728,7 @@ export async function fetchStrategy(): Promise<ApiStrategyResponse> {
 // ── S&P 500 Heatmap ──
 
 export async function fetchSP500Heatmap(signal?: AbortSignal): Promise<ApiHeatmapResponse> {
-  const res = await fetch(`${API_BASE}/api/heatmap/sp500`, { signal });
+  const res = await apiFetch(`${API_BASE}/api/heatmap/sp500`, { signal });
   if (!res.ok) {
     throw new ApiError(res.status, '히트맵 데이터를 불러올 수 없습니다');
   }
@@ -751,7 +818,7 @@ export async function fetchEconomicCalendar(options?: {
     refresh: String(refresh),
   });
 
-  const res = await fetch(`${API_BASE}/api/economic-calendar?${qs.toString()}`);
+  const res = await apiFetch(`${API_BASE}/api/economic-calendar?${qs.toString()}`);
   if (!res.ok) {
     throw new ApiError(res.status, '경제 일정을 불러올 수 없습니다');
   }
@@ -771,7 +838,7 @@ export async function fetchEconEventDetail(options: {
   if (options.forecast) qs.set('forecast', options.forecast);
   if (options.previous) qs.set('previous', options.previous);
 
-  const res = await fetch(`${API_BASE}/api/economic-calendar/detail?${qs.toString()}`);
+  const res = await apiFetch(`${API_BASE}/api/economic-calendar/detail?${qs.toString()}`);
   if (!res.ok) {
     throw new ApiError(res.status, '경제 일정 상세를 불러올 수 없습니다');
   }
@@ -827,7 +894,7 @@ export async function fetchPortfolio(options: {
   });
   if (options.exclude) qs.set('exclude', options.exclude);
 
-  const res = await fetch(`${API_BASE}/api/portfolio?${qs.toString()}`);
+  const res = await apiFetch(`${API_BASE}/api/portfolio?${qs.toString()}`);
   if (!res.ok) {
     throw new ApiError(res.status, '포트폴리오를 생성할 수 없습니다');
   }
@@ -976,7 +1043,7 @@ export function parsePortfolioFullResult(
 export async function fetchFundamentals(
   ticker: string,
 ): Promise<ApiFundamentalsResponse> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/fundamentals`,
   );
   if (!res.ok) {
@@ -989,7 +1056,7 @@ export async function fetchFundamentalsSection(
   ticker: string,
   section: FundamentalsSectionKey,
 ): Promise<ApiFundamentalsResponse> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/fundamentals/${encodeURIComponent(section)}`,
   );
   if (res.status === 400) {
@@ -1177,7 +1244,7 @@ export function parseFundamentals(
 export async function fetchPricePerformance(
   ticker: string,
 ): Promise<ApiPricePerformanceData | null> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/stock/${encodeURIComponent(ticker)}/fundamentals`,
   );
   if (!res.ok) {
@@ -1229,7 +1296,7 @@ export async function fetchNewsList(options: {
   if (options.offset != null) qs.set('offset', String(options.offset));
   if (options.ticker) qs.set('ticker', options.ticker);
   if (options.with_count) qs.set('with_count', '1');
-  const res = await fetch(`${API_BASE}/api/news/list?${qs}`);
+  const res = await apiFetch(`${API_BASE}/api/news/list?${qs}`);
   if (!res.ok) throw new ApiError(res.status, '뉴스 목록을 불러올 수 없습니다');
   return res.json();
 }
@@ -1254,7 +1321,7 @@ export async function fetchNewsTop(options: {
   if (options.windowHours != null) qs.set('window_hours', String(options.windowHours));
   if (options.ticker) qs.set('ticker', options.ticker);
   if (options.halfLifeHours != null) qs.set('half_life_hours', String(options.halfLifeHours));
-  const res = await fetch(`${API_BASE}/api/news/top?${qs}`);
+  const res = await apiFetch(`${API_BASE}/api/news/top?${qs}`);
   if (!res.ok) throw new ApiError(res.status, '주요 뉴스를 불러올 수 없습니다');
   return res.json();
 }
@@ -1269,7 +1336,7 @@ export async function fetchBacktestSummary(
     lookback_days: String(lookbackDays),
     horizons: horizons.join(','),
   });
-  const res = await fetch(`${API_BASE}/api/backtest/summary?${qs}`);
+  const res = await apiFetch(`${API_BASE}/api/backtest/summary?${qs}`);
   if (!res.ok) throw new ApiError(res.status, '백테스트 요약을 불러올 수 없습니다');
   return res.json();
 }
@@ -1282,7 +1349,7 @@ export async function fetchBacktestSignals(
     lookback_days: String(lookbackDays),
     horizons: horizons.join(','),
   });
-  const res = await fetch(`${API_BASE}/api/backtest/signals?${qs}`);
+  const res = await apiFetch(`${API_BASE}/api/backtest/signals?${qs}`);
   if (!res.ok) throw new ApiError(res.status, '시그널 백테스트를 불러올 수 없습니다');
   return res.json();
 }
@@ -1295,7 +1362,7 @@ export async function fetchBacktestStrategist(
     lookback_days: String(lookbackDays),
     horizons: horizons.join(','),
   });
-  const res = await fetch(`${API_BASE}/api/backtest/strategist?${qs}`);
+  const res = await apiFetch(`${API_BASE}/api/backtest/strategist?${qs}`);
   if (!res.ok) throw new ApiError(res.status, '전략 백테스트를 불러올 수 없습니다');
   return res.json();
 }
@@ -1313,7 +1380,7 @@ export async function fetchBacktestTrades(options: {
   if (options.lookback_days != null) qs.set('lookback_days', String(options.lookback_days));
   if (options.include_open) qs.set('include_open', '1');
   if (options.refresh) qs.set('refresh', '1');
-  const res = await fetch(`${API_BASE}/api/backtest/trades?${qs}`);
+  const res = await apiFetch(`${API_BASE}/api/backtest/trades?${qs}`);
   if (!res.ok) throw new ApiError(res.status, '백테스트 데이터를 불러올 수 없습니다');
   return res.json();
 }
@@ -1326,7 +1393,7 @@ export async function fetchBacktestLive(
     lookback_days: String(lookbackDays),
     horizons: horizons.join(','),
   });
-  const res = await fetch(`${API_BASE}/api/backtest/signals?${qs}`);
+  const res = await apiFetch(`${API_BASE}/api/backtest/signals?${qs}`);
   if (!res.ok) throw new ApiError(res.status, '실시간 시그널을 불러올 수 없습니다');
   return res.json();
 }
@@ -1347,12 +1414,17 @@ export async function chatStreamFetch(
   if (options?.session_id) body.session_id = options.session_id;
   if (options?.attachments?.length) body.attachments = options.attachments;
 
+  // 스트리밍 응답은 타임아웃 래퍼(apiFetch)를 쓰지 않는다(스트림이 끊김). 429만 직접 처리.
   const res = await fetch(`${API_BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal,
   });
+  if (res.status === 429) {
+    notifyRateLimited(parseRetryAfterMs(res.headers.get('Retry-After')));
+    throw new ApiError(429, '요청이 많습니다. 잠시 후 다시 시도해주세요');
+  }
   if (!res.ok) {
     throw new ApiError(res.status, 'AI 응답을 받을 수 없습니다');
   }
@@ -1361,7 +1433,7 @@ export async function chatStreamFetch(
 
 export async function extractTickers(query: string): Promise<string[]> {
   try {
-    const res = await fetch(
+    const res = await apiFetch(
       `${API_BASE}/api/chat/extract-tickers?q=${encodeURIComponent(query)}`,
     );
     if (!res.ok) return [];
@@ -1378,13 +1450,13 @@ export async function fetchChatSessions(
   limit = 20,
   offset = 0,
 ): Promise<ApiChatSessionsResponse> {
-  const res = await fetch(`${API_BASE}/api/chat/sessions?limit=${limit}&offset=${offset}`);
+  const res = await apiFetch(`${API_BASE}/api/chat/sessions?limit=${limit}&offset=${offset}`);
   if (!res.ok) throw new ApiError(res.status, '채팅 목록을 불러올 수 없습니다');
   return res.json();
 }
 
 export async function createChatSession(title?: string): Promise<ApiChatSession> {
-  const res = await fetch(`${API_BASE}/api/chat/sessions`, {
+  const res = await apiFetch(`${API_BASE}/api/chat/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title }),
@@ -1398,13 +1470,13 @@ export async function fetchChatSessionDetail(
   messageLimit?: number,
 ): Promise<ApiChatSessionDetail> {
   const qs = messageLimit != null ? `?message_limit=${messageLimit}` : '';
-  const res = await fetch(`${API_BASE}/api/chat/sessions/${sessionId}${qs}`);
+  const res = await apiFetch(`${API_BASE}/api/chat/sessions/${sessionId}${qs}`);
   if (!res.ok) throw new ApiError(res.status, '채팅 내용을 불러올 수 없습니다');
   return res.json();
 }
 
 export async function deleteChatSession(sessionId: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/chat/sessions/${sessionId}`, { method: 'DELETE' });
+  const res = await apiFetch(`${API_BASE}/api/chat/sessions/${sessionId}`, { method: 'DELETE' });
   if (!res.ok) throw new ApiError(res.status, '채팅을 삭제할 수 없습니다');
 }
 
@@ -1413,7 +1485,7 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
 export async function uploadChatFile(file: File): Promise<ApiChatFileResponse> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(`${API_BASE}/api/chat/files`, {
+  const res = await apiFetch(`${API_BASE}/api/chat/files`, {
     method: 'POST',
     body: form,
   });
