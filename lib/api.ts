@@ -66,6 +66,9 @@ export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? 'https://dncks-quantix-api.hf.space';
 export const WS_URL =
   process.env.NEXT_PUBLIC_WS_URL ?? 'wss://dncks-quantix-api.hf.space/ws/market';
+// REST 요청에 붙일 API 키(백엔드 401 게이트). WS는 키 불필요.
+// ⚠️ NEXT_PUBLIC_ 값은 클라이언트 번들에 노출됨 → 진짜 비밀이 아닌 레이트리밋/게이트 용도.
+export const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? '';
 
 // ── Ticker name lookup ──
 
@@ -410,6 +413,13 @@ function notifyRateLimited(retryMs: number): void {
     });
 }
 
+/** 모든 REST 요청에 X-API-Key 헤더를 주입(키가 있을 때만). */
+function withApiKey(headers?: HeadersInit): Headers {
+  const h = new Headers(headers);
+  if (API_KEY) h.set('X-API-Key', API_KEY);
+  return h;
+}
+
 async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const run = async (): Promise<Response> => {
     const controller = new AbortController();
@@ -420,7 +430,11 @@ async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<R
       else external.addEventListener('abort', () => controller.abort(), { once: true });
     }
     try {
-      return await globalThis.fetch(input, { ...init, signal: controller.signal });
+      return await globalThis.fetch(input, {
+        ...init,
+        headers: withApiKey(init?.headers),
+        signal: controller.signal,
+      });
     } catch (err) {
       // 우리 타임아웃에 의한 중단은 친절한 메시지로 변환(외부 취소는 그대로 전파)
       if (err instanceof DOMException && err.name === 'AbortError' && !external?.aborted) {
@@ -1417,7 +1431,7 @@ export async function chatStreamFetch(
   // 스트리밍 응답은 타임아웃 래퍼(apiFetch)를 쓰지 않는다(스트림이 끊김). 429만 직접 처리.
   const res = await fetch(`${API_BASE}/api/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withApiKey({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
     signal,
   });
