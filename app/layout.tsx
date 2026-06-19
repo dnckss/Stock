@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import dynamic from "next/dynamic";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 // 모든 페이지 layout에 항상 마운트되지만 초기 가시 UI는 없거나(AlertWatcher)
@@ -45,6 +46,7 @@ export default function RootLayout({
         <AlertWatcher />
         <Toaster theme="dark" position="top-center" richColors closeButton />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
